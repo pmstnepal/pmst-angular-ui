@@ -1,11 +1,12 @@
 import { Component, Input, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
+import { CommentSectionComponent } from '../../../shared/components/comments/comment-section.component';
 
 @Component({
   selector: 'pmst-news-detail',
   standalone: true,
-  imports: [CommonModule, RouterLink],
+  imports: [CommonModule, RouterLink, CommentSectionComponent],
   template: `
     <div class="news-detail py-8">
       <div class="container mx-auto px-4 max-w-4xl">
@@ -87,6 +88,11 @@ import { RouterLink } from '@angular/router';
               </div>
             </div>
           </article>
+
+          <!-- Comments Section -->
+          <div class="mt-12">
+            <pmst-comment-section [contentType]="'article'" [contentId]="slug"></pmst-comment-section>
+          </div>
         }
       </div>
     </div>
@@ -104,7 +110,8 @@ export class NewsDetailComponent {
     category: '',
     publishedAt: '',
     author: { name: '' },
-    tags: [] as string[]
+    tags: [] as string[],
+    featuredImage: '' as string | undefined
   });
 
   constructor() {
@@ -128,7 +135,8 @@ export class NewsDetailComponent {
         category: 'Fashion',
         publishedAt: new Date().toISOString(),
         author: { name: 'Fashion Editor' },
-        tags: ['Fashion Week', 'Models', '2024', 'Trends']
+        tags: ['Fashion Week', 'Models', '2024', 'Trends'],
+        featuredImage: undefined
       });
       this.loading.set(false);
     }, 500);

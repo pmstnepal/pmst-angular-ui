@@ -1,10 +1,11 @@
-import { Component } from '@angular/core';
+import { Component, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { RouterLink } from '@angular/router';
 
 @Component({
   selector: 'pmst-home',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, RouterLink],
   template: `
     <div class="home-page">
       <!-- Hero Section -->
@@ -17,7 +18,7 @@ import { CommonModule } from '@angular/common';
               Explore Showcase
             </a>
             <a routerLink="/register" class="border-2 border-white text-white px-8 py-3 rounded-lg font-semibold hover:bg-white/10 transition-colors">
-              Join as Model
+              Join Community
             </a>
           </div>
         </div>
@@ -94,8 +95,65 @@ import { CommonModule } from '@angular/common';
           </div>
         </div>
       </section>
+      <!-- CTA Section - Gallery Submission -->
+      <section class="py-16 bg-gradient-to-r from-pink-600 to-purple-600 text-white">
+        <div class="container mx-auto px-4 text-center">
+          <h2 class="text-3xl md:text-4xl font-bold mb-4">Submit Your Photo Collection</h2>
+          <p class="text-lg text-pink-100 mb-8 max-w-2xl mx-auto">
+            Showcase your photography and creative work. Create galleries and share your talent with the PMST community.
+          </p>
+          <a routerLink="/submit/gallery" class="inline-block bg-white text-pink-600 px-8 py-3 rounded-lg font-semibold hover:bg-gray-100 transition-colors">
+            Submit Gallery
+          </a>
+        </div>
+      </section>
+
+      <!-- CTA Section - Content Writer -->
+      <section class="py-16 bg-indigo-900 text-white">
+        <div class="container mx-auto px-4 text-center">
+          <h2 class="text-3xl md:text-4xl font-bold mb-4">Become a Voice In Nepali News & Entertainment</h2>
+          <p class="text-lg text-indigo-200 mb-8 max-w-2xl mx-auto">
+            Love writing about the latest Nepali news, movies, music, celebrities, and entertainment trends? 
+            Join us as a content writer and share exclusive updates with our audience!
+          </p>
+          <a routerLink="/submit/article" class="inline-block bg-white text-indigo-900 px-8 py-3 rounded-lg font-semibold hover:bg-gray-100 transition-colors">
+            Apply for Contributor Role
+          </a>
+        </div>
+      </section>
     </div>
   `,
   styles: [``]
 })
-export class HomeComponent {}
+export class HomeComponent {
+  latestNews = signal([
+    {
+      id: 1,
+      title: 'Supreme Court Denies Release: Rabi Lamichhane Remains in Jail',
+      category: 'News',
+      excerpt: 'Latest updates on the ongoing legal proceedings and court decisions.',
+      image: 'https://images.unsplash.com/photo-1589829545856-d10d557cf95f?w=400'
+    },
+    {
+      id: 2,
+      title: 'Meet and Greet with Pradeep Khadka held in America',
+      category: 'Entertainment',
+      excerpt: 'Presented by 4 Bhai Entertainment, the program with Nepali film superstar concluded in Gaithersburg, Maryland.',
+      image: 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=400'
+    },
+    {
+      id: 3,
+      title: 'Abha Dhungana\'s Debut Confirmed Through Kashyap',
+      category: 'Fashion',
+      excerpt: 'New talents emerging in Nepali cinema with promising debut announcements.',
+      image: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=400'
+    }
+  ]);
+
+  featuredModels = signal([
+    { id: 1, name: 'Punam Bhandari', category: 'Fashion', image: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=400' },
+    { id: 2, name: 'Rajshri', category: 'Runway', image: 'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?w=400' },
+    { id: 3, name: 'Abha Dhungana', category: 'Fashion', image: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=400' },
+    { id: 4, name: 'Featured Model', category: 'Events', image: 'https://images.unsplash.com/photo-1509631179647-0177331693ae?w=400' }
+  ]);
+}

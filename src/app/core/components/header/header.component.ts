@@ -17,10 +17,25 @@ import { CommonModule } from '@angular/common';
           </a>
 
           <!-- Desktop Navigation -->
-          <div class="hidden md:flex items-center space-x-6">
-            <a routerLink="/" routerLinkActive="text-indigo-600" [routerLinkActiveOptions]="{exact: true}" class="text-gray-700 hover:text-indigo-600 transition-colors">Home</a>
-            <a routerLink="/news" routerLinkActive="text-indigo-600" class="text-gray-700 hover:text-indigo-600 transition-colors">News</a>
-            <a routerLink="/showcase" routerLinkActive="text-indigo-600" class="text-gray-700 hover:text-indigo-600 transition-colors">Showcase</a>
+          <div class="hidden md:flex items-center space-x-1">
+            <a routerLink="/" routerLinkActive="text-indigo-600 bg-indigo-50" [routerLinkActiveOptions]="{exact: true}" class="px-3 py-2 rounded-md text-gray-700 hover:text-indigo-600 hover:bg-gray-50 transition-colors font-medium">Home</a>
+            
+            <!-- SPOTLIGHT with dropdown -->
+            <div class="relative group">
+              <button class="px-3 py-2 rounded-md text-gray-700 hover:text-indigo-600 hover:bg-gray-50 transition-colors font-medium flex items-center">
+                Spotlight
+                <svg class="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                </svg>
+              </button>
+              <div class="absolute top-full left-0 mt-1 w-48 bg-white rounded-lg shadow-lg border border-gray-200 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
+                <a routerLink="/spotlight" class="block px-4 py-2 text-gray-700 hover:bg-indigo-50 hover:text-indigo-600 first:rounded-t-lg">Entertainments</a>
+                <a routerLink="/news" class="block px-4 py-2 text-gray-700 hover:bg-indigo-50 hover:text-indigo-600 last:rounded-b-lg">News</a>
+              </div>
+            </div>
+            
+            <a routerLink="/news" routerLinkActive="text-indigo-600 bg-indigo-50" class="px-3 py-2 rounded-md text-gray-700 hover:text-indigo-600 hover:bg-gray-50 transition-colors font-medium">News</a>
+            <a routerLink="/showcase" routerLinkActive="text-indigo-600 bg-indigo-50" class="px-3 py-2 rounded-md text-gray-700 hover:text-indigo-600 hover:bg-gray-50 transition-colors font-medium">Showcase</a>
           </div>
 
           <!-- Auth Buttons -->
@@ -49,9 +64,16 @@ import { CommonModule } from '@angular/common';
         @if (isMobileMenuOpen()) {
           <div class="md:hidden py-4 border-t border-gray-200">
             <div class="flex flex-col space-y-2">
-              <a routerLink="/" (click)="closeMobileMenu()" class="px-3 py-2 text-gray-700 hover:text-indigo-600 hover:bg-gray-50 rounded-md">Home</a>
-              <a routerLink="/news" (click)="closeMobileMenu()" class="px-3 py-2 text-gray-700 hover:text-indigo-600 hover:bg-gray-50 rounded-md">News</a>
-              <a routerLink="/showcase" (click)="closeMobileMenu()" class="px-3 py-2 text-gray-700 hover:text-indigo-600 hover:bg-gray-50 rounded-md">Showcase</a>
+              <a routerLink="/" (click)="closeMobileMenu()" class="px-3 py-2 text-gray-700 hover:text-indigo-600 hover:bg-gray-50 rounded-md font-medium">Home</a>
+              <div class="px-3 py-2">
+                <span class="font-medium text-gray-700">Spotlight</span>
+                <div class="ml-4 mt-1 space-y-1">
+                  <a routerLink="/spotlight" (click)="closeMobileMenu()" class="block py-1 text-gray-600 hover:text-indigo-600">Entertainments</a>
+                  <a routerLink="/news" (click)="closeMobileMenu()" class="block py-1 text-gray-600 hover:text-indigo-600">News</a>
+                </div>
+              </div>
+              <a routerLink="/news" (click)="closeMobileMenu()" class="px-3 py-2 text-gray-700 hover:text-indigo-600 hover:bg-gray-50 rounded-md font-medium">News</a>
+              <a routerLink="/showcase" (click)="closeMobileMenu()" class="px-3 py-2 text-gray-700 hover:text-indigo-600 hover:bg-gray-50 rounded-md font-medium">Showcase</a>
               <hr class="my-2">
               <a routerLink="/login" (click)="closeMobileMenu()" class="px-3 py-2 text-gray-700 hover:text-indigo-600 hover:bg-gray-50 rounded-md">Sign In</a>
               <a routerLink="/register" (click)="closeMobileMenu()" class="px-3 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700">Join Now</a>

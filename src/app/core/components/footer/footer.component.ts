@@ -21,18 +21,20 @@ import { CommonModule } from '@angular/common';
             <h4 class="text-white font-semibold mb-4">Navigation</h4>
             <ul class="space-y-2">
               <li><a routerLink="/" class="hover:text-white transition-colors">Home</a></li>
+              <li><a routerLink="/spotlight" class="hover:text-white transition-colors">Spotlight</a></li>
               <li><a routerLink="/news" class="hover:text-white transition-colors">News</a></li>
               <li><a routerLink="/showcase" class="hover:text-white transition-colors">Showcase</a></li>
             </ul>
           </div>
 
-          <!-- Account -->
+          <!-- Quick Links -->
           <div>
-            <h4 class="text-white font-semibold mb-4">Account</h4>
+            <h4 class="text-white font-semibold mb-4">Quick Links</h4>
             <ul class="space-y-2">
-              <li><a routerLink="/login" class="hover:text-white transition-colors">Sign In</a></li>
-              <li><a routerLink="/register" class="hover:text-white transition-colors">Join Now</a></li>
-              <li><a routerLink="/profile/me" class="hover:text-white transition-colors">My Profile</a></li>
+              <li><a routerLink="/dashboard" class="hover:text-white transition-colors">My Dashboard</a></li>
+              <li><a routerLink="/submit/article" class="hover:text-white transition-colors">Submit Content</a></li>
+              <li><a routerLink="/submit/gallery" class="hover:text-white transition-colors">Submit Gallery</a></li>
+              <li><a routerLink="/login" class="hover:text-white transition-colors">Login</a></li>
             </ul>
           </div>
 
@@ -53,8 +55,18 @@ import { CommonModule } from '@angular/common';
           </div>
         </div>
 
-        <div class="border-t border-gray-800 mt-8 pt-8 text-center text-sm text-gray-500">
-          <p>&copy; {{ currentYear }} PMST US-Nepal. All rights reserved.</p>
+        <!-- Bottom Bar -->
+        <div class="border-t border-gray-800 mt-8 pt-8">
+          <div class="flex flex-col md:flex-row justify-between items-center">
+            <p class="text-sm text-gray-500">&copy; {{ currentYear }} PMST US-Nepal. All rights reserved.</p>
+            <div class="flex items-center space-x-4 mt-4 md:mt-0">
+              <a routerLink="/contact" class="text-sm text-gray-500 hover:text-white transition-colors">Contact Us</a>
+              <span class="text-gray-700">|</span>
+              <a routerLink="/terms" class="text-sm text-gray-500 hover:text-white transition-colors">Terms & Conditions</a>
+              <span class="text-gray-700">|</span>
+              <a routerLink="/privacy" class="text-sm text-gray-500 hover:text-white transition-colors">Privacy Policy</a>
+            </div>
+          </div>
         </div>
       </div>
     </footer>

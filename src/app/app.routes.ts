@@ -34,6 +34,26 @@ export const routes: Routes = [
     loadComponent: () => import('./features/user/profile.component').then(m => m.ProfileComponent)
   },
   {
+    path: 'dashboard',
+    loadComponent: () => import('./features/user/dashboard.component').then(m => m.DashboardComponent)
+  },
+  {
+    path: 'submit/article',
+    loadComponent: () => import('./features/user/submit-content.component').then(m => m.SubmitContentComponent)
+  },
+  {
+    path: 'submit/gallery',
+    loadComponent: () => import('./features/user/submit-gallery.component').then(m => m.SubmitGalleryComponent)
+  },
+  {
+    path: 'admin',
+    loadComponent: () => import('./features/admin/admin-dashboard.component').then(m => m.AdminDashboardComponent)
+  },
+  {
+    path: 'spotlight',
+    loadComponent: () => import('./features/spotlight/spotlight.component').then(m => m.SpotlightComponent)
+  },
+  {
     path: '**',
     redirectTo: ''
   }

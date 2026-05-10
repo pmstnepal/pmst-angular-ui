@@ -1,7 +1,7 @@
 import { Injectable, signal, computed, effect } from '@angular/core';
 import { Router } from '@angular/router';
 import { ApiService } from './api.service';
-import { Observable, tap, catchError, throwError, of } from 'rxjs';
+import { Observable, tap, catchError, throwError, of, map } from 'rxjs';
 
 export interface User {
   id: string;
