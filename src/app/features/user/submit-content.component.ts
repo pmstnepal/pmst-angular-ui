@@ -67,7 +67,7 @@ import { RouterLink } from '@angular/router';
                 placeholder="Brief summary of your article (150 characters max)"
                 maxlength="150"
               ></textarea>
-              <p class="text-xs text-gray-500 mt-1">{{ formData.excerpt?.length || 0 }}/150 characters</p>
+              <p class="text-xs text-gray-500 mt-1">{{ formData.excerpt.length || 0 }}/150 characters</p>
             </div>
 
             <!-- Content -->

@@ -1,7 +1,7 @@
 import { Component, Input, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
-import { CommentSectionComponent } from '../../../shared/components/comments/comment-section.component';
+import { CommentSectionComponent } from '../../shared/components/comments/comment-section.component';
 
 @Component({
   selector: 'pmst-news-detail',
