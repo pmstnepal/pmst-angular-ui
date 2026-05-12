@@ -1,0 +1,1700 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PMST US-Nepal Master Plan | Migration Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        primary: { 50: '#eef2ff', 100: '#e0e7ff', 500: '#6366f1', 600: '#4f46e5', 700: '#4338ca' }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+        .dark { background-color: #0f172a; color: #e2e8f0; }
+        .dark .bg-white { background-color: #1e293b; }
+        .dark .text-gray-900 { color: #e2e8f0; }
+        .dark .text-gray-600 { color: #94a3b8; }
+        .dark .bg-gray-50 { background-color: #334155; }
+        .dark .bg-gray-100 { background-color: #475569; }
+        .dark .border-gray-200 { border-color: #475569; }
+        .progress-bar { transition: width 0.5s ease; }
+        .kanban-card { transition: all 0.3s ease; }
+        .kanban-card:hover { transform: translateY(-2px); box-shadow: 0 10px 25px rgba(0,0,0,0.15); }
+        @media print { .no-print { display: none !important; } }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+    <!-- Header -->
+    <header class="bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-lg sticky top-0 z-50">
+        <div class="container mx-auto px-6 py-4">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                    <i data-lucide="layout-dashboard" class="w-8 h-8"></i>
+                    <div>
+                        <h1 class="text-2xl font-bold">PMST US-Nepal Master Plan</h1>
+                        <p class="text-indigo-100 text-sm">WordPress → AWS Serverless Migration Dashboard</p>
+                    </div>
+                </div>
+                <div class="flex items-center gap-3">
+                    <button onclick="toggleDarkMode()" class="p-2 rounded-lg bg-white/20 hover:bg-white/30 transition-colors no-print" title="Toggle Dark Mode">
+                        <i data-lucide="moon" class="w-5 h-5"></i>
+                    </button>
+                    <button onclick="window.print()" class="p-2 rounded-lg bg-white/20 hover:bg-white/30 transition-colors no-print" title="Print / PDF">
+                        <i data-lucide="printer" class="w-5 h-5"></i>
+                    </button>
+                    <span class="bg-white/20 px-3 py-1 rounded-full text-sm">Last Updated: <span id="lastUpdated"></span></span>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Navigation Tabs -->
+    <nav class="bg-white shadow-sm border-b border-gray-200 sticky top-[73px] z-40 no-print">
+        <div class="container mx-auto px-6">
+            <div class="flex gap-1 overflow-x-auto py-2" id="tabNav">
+                <button onclick="showTab('overview')" class="tab-btn px-4 py-2 rounded-lg text-sm font-medium transition-colors bg-indigo-100 text-indigo-700" data-tab="overview">
+                    <i data-lucide="layout-grid" class="w-4 h-4 inline mr-1"></i>Overview
+                </button>
+                <button onclick="showTab('architecture')" class="tab-btn px-4 py-2 rounded-lg text-sm font-medium transition-colors hover:bg-gray-100 text-gray-600" data-tab="architecture">
+                    <i data-lucide="layers" class="w-4 h-4 inline mr-1"></i>Architecture
+                </button>
+                <button onclick="showTab('auth')" class="tab-btn px-4 py-2 rounded-lg text-sm font-medium transition-colors hover:bg-gray-100 text-gray-600" data-tab="auth">
+                    <i data-lucide="shield" class="w-4 h-4 inline mr-1"></i>Auth
+                </button>
+                <button onclick="showTab('database')" class="tab-btn px-4 py-2 rounded-lg text-sm font-medium transition-colors hover:bg-gray-100 text-gray-600" data-tab="database">
+                    <i data-lucide="database" class="w-4 h-4 inline mr-1"></i>Database
+                </button>
+                <button onclick="showTab('plugins')" class="tab-btn px-4 py-2 rounded-lg text-sm font-medium transition-colors hover:bg-gray-100 text-gray-600" data-tab="plugins">
+                    <i data-lucide="puzzle" class="w-4 h-4 inline mr-1"></i>Plugins
+                </button>
+                <button onclick="showTab('components')" class="tab-btn px-4 py-2 rounded-lg text-sm font-medium transition-colors hover:bg-gray-100 text-gray-600" data-tab="components">
+                    <i data-lucide="check-square" class="w-4 h-4 inline mr-1"></i>Components
+                </button>
+                <button onclick="showTab('migration')" class="tab-btn px-4 py-2 rounded-lg text-sm font-medium transition-colors hover:bg-gray-100 text-gray-600" data-tab="migration">
+                    <i data-lucide="git-branch" class="w-4 h-4 inline mr-1"></i>Migration
+                </button>
+                <button onclick="showTab('infrastructure')" class="tab-btn px-4 py-2 rounded-lg text-sm font-medium transition-colors hover:bg-gray-100 text-gray-600" data-tab="infrastructure">
+                    <i data-lucide="hard-drive" class="w-4 h-4 inline mr-1"></i>Infrastructure
+                </button>
+                <button onclick="showTab('local-testing')" class="tab-btn px-4 py-2 rounded-lg text-sm font-medium transition-colors hover:bg-gray-100 text-gray-600" data-tab="local-testing">
+                    <i data-lucide="flask-conical" class="w-4 h-4 inline mr-1"></i>Local Testing
+                </button>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="container mx-auto px-6 py-8">
+        
+        <!-- Tab 1: Overview -->
+        <div id="tab-overview" class="tab-content active">
+            <!-- Hero Stats -->
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+                <div class="bg-white rounded-xl shadow-lg p-6 text-center">
+                    <div class="text-4xl font-bold text-indigo-600 mb-2">38</div>
+                    <div class="text-sm text-gray-600">WordPress Plugins</div>
+                    <div class="text-xs text-gray-400 mt-1">→ 45+ Angular Components</div>
+                </div>
+                <div class="bg-white rounded-xl shadow-lg p-6 text-center">
+                    <div class="text-4xl font-bold text-green-600 mb-2">11</div>
+                    <div class="text-sm text-gray-600">App Routes</div>
+                    <div class="text-xs text-gray-400 mt-1">All prerendered</div>
+                </div>
+                <div class="bg-white rounded-xl shadow-lg p-6 text-center">
+                    <div class="text-4xl font-bold text-purple-600 mb-2">60%</div>
+                    <div class="text-sm text-gray-600">Cost Reduction</div>
+                    <div class="text-xs text-gray-400 mt-1">vs WordPress hosting</div>
+                </div>
+                <div class="bg-white rounded-xl shadow-lg p-6 text-center">
+                    <div class="text-4xl font-bold text-orange-600 mb-2">8</div>
+                    <div class="text-sm text-gray-600">Week Timeline</div>
+                    <div class="text-xs text-gray-400 mt-1">5 phases</div>
+                </div>
+            </div>
+
+            <!-- Cost Comparison -->
+            <div class="bg-white rounded-xl shadow-lg p-8 mb-8">
+                <h2 class="text-2xl font-bold mb-6 flex items-center gap-2">
+                    <i data-lucide="dollar-sign" class="text-green-600"></i>
+                    Cost Comparison
+                </h2>
+                <div class="grid md:grid-cols-2 gap-8">
+                    <div class="bg-red-50 rounded-lg p-6 border border-red-200">
+                        <h3 class="font-bold text-red-800 mb-4">Current: WordPress on Hostinger</h3>
+                        <ul class="space-y-2 text-sm">
+                            <li class="flex justify-between"><span>Hosting (Business Plan)</span><span class="font-semibold">~$48/mo</span></li>
+                            <li class="flex justify-between"><span>CDN (external)</span><span class="font-semibold">~$20/mo</span></li>
+                            <li class="flex justify-between"><span>Backup/Security plugins</span><span class="font-semibold">~$30/mo</span></li>
+                            <li class="flex justify-between border-t pt-2"><span class="font-bold">Monthly Total</span><span class="font-bold text-red-600">~$98/mo</span></li>
+                            <li class="flex justify-between"><span class="font-bold">Yearly</span><span class="font-bold text-red-600">~$1,176</span></li>
+                        </ul>
+                    </div>
+                    <div class="bg-green-50 rounded-lg p-6 border border-green-200">
+                        <h3 class="font-bold text-green-800 mb-4">New: AWS Serverless</h3>
+                        <ul class="space-y-2 text-sm">
+                            <li class="flex justify-between"><span>CloudFront CDN</span><span class="font-semibold">~$8/mo</span></li>
+                            <li class="flex justify-between"><span>S3 Storage</span><span class="font-semibold">~$2/mo</span></li>
+                            <li class="flex justify-between"><span>RDS PostgreSQL</span><span class="font-semibold">~$15/mo</span></li>
+                            <li class="flex justify-between"><span>Lambda (1M requests)</span><span class="font-semibold">~$2/mo</span></li>
+                            <li class="flex justify-between"><span>Cognito (10k MAU)</span><span class="font-semibold">~$3/mo</span></li>
+                            <li class="flex justify-between border-t pt-2"><span class="font-bold">Monthly Total</span><span class="font-bold text-green-600">~$30/mo</span></li>
+                            <li class="flex justify-between"><span class="font-bold">Yearly</span><span class="font-bold text-green-600">~$360</span></li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <!-- GitHub Repositories Quick Reference -->
+            <div class="bg-white rounded-xl shadow-lg p-8 mb-8">
+                <h2 class="text-2xl font-bold mb-6 flex items-center gap-2">
+                    <i data-lucide="git-branch" class="text-indigo-600"></i>
+                    GitHub Repositories (pmstnepal)
+                </h2>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-sm">
+                        <thead class="bg-gray-100">
+                            <tr>
+                                <th class="px-4 py-2 text-left">Repository</th>
+                                <th class="px-4 py-2 text-left">Purpose</th>
+                                <th class="px-4 py-2 text-left">Status</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y">
+                            <tr>
+                                <td class="px-4 py-2 font-mono font-semibold"><a href="https://github.com/pmstnepal/pmst-angular-ui" target="_blank" class="text-indigo-600 hover:underline">pmst-angular-ui</a></td>
+                                <td class="px-4 py-2">Angular 17+ frontend (this project)</td>
+                                <td class="px-4 py-2"><span class="bg-green-100 text-green-700 px-2 py-0.5 rounded-full text-xs">&#127866; Active</span></td>
+                            </tr>
+                            <tr class="bg-indigo-50">
+                                <td class="px-4 py-2 font-mono font-semibold"><a href="https://github.com/pmstnepal/pmst-terraform-infra" target="_blank" class="text-indigo-600 hover:underline">pmst-terraform-infra</a></td>
+                                <td class="px-4 py-2">AWS infrastructure as code (Terraform)</td>
+                                <td class="px-4 py-2"><span class="bg-green-100 text-green-700 px-2 py-0.5 rounded-full text-xs">&#127866; Active</span></td>
+                            </tr>
+                            <tr class="bg-orange-50">
+                                <td class="px-4 py-2 font-mono font-semibold"><a href="https://github.com/pmstnepal/pmst-data-migration" target="_blank" class="text-indigo-600 hover:underline">pmst-data-migration</a></td>
+                                <td class="px-4 py-2">WordPress &rarr; PostgreSQL migration scripts &mdash; <code class="bg-orange-100 text-orange-700 px-1 rounded text-xs">feature/migration-scripts</code></td>
+                                <td class="px-4 py-2"><span class="bg-green-100 text-green-700 px-2 py-0.5 rounded-full text-xs">&#127866; Active</span></td>
+                            </tr>
+                            <tr class="bg-blue-50">
+                                <td class="px-4 py-2 font-mono font-semibold"><a href="https://github.com/pmstnepal/pmst-api-service" target="_blank" class="text-indigo-600 hover:underline">pmst-api-service</a></td>
+                                <td class="px-4 py-2">Java 21 Lambda &mdash; Articles, Galleries, Users, Follows, Comments (consolidated) &mdash; <span class="bg-blue-200 text-blue-800 px-1.5 py-0.5 rounded text-xs font-semibold">ACTIVE</span> &nbsp;<code class="bg-blue-100 text-blue-700 px-1 rounded text-xs">feature/initial-setup</code> &nbsp;<code class="bg-gray-100 text-gray-600 px-1 rounded text-xs">:8080</code></td>
+                                <td class="px-4 py-2"><span class="bg-green-100 text-green-700 px-2 py-0.5 rounded-full text-xs">&#127866; Active</span></td>
+                            </tr>
+                            <tr class="bg-purple-50">
+                                <td class="px-4 py-2 font-mono font-semibold">pmst-ticketing-service</td>
+                                <td class="px-4 py-2">Java 21 Lambda &mdash; Event ticketing, RSVP, attendee management &mdash; <span class="bg-purple-200 text-purple-800 px-1.5 py-0.5 rounded text-xs font-semibold">PLANNED</span> &nbsp;<code class="bg-gray-100 text-gray-600 px-1 rounded text-xs">:8081</code></td>
+                                <td class="px-4 py-2"><span class="bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full text-xs">&#128309; Planned</span></td>
+                            </tr>
+                            <tr>
+                                <td class="px-4 py-2 font-mono font-semibold">pmstusnepal-plugins</td>
+                                <td class="px-4 py-2">WordPress plugins (38 plugins) &mdash; reference</td>
+                                <td class="px-4 py-2"><span class="bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full text-xs">&#128309; Reference</span></td>
+                            </tr>
+                            <tr>
+                                <td class="px-4 py-2 font-mono font-semibold">nepalicommunityhub-plugins</td>
+                                <td class="px-4 py-2">Secondary site plugins &mdash; reference</td>
+                                <td class="px-4 py-2"><span class="bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full text-xs">&#128309; Reference</span></td>
+                            </tr>
+                            <tr>
+                                <td class="px-4 py-2 font-mono font-semibold">jwt-token-api</td>
+                                <td class="px-4 py-2">Spring Boot JWT (retiring &mdash; replaced by Cognito)</td>
+                                <td class="px-4 py-2"><span class="bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded-full text-xs">&#9888;&#65039; Archive</span></td>
+                            </tr>
+                            <tr>
+                                <td class="px-4 py-2 font-mono font-semibold">pmstnepalphp</td>
+                                <td class="px-4 py-2">Legacy PHP codebase</td>
+                                <td class="px-4 py-2"><span class="bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full text-xs">&#128230; Archive</span></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Risk Matrix -->
+            <div class="bg-white rounded-xl shadow-lg p-8">
+                <h2 class="text-2xl font-bold mb-6 flex items-center gap-2">
+                    <i data-lucide="alert-triangle" class="text-orange-600"></i>
+                    Risk Matrix
+                </h2>
+                <div class="grid md:grid-cols-3 gap-4">
+                    <div class="bg-red-50 rounded-lg p-4 border-l-4 border-red-500">
+                        <h4 class="font-bold text-red-800 mb-2">🔴 High Risk</h4>
+                        <ul class="text-sm space-y-1 text-red-700">
+                            <li>• User password migration</li>
+                            <li>• SEO ranking preservation</li>
+                            <li>• Content formatting (Gutenberg → Angular)</li>
+                        </ul>
+                    </div>
+                    <div class="bg-yellow-50 rounded-lg p-4 border-l-4 border-yellow-500">
+                        <h4 class="font-bold text-yellow-800 mb-2">🟡 Medium Risk</h4>
+                        <ul class="text-sm space-y-1 text-yellow-700">
+                            <li>• Gallery image migration</li>
+                            <li>• Comment thread nesting</li>
+                            <li>• Plugin data (events, follows)</li>
+                        </ul>
+                    </div>
+                    <div class="bg-green-50 rounded-lg p-4 border-l-4 border-green-500">
+                        <h4 class="font-bold text-green-800 mb-2">🟢 Low Risk</h4>
+                        <ul class="text-sm space-y-1 text-green-700">
+                            <li>• Static pages (Home, About)</li>
+                            <li>• New component development</li>
+                            <li>• Terraform infrastructure</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab 2: Architecture -->
+        <div id="tab-architecture" class="tab-content">
+            <div class="bg-white rounded-xl shadow-lg p-8 mb-6">
+                <h2 class="text-2xl font-bold mb-6">System Architecture</h2>
+                <div class="bg-gray-50 rounded-lg p-6 overflow-x-auto">
+                    <div class="flex items-center justify-center gap-4 min-w-[800px]">
+                        <!-- Users -->
+                        <div class="text-center">
+                            <div class="bg-blue-100 p-4 rounded-xl w-32">
+                                <i data-lucide="users" class="w-8 h-8 text-blue-600 mx-auto mb-2"></i>
+                                <div class="text-sm font-semibold">Users</div>
+                            </div>
+                        </div>
+                        <i data-lucide="arrow-right" class="w-6 h-6 text-gray-400"></i>
+                        <!-- CloudFront -->
+                        <div class="text-center">
+                            <div class="bg-orange-100 p-4 rounded-xl w-32">
+                                <i data-lucide="cloud" class="w-8 h-8 text-orange-600 mx-auto mb-2"></i>
+                                <div class="text-sm font-semibold">CloudFront</div>
+                                <div class="text-xs text-gray-500">CDN</div>
+                            </div>
+                        </div>
+                        <i data-lucide="arrow-right" class="w-6 h-6 text-gray-400"></i>
+                        <!-- S3 / Angular -->
+                        <div class="text-center">
+                            <div class="bg-indigo-100 p-4 rounded-xl w-32">
+                                <i data-lucide="monitor" class="w-8 h-8 text-indigo-600 mx-auto mb-2"></i>
+                                <div class="text-sm font-semibold">S3 + Angular</div>
+                                <div class="text-xs text-gray-500">SSR/Static</div>
+                            </div>
+                        </div>
+                        <i data-lucide="arrow-right" class="w-6 h-6 text-gray-400"></i>
+                        <!-- API Gateway -->
+                        <div class="text-center">
+                            <div class="bg-purple-100 p-4 rounded-xl w-32">
+                                <i data-lucide="server" class="w-8 h-8 text-purple-600 mx-auto mb-2"></i>
+                                <div class="text-sm font-semibold">API Gateway</div>
+                                <div class="text-xs text-gray-500">REST API</div>
+                            </div>
+                        </div>
+                        <i data-lucide="arrow-right" class="w-6 h-6 text-gray-400"></i>
+                        <!-- Lambda -->
+                        <div class="text-center">
+                            <div class="bg-green-100 p-4 rounded-xl w-32">
+                                <i data-lucide="code" class="w-8 h-8 text-green-600 mx-auto mb-2"></i>
+                                <div class="text-sm font-semibold">Lambda</div>
+                                <div class="text-xs text-gray-500">Java 21</div>
+                            </div>
+                        </div>
+                        <i data-lucide="arrow-right" class="w-6 h-6 text-gray-400"></i>
+                        <!-- RDS -->
+                        <div class="text-center">
+                            <div class="bg-pink-100 p-4 rounded-xl w-32">
+                                <i data-lucide="database" class="w-8 h-8 text-pink-600 mx-auto mb-2"></i>
+                                <div class="text-sm font-semibold">RDS</div>
+                                <div class="text-xs text-gray-500">PostgreSQL</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tech Stack -->
+            <div class="grid md:grid-cols-3 gap-6">
+                <div class="bg-white rounded-xl shadow-lg p-6">
+                    <h3 class="font-bold text-lg mb-4 flex items-center gap-2">
+                        <i data-lucide="monitor" class="text-indigo-600"></i>
+                        Frontend
+                    </h3>
+                    <ul class="space-y-2 text-sm">
+                        <li class="flex items-center gap-2"><span class="w-2 h-2 bg-indigo-500 rounded-full"></span>Angular 17+ LTS</li>
+                        <li class="flex items-center gap-2"><span class="w-2 h-2 bg-indigo-500 rounded-full"></span>Tailwind CSS</li>
+                        <li class="flex items-center gap-2"><span class="w-2 h-2 bg-indigo-500 rounded-full"></span>Signals (State)</li>
+                        <li class="flex items-center gap-2"><span class="w-2 h-2 bg-indigo-500 rounded-full"></span>Standalone Components</li>
+                        <li class="flex items-center gap-2"><span class="w-2 h-2 bg-indigo-500 rounded-full"></span>SSR/Hydration</li>
+                    </ul>
+                </div>
+                <div class="bg-white rounded-xl shadow-lg p-6">
+                    <h3 class="font-bold text-lg mb-4 flex items-center gap-2">
+                        <i data-lucide="server" class="text-green-600"></i>
+                        Backend
+                    </h3>
+                    <ul class="space-y-2 text-sm">
+                        <li class="flex items-center gap-2"><span class="w-2 h-2 bg-green-500 rounded-full"></span>Java 21</li>
+                        <li class="flex items-center gap-2"><span class="w-2 h-2 bg-green-500 rounded-full"></span>AWS Lambda</li>
+                        <li class="flex items-center gap-2"><span class="w-2 h-2 bg-green-500 rounded-full"></span>SnapStart</li>
+                        <li class="flex items-center gap-2"><span class="w-2 h-2 bg-green-500 rounded-full"></span>API Gateway</li>
+                        <li class="flex items-center gap-2"><span class="w-2 h-2 bg-green-500 rounded-full"></span>Cognito Auth</li>
+                    </ul>
+                </div>
+                <div class="bg-white rounded-xl shadow-lg p-6">
+                    <h3 class="font-bold text-lg mb-4 flex items-center gap-2">
+                        <i data-lucide="database" class="text-pink-600"></i>
+                        Data & Storage
+                    </h3>
+                    <ul class="space-y-2 text-sm">
+                        <li class="flex items-center gap-2"><span class="w-2 h-2 bg-pink-500 rounded-full"></span>PostgreSQL (RDS)</li>
+                        <li class="flex items-center gap-2"><span class="w-2 h-2 bg-pink-500 rounded-full"></span>Redis (ElastiCache)</li>
+                        <li class="flex items-center gap-2"><span class="w-2 h-2 bg-pink-500 rounded-full"></span>S3 (Media)</li>
+                        <li class="flex items-center gap-2"><span class="w-2 h-2 bg-pink-500 rounded-full"></span>RDS Proxy</li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Backend Services -->
+            <div class="bg-white rounded-xl shadow-lg p-8 mt-6">
+                <h2 class="text-2xl font-bold mb-2 flex items-center gap-2">
+                    <i data-lucide="layers" class="text-green-600"></i>
+                    Backend Services
+                </h2>
+                <p class="text-sm text-gray-500 mb-6">Spring Boot 3.2 + Java 21 &mdash; runs locally via <code class="bg-gray-100 px-1 rounded">mvn spring-boot:run</code>, deploys as AWS Lambda via <code class="bg-gray-100 px-1 rounded">aws-serverless-java-container</code></p>
+
+                <div class="grid md:grid-cols-2 gap-6 mb-6">
+                    <!-- pmst-api-service -->
+                    <div class="border-2 border-blue-300 rounded-xl p-5 bg-blue-50">
+                        <div class="flex items-center justify-between mb-3">
+                            <div>
+                                <h3 class="font-bold text-blue-900 text-lg">pmst-api-service</h3>
+                                <p class="text-xs text-blue-600">Consolidated: Content + Users + Follows + Comments</p>
+                            </div>
+                            <code class="bg-blue-100 text-blue-700 px-2 py-0.5 rounded text-xs">:8080</code>
+                        </div>
+                        <div class="grid grid-cols-2 gap-2 text-xs text-blue-800 mb-4">
+                            <div>
+                                <div class="font-semibold mb-1">&#128196; Articles</div>
+                                <div>GET /articles</div>
+                                <div>GET /articles/{slug}</div>
+                                <div>POST /articles</div>
+                            </div>
+                            <div>
+                                <div class="font-semibold mb-1">&#128247; Galleries</div>
+                                <div>GET /galleries</div>
+                                <div>GET /galleries/{slug}</div>
+                                <div>POST /galleries</div>
+                            </div>
+                            <div>
+                                <div class="font-semibold mb-1">&#128100; Users</div>
+                                <div>GET /users/{id}/profile</div>
+                                <div>PUT /users/{id}/profile</div>
+                                <div>POST/DELETE /users/{id}/follow</div>
+                            </div>
+                            <div>
+                                <div class="font-semibold mb-1">&#128172; Comments</div>
+                                <div>GET /comments</div>
+                                <div>POST /comments</div>
+                                <div>DELETE /comments/{id}</div>
+                            </div>
+                        </div>
+                        <a href="https://github.com/pmstnepal/pmst-api-service" target="_blank" class="text-xs text-indigo-600 hover:underline font-mono">pmst-api-service</a>
+                        <div class="text-xs text-gray-500 mt-1">Local: <code class="bg-white px-1 rounded">D:\pmst-services\pmst-api-service\</code></div>
+                    </div>
+
+                    <!-- pmst-ticketing-service -->
+                    <div class="border-2 border-purple-300 rounded-xl p-5 bg-purple-50">
+                        <div class="flex items-center justify-between mb-3">
+                            <div>
+                                <h3 class="font-bold text-purple-900 text-lg">pmst-ticketing-service</h3>
+                                <p class="text-xs text-purple-600">Separate: Event management &amp; ticketing</p>
+                            </div>
+                            <span class="bg-purple-200 text-purple-800 px-2 py-0.5 rounded text-xs font-semibold">PLANNED</span>
+                        </div>
+                        <ul class="text-xs space-y-1 text-purple-800 mb-4">
+                            <li>&#127914; GET /events &mdash; list events</li>
+                            <li>&#43; POST /events &mdash; create event</li>
+                            <li>&#127915; POST /events/{id}/tickets &mdash; issue tickets</li>
+                            <li>&#128101; GET /events/{id}/attendees</li>
+                            <li>&#10003; POST /events/{id}/rsvp</li>
+                        </ul>
+                        <div class="text-xs text-gray-500">Repo: <code class="bg-white px-1 rounded">pmst-ticketing-service</code> (to be created)</div>
+                        <div class="text-xs text-gray-500 mt-1">Local: <code class="bg-white px-1 rounded">D:\pmst-services\pmst-ticketing-service\</code> &nbsp;<code class="bg-gray-100 px-1 rounded">:8081</code></div>
+                    </div>
+                </div>
+
+                <!-- Rationale -->
+                <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4 text-sm text-blue-800">
+                    <strong>&#128161; Why consolidated?</strong> Articles, galleries, users, follows, and comments share the same PostgreSQL schema and have similar traffic patterns. One JAR = fewer cold starts, simpler CI/CD, lower cost. Ticketing is separate due to distinct scaling needs and potential third-party payment integration.
+                </div>
+
+                <!-- Local run -->
+                <div class="bg-gray-900 text-green-400 rounded-lg p-4 text-xs font-mono">
+                    <div class="text-gray-400 mb-2"># Run pmst-api-service locally (no AWS needed)</div>
+                    <div>cd D:\pmst-services\pmst-api-service</div>
+                    <div>docker compose up -d &nbsp;&nbsp;<span class="text-gray-500"># start local PostgreSQL :5432</span></div>
+                    <div>mvn spring-boot:run &nbsp;&nbsp;&nbsp;&nbsp;<span class="text-gray-500"># http://localhost:8080</span></div>
+                    <div class="mt-2 text-gray-400"># Build Lambda JAR</div>
+                    <div>mvn package -DskipTests &nbsp;<span class="text-gray-500"># target/*-lambda.jar</span></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab 3: Authentication -->
+        <div id="tab-auth" class="tab-content">
+            <div class="bg-white rounded-xl shadow-lg p-8 mb-6">
+                <div class="flex items-center justify-between mb-6">
+                    <h2 class="text-2xl font-bold">Authentication Architecture</h2>
+                    <span class="bg-green-100 text-green-700 px-3 py-1 rounded-full text-sm font-semibold">Recommended: Hybrid Approach</span>
+                </div>
+                
+                <div class="bg-indigo-50 rounded-lg p-6 mb-6">
+                    <h3 class="font-bold text-indigo-800 mb-3">Approach: AWS Cognito + JWT Tokens</h3>
+                    <p class="text-indigo-700 mb-4">Cognito handles user registration, login, password reset, MFA, and social login. API Gateway validates JWTs. Lambda functions receive user identity in context.</p>
+                    <div class="grid md:grid-cols-2 gap-4">
+                        <div class="bg-white rounded-lg p-4">
+                            <h4 class="font-semibold mb-2">Cognito Manages:</h4>
+                            <ul class="text-sm space-y-1 text-gray-600">
+                                <li>✓ User registration / login</li>
+                                <li>✓ Password reset / recovery</li>
+                                <li>✓ Email verification</li>
+                                <li>✓ MFA (TOTP/SMS)</li>
+                                <li>✓ Social login (Google/Facebook)</li>
+                                <li>✓ Token lifecycle</li>
+                            </ul>
+                        </div>
+                        <div class="bg-white rounded-lg p-4">
+                            <h4 class="font-semibold mb-2">Your Code Manages:</h4>
+                            <ul class="text-sm space-y-1 text-gray-600">
+                                <li>✓ Business logic only</li>
+                                <li>✓ User profile data (PostgreSQL)</li>
+                                <li>✓ Content permissions</li>
+                                <li>✓ Custom claims (if needed)</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Auth Flow -->
+                <div class="bg-gray-50 rounded-lg p-6">
+                    <h3 class="font-bold mb-4">Token Flow</h3>
+                    <div class="flex flex-wrap items-center justify-center gap-4">
+                        <div class="bg-white p-4 rounded-xl shadow text-center w-36">
+                            <i data-lucide="user" class="w-8 h-8 text-blue-600 mx-auto mb-2"></i>
+                            <div class="text-sm font-semibold">User Login</div>
+                        </div>
+                        <i data-lucide="arrow-right" class="w-6 h-6 text-gray-400"></i>
+                        <div class="bg-orange-100 p-4 rounded-xl text-center w-36">
+                            <i data-lucide="shield" class="w-8 h-8 text-orange-600 mx-auto mb-2"></i>
+                            <div class="text-sm font-semibold">Cognito</div>
+                            <div class="text-xs text-gray-500">Validates</div>
+                        </div>
+                        <i data-lucide="arrow-right" class="w-6 h-6 text-gray-400"></i>
+                        <div class="bg-green-100 p-4 rounded-xl text-center w-36">
+                            <i data-lucide="key" class="w-8 h-8 text-green-600 mx-auto mb-2"></i>
+                            <div class="text-sm font-semibold">JWT Token</div>
+                            <div class="text-xs text-gray-500">ID + Access</div>
+                        </div>
+                        <i data-lucide="arrow-right" class="w-6 h-6 text-gray-400"></i>
+                        <div class="bg-purple-100 p-4 rounded-xl text-center w-36">
+                            <i data-lucide="lock" class="w-8 h-8 text-purple-600 mx-auto mb-2"></i>
+                            <div class="text-sm font-semibold">API Gateway</div>
+                            <div class="text-xs text-gray-500">Authorizer</div>
+                        </div>
+                        <i data-lucide="arrow-right" class="w-6 h-6 text-gray-400"></i>
+                        <div class="bg-pink-100 p-4 rounded-xl text-center w-36">
+                            <i data-lucide="code" class="w-8 h-8 text-pink-600 mx-auto mb-2"></i>
+                            <div class="text-sm font-semibold">Lambda</div>
+                            <div class="text-xs text-gray-500">User Context</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Migration Strategy -->
+            <div class="bg-white rounded-xl shadow-lg p-8">
+                <h3 class="text-xl font-bold mb-4">User Migration Strategy</h3>
+                <div class="grid md:grid-cols-2 gap-6">
+                    <div class="border-2 border-indigo-500 rounded-lg p-4">
+                        <div class="flex items-center gap-2 mb-3">
+                            <span class="bg-indigo-100 text-indigo-700 px-2 py-1 rounded text-xs font-bold">RECOMMENDED</span>
+                            <h4 class="font-bold">Password Reset Approach</h4>
+                        </div>
+                        <ul class="text-sm space-y-2 text-gray-600">
+                            <li>1. Export WordPress users (email, username)</li>
+                            <li>2. Import to Cognito with FORCE_CHANGE_PASSWORD status</li>
+                            <li>3. Users receive "set password" email on first login</li>
+                            <li>4. No password hash migration needed</li>
+                        </ul>
+                        <div class="mt-3 text-xs bg-green-50 text-green-700 p-2 rounded">
+                            <strong>Pros:</strong> Simple, secure, no hash compatibility issues
+                        </div>
+                    </div>
+                    <div class="border border-gray-300 rounded-lg p-4">
+                        <div class="flex items-center gap-2 mb-3">
+                            <span class="bg-gray-100 text-gray-600 px-2 py-1 rounded text-xs font-bold">ALTERNATIVE</span>
+                            <h4 class="font-bold">Seamless Migration</h4>
+                        </div>
+                        <ul class="text-sm space-y-2 text-gray-600">
+                            <li>1. Lambda trigger on Cognito sign-in</li>
+                            <li>2. Check WordPress DB for password hash</li>
+                            <li>3. Validate against old hash format</li>
+                            <li>4. Silently migrate to Cognito</li>
+                        </ul>
+                        <div class="mt-3 text-xs bg-yellow-50 text-yellow-700 p-2 rounded">
+                            <strong>Pros:</strong> No user action required. <strong>Cons:</strong> More complex
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab 4: Database -->
+        <div id="tab-database" class="tab-content">
+            <div class="bg-white rounded-xl shadow-lg p-8 mb-6">
+                <h2 class="text-2xl font-bold mb-6">PostgreSQL Schema</h2>
+                
+                <!-- ER Diagram Placeholder -->
+                <div class="bg-gray-50 rounded-lg p-6 mb-6">
+                    <h3 class="font-bold mb-4">Entity Relationships</h3>
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                        <div class="bg-white p-3 rounded-lg shadow text-center">
+                            <i data-lucide="users" class="w-6 h-6 text-blue-600 mx-auto mb-1"></i>
+                            <div class="font-semibold">users</div>
+                            <div class="text-xs text-gray-500">Core entity</div>
+                        </div>
+                        <div class="bg-white p-3 rounded-lg shadow text-center">
+                            <i data-lucide="file-text" class="w-6 h-6 text-green-600 mx-auto mb-1"></i>
+                            <div class="font-semibold">articles</div>
+                            <div class="text-xs text-gray-500">↔ users</div>
+                        </div>
+                        <div class="bg-white p-3 rounded-lg shadow text-center">
+                            <i data-lucide="image" class="w-6 h-6 text-purple-600 mx-auto mb-1"></i>
+                            <div class="font-semibold">galleries</div>
+                            <div class="text-xs text-gray-500">↔ users, categories</div>
+                        </div>
+                        <div class="bg-white p-3 rounded-lg shadow text-center">
+                            <i data-lucide="message-square" class="w-6 h-6 text-orange-600 mx-auto mb-1"></i>
+                            <div class="font-semibold">comments</div>
+                            <div class="text-xs text-gray-500">Self-referential</div>
+                        </div>
+                        <div class="bg-white p-3 rounded-lg shadow text-center">
+                            <i data-lucide="heart" class="w-6 h-6 text-pink-600 mx-auto mb-1"></i>
+                            <div class="font-semibold">follows</div>
+                            <div class="text-xs text-gray-500">↔ users (M:N)</div>
+                        </div>
+                        <div class="bg-white p-3 rounded-lg shadow text-center">
+                            <i data-lucide="calendar" class="w-6 h-6 text-red-600 mx-auto mb-1"></i>
+                            <div class="font-semibold">events</div>
+                            <div class="text-xs text-gray-500">↔ users (organizer)</div>
+                        </div>
+                        <div class="bg-white p-3 rounded-lg shadow text-center">
+                            <i data-lucide="calendar-check" class="w-6 h-6 text-indigo-600 mx-auto mb-1"></i>
+                            <div class="font-semibold">event_registrations</div>
+                            <div class="text-xs text-gray-500">↔ events, users</div>
+                        </div>
+                        <div class="bg-white p-3 rounded-lg shadow text-center">
+                            <i data-lucide="thumbs-up" class="w-6 h-6 text-teal-600 mx-auto mb-1"></i>
+                            <div class="font-semibold">likes</div>
+                            <div class="text-xs text-gray-500">Polymorphic</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Table Schemas -->
+                <div class="space-y-4">
+                    <div class="border rounded-lg overflow-hidden">
+                        <div class="bg-gray-100 px-4 py-2 font-semibold text-sm">users</div>
+                        <table class="w-full text-sm">
+                            <thead class="bg-gray-50"><tr><th class="px-4 py-2 text-left">Column</th><th class="px-4 py-2 text-left">Type</th><th class="px-4 py-2 text-left">Notes</th></tr></thead>
+                            <tbody class="divide-y">
+                                <tr><td class="px-4 py-2 font-mono">id</td><td class="px-4 py-2">UUID</td><td class="px-4 py-2 text-gray-500">PK, matches Cognito sub</td></tr>
+                                <tr><td class="px-4 py-2 font-mono">email</td><td class="px-4 py-2">VARCHAR(255)</td><td class="px-4 py-2 text-gray-500">Unique</td></tr>
+                                <tr><td class="px-4 py-2 font-mono">username</td><td class="px-4 py-2">VARCHAR(50)</td><td class="px-4 py-2 text-gray-500">Unique, URL-friendly</td></tr>
+                                <tr><td class="px-4 py-2 font-mono">display_name</td><td class="px-4 py-2">VARCHAR(100)</td><td class="px-4 py-2 text-gray-500">Shown publicly</td></tr>
+                                <tr><td class="px-4 py-2 font-mono">bio</td><td class="px-4 py-2">TEXT</td><td class="px-4 py-2 text-gray-500">Nullable</td></tr>
+                                <tr><td class="px-4 py-2 font-mono">avatar_url</td><td class="px-4 py-2">VARCHAR(500)</td><td class="px-4 py-2 text-gray-500">S3 URL</td></tr>
+                                <tr><td class="px-4 py-2 font-mono">role</td><td class="px-4 py-2">ENUM</td><td class="px-4 py-2 text-gray-500">reader, contributor, admin</td></tr>
+                                <tr><td class="px-4 py-2 font-mono">created_at</td><td class="px-4 py-2">TIMESTAMP</td><td class="px-4 py-2 text-gray-500"></td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div class="border rounded-lg overflow-hidden">
+                        <div class="bg-gray-100 px-4 py-2 font-semibold text-sm">follows (from pmst_follows plugin)</div>
+                        <table class="w-full text-sm">
+                            <thead class="bg-gray-50"><tr><th class="px-4 py-2 text-left">Column</th><th class="px-4 py-2 text-left">Type</th><th class="px-4 py-2 text-left">Notes</th></tr></thead>
+                            <tbody class="divide-y">
+                                <tr><td class="px-4 py-2 font-mono">id</td><td class="px-4 py-2">BIGSERIAL</td><td class="px-4 py-2 text-gray-500">PK</td></tr>
+                                <tr><td class="px-4 py-2 font-mono">follower_id</td><td class="px-4 py-2">UUID</td><td class="px-4 py-2 text-gray-500">FK → users.id</td></tr>
+                                <tr><td class="px-4 py-2 font-mono">following_id</td><td class="px-4 py-2">UUID</td><td class="px-4 py-2 text-gray-500">FK → users.id</td></tr>
+                                <tr><td class="px-4 py-2 font-mono">created_at</td><td class="px-4 py-2">TIMESTAMP</td><td class="px-4 py-2 text-gray-500"></td></tr>
+                            </tbody>
+                        </table>
+                        <div class="bg-blue-50 px-4 py-2 text-xs text-blue-700">Unique constraint: (follower_id, following_id)</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab 5: Plugins -->
+        <div id="tab-plugins" class="tab-content">
+            <div class="bg-white rounded-xl shadow-lg p-8 mb-6">
+                <div class="flex items-center justify-between mb-6">
+                    <h2 class="text-2xl font-bold">Plugin Migration Matrix (38 Total)</h2>
+                    <div class="flex gap-2 no-print">
+                        <input type="text" id="pluginSearch" placeholder="Search plugins..." class="px-4 py-2 border rounded-lg text-sm" onkeyup="filterPlugins(this.value)">
+                        <select id="pluginFilter" class="px-4 py-2 border rounded-lg text-sm" onchange="filterPluginCategory(this.value)">
+                            <option value="all">All Categories</option>
+                            <option value="remove">🔴 Remove</option>
+                            <option value="rebuild">🟢 Rebuild</option>
+                            <option value="partial">🟡 Partial</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Plugin Stats -->
+                <div class="grid grid-cols-4 gap-4 mb-6">
+                    <div class="bg-red-50 rounded-lg p-4 text-center">
+                        <div class="text-2xl font-bold text-red-600">14</div>
+                        <div class="text-sm text-gray-600">Remove</div>
+                    </div>
+                    <div class="bg-green-50 rounded-lg p-4 text-center">
+                        <div class="text-2xl font-bold text-green-600">20</div>
+                        <div class="text-sm text-gray-600">Rebuild</div>
+                    </div>
+                    <div class="bg-yellow-50 rounded-lg p-4 text-center">
+                        <div class="text-2xl font-bold text-yellow-600">4</div>
+                        <div class="text-sm text-gray-600">Partial</div>
+                    </div>
+                    <div class="bg-blue-50 rounded-lg p-4 text-center">
+                        <div class="text-2xl font-bold text-blue-600">45+</div>
+                        <div class="text-sm text-gray-600">New Components</div>
+                    </div>
+                </div>
+
+                <!-- Plugin Grid -->
+                <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-4" id="pluginGrid">
+                    <!-- Standard Plugins -->
+                    <div class="plugin-card border rounded-lg p-4" data-category="remove" data-name="blocksy-companion">
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="font-semibold text-sm">blocksy-companion</span>
+                            <span class="bg-red-100 text-red-700 px-2 py-0.5 rounded text-xs">Remove</span>
+                        </div>
+                        <p class="text-xs text-gray-500 mb-2">Theme enhancements</p>
+                        <div class="text-xs"><span class="text-gray-400">→</span> Angular + Tailwind</div>
+                    </div>
+
+                    <div class="plugin-card border rounded-lg p-4" data-category="remove" data-name="ultimate-member">
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="font-semibold text-sm">ultimate-member</span>
+                            <span class="bg-red-100 text-red-700 px-2 py-0.5 rounded text-xs">Remove</span>
+                        </div>
+                        <p class="text-xs text-gray-500 mb-2">User profiles</p>
+                        <div class="text-xs"><span class="text-gray-400">→</span> AWS Cognito</div>
+                    </div>
+
+                    <!-- Custom Plugins - Gallery -->
+                    <div class="plugin-card border rounded-lg p-4" data-category="rebuild" data-name="pmst-model-gallery-cpt">
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="font-semibold text-sm">pmst-model-gallery-cpt</span>
+                            <span class="bg-green-100 text-green-700 px-2 py-0.5 rounded text-xs">Rebuild</span>
+                        </div>
+                        <p class="text-xs text-gray-500 mb-2">Custom Post Type + Taxonomy</p>
+                        <div class="text-xs"><span class="text-gray-400">→</span> GalleryGrid, ModelCard</div>
+                    </div>
+
+                    <div class="plugin-card border rounded-lg p-4" data-category="rebuild" data-name="pmst-follow-plugin">
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="font-semibold text-sm">pmst-follow-plugin-v1.0</span>
+                            <span class="bg-green-100 text-green-700 px-2 py-0.5 rounded text-xs">Rebuild</span>
+                        </div>
+                        <p class="text-xs text-gray-500 mb-2">Follow/unfollow system</p>
+                        <div class="text-xs"><span class="text-gray-400">→</span> FollowButton, FollowerStats</div>
+                    </div>
+
+                    <div class="plugin-card border rounded-lg p-4" data-category="rebuild" data-name="mage-eventpress">
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="font-semibold text-sm">mage-eventpress</span>
+                            <span class="bg-green-100 text-green-700 px-2 py-0.5 rounded text-xs">Rebuild</span>
+                        </div>
+                        <p class="text-xs text-gray-500 mb-2">Events & ticketing</p>
+                        <div class="text-xs"><span class="text-gray-400">→</span> EventsList, EventDetail</div>
+                    </div>
+
+                    <div class="plugin-card border rounded-lg p-4" data-category="rebuild" data-name="contributor-dashboard">
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="font-semibold text-sm">contributor-dashboard-enhanced-v3</span>
+                            <span class="bg-green-100 text-green-700 px-2 py-0.5 rounded text-xs">Rebuild</span>
+                        </div>
+                        <p class="text-xs text-gray-500 mb-2">Post management</p>
+                        <div class="text-xs"><span class="text-gray-400">→</span> Dashboard (4 categories)</div>
+                    </div>
+
+                    <div class="plugin-card border rounded-lg p-4" data-category="rebuild" data-name="youtube-playlists">
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="font-semibold text-sm">pmst-lightweight-youtube-playlists</span>
+                            <span class="bg-green-100 text-green-700 px-2 py-0.5 rounded text-xs">Rebuild</span>
+                        </div>
+                        <p class="text-xs text-gray-500 mb-2">YouTube embedding</p>
+                        <div class="text-xs"><span class="text-gray-400">→</span> YoutubePlaylist</div>
+                    </div>
+                </div>
+
+                <div class="mt-4 text-center no-print">
+                    <button onclick="showAllPlugins()" class="text-indigo-600 hover:text-indigo-700 text-sm font-medium">
+                        Show all 38 plugins...
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab 6: Components (Interactive Kanban) -->
+        <div id="tab-components" class="tab-content">
+            <div class="bg-white rounded-xl shadow-lg p-8">
+                <div class="flex items-center justify-between mb-6">
+                    <h2 class="text-2xl font-bold">Component Status Board</h2>
+                    <div class="flex gap-2 no-print">
+                        <button onclick="resetProgress()" class="px-3 py-1.5 text-sm border rounded-lg hover:bg-gray-50">Reset</button>
+                        <button onclick="saveProgress()" class="px-3 py-1.5 text-sm bg-indigo-600 text-white rounded-lg hover:bg-indigo-700">Save Progress</button>
+                    </div>
+                </div>
+
+                <!-- Progress Stats -->
+                <div class="grid grid-cols-3 gap-4 mb-6">
+                    <div class="bg-gray-100 rounded-lg p-4 text-center">
+                        <div class="text-2xl font-bold text-gray-600" id="todoCount">0</div>
+                        <div class="text-sm text-gray-500">Todo</div>
+                    </div>
+                    <div class="bg-yellow-50 rounded-lg p-4 text-center">
+                        <div class="text-2xl font-bold text-yellow-600" id="inProgressCount">0</div>
+                        <div class="text-sm text-gray-500">In Progress</div>
+                    </div>
+                    <div class="bg-green-50 rounded-lg p-4 text-center">
+                        <div class="text-2xl font-bold text-green-600" id="doneCount">0</div>
+                        <div class="text-sm text-gray-500">Done</div>
+                    </div>
+                </div>
+
+                <!-- Kanban Board -->
+                <div class="grid md:grid-cols-3 gap-4">
+                    <!-- Todo Column -->
+                    <div class="bg-gray-50 rounded-lg p-4">
+                        <h3 class="font-bold text-gray-700 mb-3 flex items-center gap-2">
+                            <span class="w-3 h-3 bg-gray-400 rounded-full"></span>
+                            Todo
+                        </h3>
+                        <div class="space-y-2" id="todoColumn">
+                            <div class="kanban-card bg-white p-3 rounded-lg shadow cursor-pointer" data-component="follow-button" data-status="todo" onclick="moveCard(this)">
+                                <div class="font-medium text-sm">FollowButtonComponent</div>
+                                <div class="text-xs text-gray-500">shared/components/follow-button</div>
+                                <div class="mt-2 flex gap-1">
+                                    <span class="text-xs bg-pink-100 text-pink-700 px-1.5 rounded">follow-plugin</span>
+                                </div>
+                            </div>
+                            <div class="kanban-card bg-white p-3 rounded-lg shadow cursor-pointer" data-component="event-detail" data-status="todo" onclick="moveCard(this)">
+                                <div class="font-medium text-sm">EventDetailComponent</div>
+                                <div class="text-xs text-gray-500">features/events/</div>
+                                <div class="mt-2 flex gap-1">
+                                    <span class="text-xs bg-red-100 text-red-700 px-1.5 rounded">mage-eventpress</span>
+                                </div>
+                            </div>
+                            <div class="kanban-card bg-white p-3 rounded-lg shadow cursor-pointer" data-component="author-card" data-status="todo" onclick="moveCard(this)">
+                                <div class="font-medium text-sm">AuthorCardComponent</div>
+                                <div class="text-xs text-gray-500">shared/components/</div>
+                                <div class="mt-2 flex gap-1">
+                                    <span class="text-xs bg-blue-100 text-blue-700 px-1.5 rounded">author-profile</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- In Progress Column -->
+                    <div class="bg-yellow-50 rounded-lg p-4">
+                        <h3 class="font-bold text-yellow-700 mb-3 flex items-center gap-2">
+                            <span class="w-3 h-3 bg-yellow-500 rounded-full"></span>
+                            In Progress
+                        </h3>
+                        <div class="space-y-2" id="inProgressColumn">
+                            <div class="kanban-card bg-white p-3 rounded-lg shadow cursor-pointer" data-component="events-list" data-status="inprogress" onclick="moveCard(this)">
+                                <div class="font-medium text-sm">EventsListComponent</div>
+                                <div class="text-xs text-gray-500">features/events/</div>
+                                <div class="mt-2 flex gap-1">
+                                    <span class="text-xs bg-red-100 text-red-700 px-1.5 rounded">mage-eventpress</span>
+                                </div>
+                            </div>
+                            <div class="kanban-card bg-white p-3 rounded-lg shadow cursor-pointer" data-component="profile-header" data-status="inprogress" onclick="moveCard(this)">
+                                <div class="font-medium text-sm">ProfileHeaderComponent</div>
+                                <div class="text-xs text-gray-500">shared/components/</div>
+                                <div class="mt-2 flex gap-1">
+                                    <span class="text-xs bg-indigo-100 text-indigo-700 px-1.5 rounded">user-profile</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Done Column -->
+                    <div class="bg-green-50 rounded-lg p-4">
+                        <h3 class="font-bold text-green-700 mb-3 flex items-center gap-2">
+                            <span class="w-3 h-3 bg-green-500 rounded-full"></span>
+                            Done
+                        </h3>
+                        <div class="space-y-2" id="doneColumn">
+                            <div class="kanban-card bg-white p-3 rounded-lg shadow opacity-75" data-component="post-carousel" data-status="done">
+                                <div class="font-medium text-sm line-through">PostCarouselComponent</div>
+                                <div class="text-xs text-gray-500">shared/components/</div>
+                                <div class="mt-1 text-xs text-green-600">✓ Completed</div>
+                            </div>
+                            <div class="kanban-card bg-white p-3 rounded-lg shadow opacity-75" data-component="youtube-playlist" data-status="done">
+                                <div class="font-medium text-sm line-through">YoutubePlaylistComponent</div>
+                                <div class="text-xs text-gray-500">shared/components/</div>
+                                <div class="mt-1 text-xs text-green-600">✓ Completed</div>
+                            </div>
+                            <div class="kanban-card bg-white p-3 rounded-lg shadow opacity-75" data-component="comment-section" data-status="done">
+                                <div class="font-medium text-sm line-through">CommentSectionComponent</div>
+                                <div class="text-xs text-gray-500">shared/components/comments/</div>
+                                <div class="mt-1 text-xs text-green-600">✓ Completed</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab 7: Migration Timeline -->
+        <div id="tab-migration" class="tab-content">
+
+            <!-- Data Migration Status -->
+            <div class="bg-white rounded-xl shadow-lg p-8 mb-6">
+                <h2 class="text-2xl font-bold mb-2">Data Migration: WordPress → PostgreSQL</h2>
+                <p class="text-sm text-gray-500 mb-4">Source: Hostinger MySQL &nbsp;&middot;&nbsp; Target: AWS RDS PostgreSQL &nbsp;&middot;&nbsp; Exports: <code class="bg-gray-100 px-1 rounded">D:\pmst-migration\exports\</code></p>
+
+                <!-- Repo banner -->
+                <div class="bg-orange-50 border border-orange-200 rounded-lg p-4 mb-6 flex flex-wrap items-center justify-between gap-3">
+                    <div class="flex items-center gap-3">
+                        <i data-lucide="github" class="w-5 h-5 text-orange-700 shrink-0"></i>
+                        <div>
+                            <div class="font-semibold text-orange-900">pmstnepal / pmst-data-migration</div>
+                            <div class="text-sm text-orange-700 mt-0.5">
+                                Private &nbsp;&middot;&nbsp; Local: <code class="bg-orange-100 px-1 rounded">D:\pmst-migration\</code> &nbsp;&middot;&nbsp;
+                                Branch: <code class="bg-orange-100 px-1 rounded">feature/migration-scripts</code>
+                            </div>
+                        </div>
+                    </div>
+                    <a href="https://github.com/pmstnepal/pmst-data-migration" target="_blank" class="bg-orange-600 text-white text-sm px-4 py-1.5 rounded-lg hover:bg-orange-700 transition">Open on GitHub</a>
+                </div>
+
+                <!-- Status banner -->
+                <div class="bg-green-50 border border-green-300 rounded-lg p-4 mb-6 flex items-center gap-3">
+                    <i data-lucide="check-circle" class="w-5 h-5 text-green-600 shrink-0"></i>
+                    <div class="text-sm text-green-800"><strong>Step 1 complete</strong> &mdash; All CSV exports downloaded from phpMyAdmin to <code class="bg-green-100 px-1 rounded">D:\pmst-migration\exports\</code> &nbsp;&middot;&nbsp; Scripts committed to <code class="bg-green-100 px-1 rounded">feature/migration-scripts</code></div>
+                </div>
+
+                <!-- Table mapping -->
+                <h3 class="font-bold text-lg mb-3">Table Mapping</h3>
+                <div class="overflow-x-auto mb-6">
+                    <table class="w-full text-sm">
+                        <thead class="bg-gray-100">
+                            <tr>
+                                <th class="px-4 py-2 text-left">WordPress Table</th>
+                                <th class="px-4 py-2 text-left">Rows</th>
+                                <th class="px-4 py-2 text-left">PostgreSQL Target</th>
+                                <th class="px-4 py-2 text-left">Status</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y">
+                            <tr class="bg-green-50"><td class="px-4 py-2 font-mono text-xs">wp_users</td><td class="px-4 py-2">18</td><td class="px-4 py-2">users + user_profiles</td><td class="px-4 py-2"><span class="bg-green-200 text-green-800 px-2 py-0.5 rounded text-xs">Exported</span></td></tr>
+                            <tr class="bg-green-50"><td class="px-4 py-2 font-mono text-xs">wp_usermeta</td><td class="px-4 py-2">—</td><td class="px-4 py-2">user_profiles (merged)</td><td class="px-4 py-2"><span class="bg-green-200 text-green-800 px-2 py-0.5 rounded text-xs">Exported</span></td></tr>
+                            <tr class="bg-green-50"><td class="px-4 py-2 font-mono text-xs">wp_posts</td><td class="px-4 py-2">6,739</td><td class="px-4 py-2">articles + galleries + gallery_images</td><td class="px-4 py-2"><span class="bg-green-200 text-green-800 px-2 py-0.5 rounded text-xs">Exported</span></td></tr>
+                            <tr class="bg-green-50"><td class="px-4 py-2 font-mono text-xs">wp_postmeta</td><td class="px-4 py-2">—</td><td class="px-4 py-2">articles (meta fields)</td><td class="px-4 py-2"><span class="bg-green-200 text-green-800 px-2 py-0.5 rounded text-xs">Exported</span></td></tr>
+                            <tr class="bg-green-50"><td class="px-4 py-2 font-mono text-xs">wp_terms / wp_term_taxonomy</td><td class="px-4 py-2">—</td><td class="px-4 py-2">tags + gallery_categories</td><td class="px-4 py-2"><span class="bg-green-200 text-green-800 px-2 py-0.5 rounded text-xs">Exported</span></td></tr>
+                            <tr class="bg-green-50"><td class="px-4 py-2 font-mono text-xs">wp_term_relationships</td><td class="px-4 py-2">—</td><td class="px-4 py-2">article_tags</td><td class="px-4 py-2"><span class="bg-green-200 text-green-800 px-2 py-0.5 rounded text-xs">Exported</span></td></tr>
+                            <tr class="bg-green-50"><td class="px-4 py-2 font-mono text-xs">wp_comments</td><td class="px-4 py-2">379</td><td class="px-4 py-2">comments</td><td class="px-4 py-2"><span class="bg-green-200 text-green-800 px-2 py-0.5 rounded text-xs">Exported</span></td></tr>
+                            <tr class="bg-green-50"><td class="px-4 py-2 font-mono text-xs">wp_pmst_author_profiles</td><td class="px-4 py-2">2</td><td class="px-4 py-2">user_profiles (merge)</td><td class="px-4 py-2"><span class="bg-green-200 text-green-800 px-2 py-0.5 rounded text-xs">Exported</span></td></tr>
+                            <tr class="bg-green-50"><td class="px-4 py-2 font-mono text-xs">wp_social_users</td><td class="px-4 py-2">4</td><td class="px-4 py-2">users (social login)</td><td class="px-4 py-2"><span class="bg-green-200 text-green-800 px-2 py-0.5 rounded text-xs">Exported</span></td></tr>
+                            <tr class="opacity-50"><td class="px-4 py-2 font-mono text-xs">wp_e_events</td><td class="px-4 py-2">1</td><td class="px-4 py-2 text-gray-400">Rebuilding fresh</td><td class="px-4 py-2"><span class="bg-gray-200 text-gray-600 px-2 py-0.5 rounded text-xs">Skip</span></td></tr>
+                            <tr class="opacity-50"><td class="px-4 py-2 font-mono text-xs">wp_pmst_messages</td><td class="px-4 py-2">7</td><td class="px-4 py-2 text-gray-400">Rebuilding fresh</td><td class="px-4 py-2"><span class="bg-gray-200 text-gray-600 px-2 py-0.5 rounded text-xs">Skip</span></td></tr>
+                            <tr class="opacity-50"><td class="px-4 py-2 font-mono text-xs">wp_pmst_reactions</td><td class="px-4 py-2">3</td><td class="px-4 py-2 text-gray-400">Rebuilding fresh</td><td class="px-4 py-2"><span class="bg-gray-200 text-gray-600 px-2 py-0.5 rounded text-xs">Skip</span></td></tr>
+                            <tr class="opacity-50"><td class="px-4 py-2 font-mono text-xs">wp_community_hub_posts</td><td class="px-4 py-2">10</td><td class="px-4 py-2 text-gray-400">Feature removed</td><td class="px-4 py-2"><span class="bg-gray-200 text-gray-600 px-2 py-0.5 rounded text-xs">Skip</span></td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Migration pipeline steps -->
+                <h3 class="font-bold text-lg mb-3">Migration Pipeline</h3>
+                <ol class="space-y-2 text-sm mb-6">
+                    <li class="flex items-center gap-3"><span class="w-6 h-6 bg-green-500 text-white rounded-full flex items-center justify-center text-xs font-bold shrink-0">✓</span><span><strong>Export CSVs</strong> from phpMyAdmin &rarr; <code class="bg-gray-100 px-1 rounded">D:\pmst-migration\exports\</code></span></li>
+                    <li class="flex items-center gap-3"><span class="w-6 h-6 bg-gray-200 text-gray-600 rounded-full flex items-center justify-center text-xs font-bold shrink-0">2</span><span><strong>Provision RDS</strong> via <code class="bg-gray-100 px-1 rounded">terraform apply</code> &rarr; run schema SQL</span></li>
+                    <li class="flex items-center gap-3"><span class="w-6 h-6 bg-gray-200 text-gray-600 rounded-full flex items-center justify-center text-xs font-bold shrink-0">3</span><span><strong>Migrate media</strong> &rarr; Hostinger FTP download &rarr; <code class="bg-gray-100 px-1 rounded">aws s3 sync</code> to prod bucket</span></li>
+                    <li class="flex items-center gap-3"><span class="w-6 h-6 bg-gray-200 text-gray-600 rounded-full flex items-center justify-center text-xs font-bold shrink-0">4</span><span><strong>Run 9 Python scripts</strong> in dependency order (users first, content last)</span></li>
+                    <li class="flex items-center gap-3"><span class="w-6 h-6 bg-gray-200 text-gray-600 rounded-full flex items-center justify-center text-xs font-bold shrink-0">5</span><span><strong>Validate</strong> row counts + spot-check known article slugs</span></li>
+                    <li class="flex items-center gap-3"><span class="w-6 h-6 bg-gray-200 text-gray-600 rounded-full flex items-center justify-center text-xs font-bold shrink-0">6</span><span><strong>DNS cutover</strong> &rarr; keep WordPress read-only for 1 week</span></li>
+                </ol>
+
+                <!-- Scripts order -->
+                <div class="bg-gray-900 text-green-400 rounded-lg p-4 font-mono text-xs">
+                    <pre>D:\pmst-migration\scripts\
+├── migrate_users.py              # wp_users → users
+├── migrate_user_profiles.py      # wp_usermeta + wp_pmst_author_profiles → user_profiles
+├── migrate_tags.py               # wp_terms → tags + gallery_categories
+├── migrate_articles.py           # wp_posts (post) → articles  [Gutenberg clean + URL rewrite]
+├── migrate_article_tags.py       # wp_term_relationships → article_tags
+├── migrate_galleries.py          # wp_posts (model_gallery) → galleries
+├── migrate_gallery_images.py     # wp_posts (attachment) → gallery_images
+├── migrate_comments.py           # wp_comments → comments
+└── migrate_follows.py            # wp_pmst_follows → follows</pre>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-xl shadow-lg p-8">
+                <h2 class="text-2xl font-bold mb-6">8-Week Migration Timeline</h2>
+
+                <!-- Phase 1 -->
+                <div class="mb-8">
+                    <div class="flex items-center gap-4 mb-4">
+                        <div class="w-12 h-12 bg-blue-500 text-white rounded-full flex items-center justify-center font-bold">1</div>
+                        <div>
+                            <h3 class="font-bold text-lg">Phase 1: Foundation</h3>
+                            <p class="text-sm text-gray-500">Weeks 1-2</p>
+                        </div>
+                        <div class="ml-auto">
+                            <div class="w-48 bg-gray-200 rounded-full h-2">
+                                <div class="bg-blue-500 h-2 rounded-full progress-bar" style="width: 0%"></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="ml-16 grid md:grid-cols-2 gap-4">
+                        <div class="bg-blue-50 rounded-lg p-4">
+                            <h4 class="font-semibold text-blue-800 mb-2">Week 1: Infrastructure</h4>
+                            <ul class="text-sm space-y-1 text-gray-600">
+                                <li>• Terraform setup (VPC, RDS, S3)</li>
+                                <li>• Cognito User Pool configuration</li>
+                                <li>• CI/CD pipeline (GitHub Actions)</li>
+                                <li>• Database schema deployment</li>
+                            </ul>
+                        </div>
+                        <div class="bg-blue-50 rounded-lg p-4">
+                            <h4 class="font-semibold text-blue-800 mb-2">Week 2: Auth & Core</h4>
+                            <ul class="text-sm space-y-1 text-gray-600">
+                                <li>• Angular Cognito integration</li>
+                                <li>• Login/Register components</li>
+                                <li>• Lambda Authorizer</li>
+                                <li>• Core layout components</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Phase 2 -->
+                <div class="mb-8">
+                    <div class="flex items-center gap-4 mb-4">
+                        <div class="w-12 h-12 bg-green-500 text-white rounded-full flex items-center justify-center font-bold">2</div>
+                        <div>
+                            <h3 class="font-bold text-lg">Phase 2: Public Content</h3>
+                            <p class="text-sm text-gray-500">Weeks 3-4</p>
+                        </div>
+                    </div>
+                    <div class="ml-16 grid md:grid-cols-2 gap-4">
+                        <div class="bg-green-50 rounded-lg p-4">
+                            <h4 class="font-semibold text-green-800 mb-2">Content Components</h4>
+                            <ul class="text-sm space-y-1 text-gray-600">
+                                <li>• News/Article listing</li>
+                                <li>• Gallery grid & detail views</li>
+                                <li>• Post carousel</li>
+                                <li>• Hero banner sections</li>
+                            </ul>
+                        </div>
+                        <div class="bg-green-50 rounded-lg p-4">
+                            <h4 class="font-semibold text-green-800 mb-2">Lambda Services</h4>
+                            <ul class="text-sm space-y-1 text-gray-600">
+                                <li>• Content retrieval APIs</li>
+                                <li>• Gallery management</li>
+                                <li>• Media upload to S3</li>
+                                <li>• Category/tag filtering</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Phase 3 -->
+                <div class="mb-8">
+                    <div class="flex items-center gap-4 mb-4">
+                        <div class="w-12 h-12 bg-purple-500 text-white rounded-full flex items-center justify-center font-bold">3</div>
+                        <div>
+                            <h3 class="font-bold text-lg">Phase 3: User Features</h3>
+                            <p class="text-sm text-gray-500">Weeks 5-6</p>
+                        </div>
+                    </div>
+                    <div class="ml-16 grid md:grid-cols-2 gap-4">
+                        <div class="bg-purple-50 rounded-lg p-4">
+                            <h4 class="font-semibold text-purple-800 mb-2">User Profile</h4>
+                            <ul class="text-sm space-y-1 text-gray-600">
+                                <li>• Profile header / cover photo</li>
+                                <li>• User dashboard</li>
+                                <li>• Follow/unfollow system</li>
+                                <li>• Author cards</li>
+                            </ul>
+                        </div>
+                        <div class="bg-purple-50 rounded-lg p-4">
+                            <h4 class="font-semibold text-purple-800 mb-2">Content Submission</h4>
+                            <ul class="text-sm space-y-1 text-gray-600">
+                                <li>• Article submission form</li>
+                                <li>• Gallery upload (drag-drop)</li>
+                                <li>• Contributor dashboard</li>
+                                <li>• 4 category restrictions</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Phase 4 -->
+                <div class="mb-8">
+                    <div class="flex items-center gap-4 mb-4">
+                        <div class="w-12 h-12 bg-pink-500 text-white rounded-full flex items-center justify-center font-bold">4</div>
+                        <div>
+                            <h3 class="font-bold text-lg">Phase 4: Comments & Events</h3>
+                            <p class="text-sm text-gray-500">Week 7</p>
+                        </div>
+                    </div>
+                    <div class="ml-16 grid md:grid-cols-2 gap-4">
+                        <div class="bg-pink-50 rounded-lg p-4">
+                            <h4 class="font-semibold text-pink-800 mb-2">Comments System</h4>
+                            <ul class="text-sm space-y-1 text-gray-600">
+                                <li>• Comment section (nested)</li>
+                                <li>• Replies (3 levels)</li>
+                                <li>• Likes/upvotes</li>
+                                <li>• @mentions support</li>
+                            </ul>
+                        </div>
+                        <div class="bg-red-50 rounded-lg p-4">
+                            <h4 class="font-semibold text-red-800 mb-2">Events System</h4>
+                            <ul class="text-sm space-y-1 text-gray-600">
+                                <li>• Event listing / detail pages</li>
+                                <li>• Registration system</li>
+                                <li>• Capacity tracking</li>
+                                <li>• Organizer profiles</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Phase 5 -->
+                <div>
+                    <div class="flex items-center gap-4 mb-4">
+                        <div class="w-12 h-12 bg-orange-500 text-white rounded-full flex items-center justify-center font-bold">5</div>
+                        <div>
+                            <h3 class="font-bold text-lg">Phase 5: Admin & Launch</h3>
+                            <p class="text-sm text-gray-500">Week 8</p>
+                        </div>
+                    </div>
+                    <div class="ml-16 grid md:grid-cols-2 gap-4">
+                        <div class="bg-orange-50 rounded-lg p-4">
+                            <h4 class="font-semibold text-orange-800 mb-2">Admin Features</h4>
+                            <ul class="text-sm space-y-1 text-gray-600">
+                                <li>• Admin dashboard</li>
+                                <li>• Content moderation</li>
+                                <li>• User management</li>
+                                <li>• Analytics integration</li>
+                            </ul>
+                        </div>
+                        <div class="bg-orange-50 rounded-lg p-4">
+                            <h4 class="font-semibold text-orange-800 mb-2">Launch Prep</h4>
+                            <ul class="text-sm space-y-1 text-gray-600">
+                                <li>• Data migration (WordPress → RDS)</li>
+                                <li>• DNS cutover</li>
+                                <li>• SEO redirects</li>
+                                <li>• Go-live checklist</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab 8: Infrastructure -->
+        <div id="tab-infrastructure" class="tab-content">
+
+            <!-- Repo banner -->
+            <div class="bg-indigo-50 border border-indigo-200 rounded-xl p-5 mb-6 flex flex-wrap items-center justify-between gap-4">
+                <div class="flex items-center gap-3">
+                    <i data-lucide="github" class="w-8 h-8 text-indigo-700"></i>
+                    <div>
+                        <div class="font-bold text-indigo-900 text-lg">pmstnepal/pmst-terraform-infra</div>
+                        <div class="text-sm text-indigo-600 mt-0.5">
+                            Private &nbsp;&middot;&nbsp;
+                            Local: <code class="bg-indigo-100 px-1 rounded">D:/pmstmigrateinfra/</code> &nbsp;&middot;&nbsp;
+                            Branch: <code class="bg-indigo-100 px-1 rounded">main</code> &nbsp;<span class="bg-green-100 text-green-700 px-1.5 py-0.5 rounded text-xs font-semibold">auto-deploys to prod</span>
+                        </div>
+                    </div>
+                </div>
+                <a href="https://github.com/pmstnepal/pmst-terraform-infra" target="_blank"
+                   class="bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-indigo-700 transition-colors no-print">
+                    Open on GitHub &rarr;
+                </a>
+            </div>
+
+            <div class="bg-white rounded-xl shadow-lg p-8 mb-6">
+                <h2 class="text-2xl font-bold mb-6">Infrastructure (Terraform)</h2>
+
+                <!-- Solo dev notice -->
+                <div class="bg-amber-50 border border-amber-300 rounded-lg p-4 mb-6 flex items-start gap-3">
+                    <i data-lucide="info" class="w-5 h-5 text-amber-600 shrink-0 mt-0.5"></i>
+                    <div class="text-sm text-amber-800">
+                        <strong>Solo Developer Mode</strong> &mdash; <code class="bg-amber-100 px-1 rounded">pmstusnepal.com</code> still points to Hostinger/WordPress, so there is zero risk working directly on prod AWS infra. Dev &amp; staging Terraform environments exist but are <strong>not provisioned</strong> (no cost). Reactivate when team grows.
+                    </div>
+                </div>
+
+                <!-- Branch strategy -->
+                <div class="grid md:grid-cols-2 gap-4 mb-6">
+                    <div class="bg-green-50 border border-green-300 rounded-lg p-4">
+                        <h4 class="font-bold text-green-800 mb-2 flex items-center gap-2"><i data-lucide="git-branch" class="w-4 h-4"></i> main branch <span class="ml-1 bg-green-200 text-green-800 text-xs px-1.5 py-0.5 rounded">PRIMARY</span></h4>
+                        <p class="text-sm text-green-700">Push here &rarr; GitHub Actions auto-applies Terraform + deploys Angular to <strong>prod</strong>.</p>
+                    </div>
+                    <div class="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                        <h4 class="font-bold text-gray-500 mb-2 flex items-center gap-2"><i data-lucide="pause-circle" class="w-4 h-4"></i> dev / staging environments</h4>
+                        <p class="text-sm text-gray-500">Terraform configs exist &mdash; <strong>dormant, not provisioned</strong>. Reactivate for team / pre-launch testing.</p>
+                    </div>
+                </div>
+
+                <!-- Terraform Structure -->
+                <div class="bg-gray-900 text-green-400 rounded-lg p-6 font-mono text-sm mb-6 overflow-x-auto">
+                    <pre>D:/pmstmigrateinfra/   (github: pmstnepal/pmst-terraform-infra)
+├── .github/workflows/
+│   ├── terraform-plan.yml          # plan on every PR
+│   ├── deploy-prod-on-push.yml     # AUTO: apply prod on push to main  ← PRIMARY
+│   ├── deploy-prod.yml             # manual dispatch (fallback)
+│   ├── deploy-dev.yml              # DORMANT — future scope
+│   └── deploy-staging.yml          # DORMANT — future scope
+├── modules/
+│   ├── vpc/                    # VPC, subnets, NAT, security groups
+│   ├── rds/                    # PostgreSQL 16 + RDS Proxy + Secrets Manager
+│   ├── cognito/                # User Pool, App Client, groups
+│   ├── s3/                     # Frontend bucket + media bucket (OAC)
+│   ├── cloudfront/             # CDN + SPA fallback (403/404 → index.html)
+│   ├── lambda/                 # 8 Java 21 services with SnapStart
+│   └── api-gateway/            # REST API + Cognito JWT authorizer
+├── environments/
+│   ├── dev/                    # db.t3.micro · 256MB Lambda · no proxy
+│   ├── staging/                # db.t3.small · 512MB Lambda · RDS Proxy
+│   └── prod/                   # db.t4g.small Multi-AZ · versioned S3 · WAF-ready
+├── backend.tf                  # S3 state bucket + DynamoDB lock table
+└── variables.tf                # shared root variables</pre>
+                </div>
+
+                <!-- GitHub Actions Workflows -->
+                <h3 class="font-bold text-lg mb-3">GitHub Actions Workflows</h3>
+                <div class="overflow-x-auto mb-6">
+                    <table class="w-full text-sm">
+                        <thead class="bg-gray-100">
+                            <tr>
+                                <th class="px-4 py-2 text-left">Workflow file</th>
+                                <th class="px-4 py-2 text-left">Trigger</th>
+                                <th class="px-4 py-2 text-left">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y">
+                            <tr>
+                                <td class="px-4 py-2 font-mono text-xs">terraform-plan.yml</td>
+                                <td class="px-4 py-2">Pull Request &rarr; main</td>
+                                <td class="px-4 py-2">Runs <code class="bg-gray-100 px-1 rounded">terraform plan</code> &amp; comments output on PR</td>
+                            </tr>
+                            <tr class="bg-green-50">
+                                <td class="px-4 py-2 font-mono text-xs font-bold">deploy-prod-on-push.yml <span class="ml-1 bg-green-200 text-green-800 text-xs px-1 rounded">PRIMARY</span></td>
+                                <td class="px-4 py-2">Push to <code class="bg-green-100 px-1 rounded">main</code></td>
+                                <td class="px-4 py-2">Auto <code class="bg-gray-100 px-1 rounded">terraform apply</code> &rarr; <strong>prod</strong> environment</td>
+                            </tr>
+                            <tr class="bg-orange-50">
+                                <td class="px-4 py-2 font-mono text-xs">deploy-prod.yml</td>
+                                <td class="px-4 py-2">Manual dispatch only (fallback / emergency)</td>
+                                <td class="px-4 py-2">Plan then apply &rarr; production environment</td>
+                            </tr>
+                            <tr class="bg-gray-50 opacity-60">
+                                <td class="px-4 py-2 font-mono text-xs">deploy-dev.yml</td>
+                                <td class="px-4 py-2"><span class="bg-gray-200 text-gray-600 px-1.5 py-0.5 rounded text-xs">Dormant</span></td>
+                                <td class="px-4 py-2 text-gray-400">Future scope &mdash; reactivate when team grows</td>
+                            </tr>
+                            <tr class="bg-gray-50 opacity-60">
+                                <td class="px-4 py-2 font-mono text-xs">deploy-staging.yml</td>
+                                <td class="px-4 py-2"><span class="bg-gray-200 text-gray-600 px-1.5 py-0.5 rounded text-xs">Dormant</span></td>
+                                <td class="px-4 py-2 text-gray-400">Future scope &mdash; reactivate before DNS cutover</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Required Secrets -->
+                <h3 class="font-bold text-lg mb-3">Required GitHub Secrets</h3>
+                <div class="grid md:grid-cols-2 gap-3 mb-6">
+                    <div class="bg-gray-50 rounded-lg p-3 font-mono text-sm flex items-center gap-2">
+                        <i data-lucide="key" class="w-4 h-4 text-gray-500 shrink-0"></i> AWS_ACCESS_KEY_ID
+                    </div>
+                    <div class="bg-gray-50 rounded-lg p-3 font-mono text-sm flex items-center gap-2">
+                        <i data-lucide="key" class="w-4 h-4 text-gray-500 shrink-0"></i> AWS_SECRET_ACCESS_KEY
+                    </div>
+                    <div class="bg-gray-50 rounded-lg p-3 font-mono text-sm flex items-center gap-2">
+                        <i data-lucide="key" class="w-4 h-4 text-gray-500 shrink-0"></i> DB_PASSWORD
+                    </div>
+                    <div class="bg-gray-50 rounded-lg p-3 font-mono text-sm flex items-center gap-2">
+                        <i data-lucide="key" class="w-4 h-4 text-gray-500 shrink-0"></i> ACM_CERTIFICATE_ARN <span class="text-xs text-gray-400 font-sans">(prod only)</span>
+                    </div>
+                </div>
+
+                <!-- Next Steps -->
+                <div class="bg-amber-50 border border-amber-200 rounded-lg p-4">
+                    <h4 class="font-bold text-amber-800 mb-2">&#128073; Before running terraform init</h4>
+                    <ol class="text-sm text-amber-700 space-y-1 list-decimal list-inside">
+                        <li>Create S3 bucket <code class="bg-amber-100 px-1 rounded">pmst-terraform-state</code> in us-east-1</li>
+                        <li>Create DynamoDB table <code class="bg-amber-100 px-1 rounded">pmst-terraform-locks</code> (partition key: <code class="bg-amber-100 px-1 rounded">LockID</code>)</li>
+                        <li>Add the four GitHub secrets above</li>
+                        <li>Run <code class="bg-amber-100 px-1 rounded">terraform init</code> from <code class="bg-amber-100 px-1 rounded">environments/prod/</code></li>
+                    </ol>
+                </div>
+
+                <!-- Resource Table -->
+                <h3 class="font-bold text-lg mt-6 mb-3">AWS Resource Sizing</h3>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-sm">
+                        <thead class="bg-gray-100">
+                            <tr>
+                                <th class="px-4 py-2 text-left">Resource</th>
+                                <th class="px-4 py-2 text-left">Dev</th>
+                                <th class="px-4 py-2 text-left">Prod</th>
+                                <th class="px-4 py-2 text-left">Est. Cost/mo</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y">
+                            <tr><td class="px-4 py-2">VPC + NAT</td><td class="px-4 py-2">2 AZ, single NAT</td><td class="px-4 py-2">2 AZ, single NAT</td><td class="px-4 py-2">$32</td></tr>
+                            <tr><td class="px-4 py-2">RDS PostgreSQL</td><td class="px-4 py-2">db.t3.micro, 20GB</td><td class="px-4 py-2">db.t4g.small, Multi-AZ</td><td class="px-4 py-2">$15-75</td></tr>
+                            <tr><td class="px-4 py-2">Cognito</td><td class="px-4 py-2">User Pool only</td><td class="px-4 py-2">+ Social providers</td><td class="px-4 py-2">$0-3</td></tr>
+                            <tr><td class="px-4 py-2">Lambda</td><td class="px-4 py-2">256MB, no provisioned</td><td class="px-4 py-2">512MB, SnapStart</td><td class="px-4 py-2">$0.20-2</td></tr>
+                            <tr><td class="px-4 py-2">S3 + CloudFront</td><td class="px-4 py-2">Basic</td><td class="px-4 py-2">WAF, full caching</td><td class="px-4 py-2">$10</td></tr>
+                            <tr class="bg-green-50 font-bold"><td class="px-4 py-2" colspan="3">Total</td><td class="px-4 py-2">$58 (dev) / $140 (prod)</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- CI/CD -->
+            <div class="bg-white rounded-xl shadow-lg p-8">
+                <h2 class="text-2xl font-bold mb-6">CI/CD Pipeline</h2>
+                <div class="flex flex-wrap items-center justify-center gap-4">
+                    <div class="bg-blue-100 rounded-lg p-4 text-center w-32">
+                        <i data-lucide="git-commit" class="w-8 h-8 text-blue-600 mx-auto mb-2"></i>
+                        <div class="font-semibold text-sm">Push</div>
+                    </div>
+                    <i data-lucide="arrow-right" class="w-6 h-6 text-gray-400"></i>
+                    <div class="bg-yellow-100 rounded-lg p-4 text-center w-32">
+                        <i data-lucide="code" class="w-8 h-8 text-yellow-600 mx-auto mb-2"></i>
+                        <div class="font-semibold text-sm">Build</div>
+                    </div>
+                    <i data-lucide="arrow-right" class="w-6 h-6 text-gray-400"></i>
+                    <div class="bg-purple-100 rounded-lg p-4 text-center w-32">
+                        <i data-lucide="test-tube" class="w-8 h-8 text-purple-600 mx-auto mb-2"></i>
+                        <div class="font-semibold text-sm">Test</div>
+                    </div>
+                    <i data-lucide="arrow-right" class="w-6 h-6 text-gray-400"></i>
+                    <div class="bg-green-100 rounded-lg p-4 text-center w-32">
+                        <i data-lucide="rocket" class="w-8 h-8 text-green-600 mx-auto mb-2"></i>
+                        <div class="font-semibold text-sm">Deploy</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        </div><!-- closes tab-infrastructure -->
+
+        <!-- Tab: Local Testing -->
+        <div id="tab-local-testing" class="tab-content">
+            <div class="bg-gradient-to-r from-emerald-600 to-teal-600 text-white rounded-xl shadow-lg p-8 mb-6">
+                <div class="flex items-center justify-between flex-wrap gap-4">
+                    <div>
+                        <h2 class="text-3xl font-bold mb-2">Local Run &rarr; Design &rarr; Test &rarr; Deploy Gate</h2>
+                        <p class="text-emerald-100">Nothing goes to AWS until everything works perfectly on localhost. Experience it as a real user first.</p>
+                    </div>
+                    <div class="text-center">
+                        <div id="gateBadge" class="px-4 py-2 rounded-full text-sm font-bold bg-red-100 text-red-700">&#128274; NOT READY</div>
+                        <div class="mt-2 text-xs text-emerald-100" id="gateLabel">0 / 9 checks passed</div>
+                    </div>
+                </div>
+                <div class="mt-4 bg-white/20 rounded-full h-3">
+                    <div id="gateProgress" class="bg-white rounded-full h-3 progress-bar" style="width:0%"></div>
+                </div>
+            </div>
+
+            <!-- Step 1 -->
+            <div class="bg-white rounded-xl shadow-lg p-6 mb-6">
+                <h3 class="text-xl font-bold mb-4 flex items-center gap-2">
+                    <span class="bg-emerald-100 text-emerald-700 w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm">1</span>
+                    Start Local Stack
+                </h3>
+                <div class="grid md:grid-cols-2 gap-6">
+                    <div>
+                        <h4 class="font-semibold text-gray-700 mb-2">&#9881; Backend (pmst-api-service)</h4>
+                        <div class="bg-gray-900 text-green-400 rounded-lg p-4 text-xs font-mono space-y-1">
+                            <div class="text-gray-400"># D:\pmst-services\pmst-api-service</div>
+                            <div>docker compose up -d</div>
+                            <div class="text-gray-400"># verify healthy</div>
+                            <div>docker ps</div>
+                            <div class="text-gray-400"># start Spring Boot</div>
+                            <div>mvn spring-boot:run</div>
+                            <div class="text-gray-400 mt-2"># &rarr; http://localhost:8080</div>
+                        </div>
+                    </div>
+                    <div>
+                        <h4 class="font-semibold text-gray-700 mb-2">&#9889; Frontend (pmst-angular-ui)</h4>
+                        <div class="bg-gray-900 text-green-400 rounded-lg p-4 text-xs font-mono space-y-1">
+                            <div class="text-gray-400"># D:\pmstmigrate</div>
+                            <div>npm start</div>
+                            <div class="text-gray-400 mt-2"># &rarr; http://localhost:4200</div>
+                        </div>
+                        <h4 class="font-semibold text-gray-700 mb-2 mt-4">&#127760; API Health Check</h4>
+                        <div class="bg-gray-900 text-green-400 rounded-lg p-3 text-xs font-mono space-y-1">
+                            <div>GET localhost:8080/articles</div>
+                            <div>GET localhost:8080/galleries</div>
+                            <div>GET localhost:8080/articles?category=spotlight</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Step 2 -->
+            <div class="bg-white rounded-xl shadow-lg p-6 mb-6">
+                <h3 class="text-xl font-bold mb-4 flex items-center gap-2">
+                    <span class="bg-blue-100 text-blue-700 w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm">2</span>
+                    Page-by-Page Design Check
+                </h3>
+                <p class="text-sm text-gray-500 mb-4">Open <code class="bg-gray-100 px-1 rounded">http://localhost:4200</code> and walk every route. Compare visually to pmstusnepal.com.</p>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-sm">
+                        <thead class="bg-gray-50"><tr><th class="px-4 py-2 text-left">Route</th><th class="px-4 py-2 text-left">Page</th><th class="px-4 py-2 text-left">What to Check</th></tr></thead>
+                        <tbody class="divide-y">
+                            <tr><td class="px-4 py-2 font-mono text-xs">/</td><td class="px-4 py-2">Home</td><td class="px-4 py-2 text-gray-600">Hero banner, videos, latest news cards, gallery grid, CTA</td></tr>
+                            <tr class="bg-gray-50"><td class="px-4 py-2 font-mono text-xs">/news</td><td class="px-4 py-2">News list</td><td class="px-4 py-2 text-gray-600">Articles grid, category filter tabs, pagination</td></tr>
+                            <tr><td class="px-4 py-2 font-mono text-xs">/news/:slug</td><td class="px-4 py-2">Article detail</td><td class="px-4 py-2 text-gray-600">Full content, featured image, date, author</td></tr>
+                            <tr class="bg-gray-50"><td class="px-4 py-2 font-mono text-xs">/showcase</td><td class="px-4 py-2">Gallery list</td><td class="px-4 py-2 text-gray-600">Gallery cards, pagination</td></tr>
+                            <tr><td class="px-4 py-2 font-mono text-xs">/showcase/:id</td><td class="px-4 py-2">Gallery detail</td><td class="px-4 py-2 text-gray-600">Images, title, description</td></tr>
+                            <tr class="bg-gray-50"><td class="px-4 py-2 font-mono text-xs">/spotlight</td><td class="px-4 py-2">Spotlight</td><td class="px-4 py-2 text-gray-600">Entertainment articles, category filters</td></tr>
+                            <tr><td class="px-4 py-2 font-mono text-xs">/events</td><td class="px-4 py-2">Events</td><td class="px-4 py-2 text-gray-600">Events layout renders without errors</td></tr>
+                            <tr class="bg-gray-50"><td class="px-4 py-2 font-mono text-xs">/login</td><td class="px-4 py-2">Login</td><td class="px-4 py-2 text-gray-600">Form, buttons, links render correctly</td></tr>
+                            <tr><td class="px-4 py-2 font-mono text-xs">/register</td><td class="px-4 py-2">Register</td><td class="px-4 py-2 text-gray-600">Form renders</td></tr>
+                            <tr class="bg-gray-50"><td class="px-4 py-2 font-mono text-xs">/dashboard</td><td class="px-4 py-2">Dashboard</td><td class="px-4 py-2 text-gray-600">Redirects to login if not authenticated</td></tr>
+                            <tr><td class="px-4 py-2 font-mono text-xs">/submit/article</td><td class="px-4 py-2">Submit article</td><td class="px-4 py-2 text-gray-600">Form fields visible</td></tr>
+                            <tr class="bg-gray-50"><td class="px-4 py-2 font-mono text-xs">/submit/gallery</td><td class="px-4 py-2">Submit gallery</td><td class="px-4 py-2 text-gray-600">Form fields visible</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Step 3 -->
+            <div class="bg-white rounded-xl shadow-lg p-6 mb-6">
+                <h3 class="text-xl font-bold mb-4 flex items-center gap-2">
+                    <span class="bg-purple-100 text-purple-700 w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm">3</span>
+                    Real User Flow Testing
+                </h3>
+                <div class="grid md:grid-cols-2 gap-3">
+                    <div class="flex items-start gap-3 p-3 bg-purple-50 rounded-lg"><span class="text-xl">&#128215;</span><div><div class="font-semibold text-sm">Article flow</div><div class="text-xs text-gray-600">Home &rarr; click news card &rarr; detail page loads with real data</div></div></div>
+                    <div class="flex items-start gap-3 p-3 bg-purple-50 rounded-lg"><span class="text-xl">&#128247;</span><div><div class="font-semibold text-sm">Gallery flow</div><div class="text-xs text-gray-600">Home &rarr; click gallery card &rarr; detail page loads</div></div></div>
+                    <div class="flex items-start gap-3 p-3 bg-purple-50 rounded-lg"><span class="text-xl">&#128269;</span><div><div class="font-semibold text-sm">News filter</div><div class="text-xs text-gray-600">/news &rarr; click category tab &rarr; list updates</div></div></div>
+                    <div class="flex items-start gap-3 p-3 bg-purple-50 rounded-lg"><span class="text-xl">&#128196;</span><div><div class="font-semibold text-sm">Pagination</div><div class="text-xs text-gray-600">News page 2 loads, Gallery page 2 loads</div></div></div>
+                    <div class="flex items-start gap-3 p-3 bg-purple-50 rounded-lg"><span class="text-xl">&#128241;</span><div><div class="font-semibold text-sm">Mobile layout</div><div class="text-xs text-gray-600">DevTools &rarr; 375px &rarr; header, cards, nav all look correct</div></div></div>
+                    <div class="flex items-start gap-3 p-3 bg-purple-50 rounded-lg"><span class="text-xl">&#128683;</span><div><div class="font-semibold text-sm">404 handling</div><div class="text-xs text-gray-600">/random-page &rarr; redirects to home</div></div></div>
+                    <div class="flex items-start gap-3 p-3 bg-purple-50 rounded-lg col-span-2"><span class="text-xl">&#128270;</span><div><div class="font-semibold text-sm">Console check</div><div class="text-xs text-gray-600">DevTools Console has zero red errors on every page</div></div></div>
+                </div>
+            </div>
+
+            <!-- Step 4: Gate Checklist -->
+            <div class="bg-white rounded-xl shadow-lg p-6 mb-6">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="text-xl font-bold flex items-center gap-2">
+                        <span class="bg-red-100 text-red-700 w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm">4</span>
+                        Deployment Gate Checklist
+                    </h3>
+                    <button onclick="resetChecklist()" class="text-xs text-gray-500 hover:text-gray-700 px-3 py-1 border rounded-lg">Reset</button>
+                </div>
+                <p class="text-sm text-gray-500 mb-4">Click each item to mark it complete. <strong>All 9 must be green before deploying to AWS.</strong></p>
+                <div class="space-y-2">
+                    <div id="gate1" data-gate-item data-checked="false" onclick="toggleCheck('gate1')" class="flex items-center gap-3 p-3 bg-gray-50 rounded-lg cursor-pointer hover:bg-gray-100"><span class="check-icon text-lg">&#11036;</span><span class="text-sm"><code class="bg-white px-1 rounded text-xs">GET /articles</code> returns real article data (no 500 error)</span></div>
+                    <div id="gate2" data-gate-item data-checked="false" onclick="toggleCheck('gate2')" class="flex items-center gap-3 p-3 bg-gray-50 rounded-lg cursor-pointer hover:bg-gray-100"><span class="check-icon text-lg">&#11036;</span><span class="text-sm"><code class="bg-white px-1 rounded text-xs">GET /galleries</code> returns real gallery data</span></div>
+                    <div id="gate3" data-gate-item data-checked="false" onclick="toggleCheck('gate3')" class="flex items-center gap-3 p-3 bg-gray-50 rounded-lg cursor-pointer hover:bg-gray-100"><span class="check-icon text-lg">&#11036;</span><span class="text-sm">All 12 routes load without red console errors</span></div>
+                    <div id="gate4" data-gate-item data-checked="false" onclick="toggleCheck('gate4')" class="flex items-center gap-3 p-3 bg-gray-50 rounded-lg cursor-pointer hover:bg-gray-100"><span class="check-icon text-lg">&#11036;</span><span class="text-sm">Home page visually matches pmstusnepal.com layout</span></div>
+                    <div id="gate5" data-gate-item data-checked="false" onclick="toggleCheck('gate5')" class="flex items-center gap-3 p-3 bg-gray-50 rounded-lg cursor-pointer hover:bg-gray-100"><span class="check-icon text-lg">&#11036;</span><span class="text-sm">Category filter on <code class="bg-white px-1 rounded text-xs">/news</code> works correctly</span></div>
+                    <div id="gate6" data-gate-item data-checked="false" onclick="toggleCheck('gate6')" class="flex items-center gap-3 p-3 bg-gray-50 rounded-lg cursor-pointer hover:bg-gray-100"><span class="check-icon text-lg">&#11036;</span><span class="text-sm">Pagination works on /news and /showcase</span></div>
+                    <div id="gate7" data-gate-item data-checked="false" onclick="toggleCheck('gate7')" class="flex items-center gap-3 p-3 bg-gray-50 rounded-lg cursor-pointer hover:bg-gray-100"><span class="check-icon text-lg">&#11036;</span><span class="text-sm">Mobile layout (375px) renders correctly &mdash; no overflow or broken nav</span></div>
+                    <div id="gate8" data-gate-item data-checked="false" onclick="toggleCheck('gate8')" class="flex items-center gap-3 p-3 bg-gray-50 rounded-lg cursor-pointer hover:bg-gray-100"><span class="check-icon text-lg">&#11036;</span><span class="text-sm">No CORS errors in browser DevTools Network tab</span></div>
+                    <div id="gate9" data-gate-item data-checked="false" onclick="toggleCheck('gate9')" class="flex items-center gap-3 p-3 bg-gray-50 rounded-lg cursor-pointer hover:bg-gray-100"><span class="check-icon text-lg">&#11036;</span><span class="text-sm"><code class="bg-white px-1 rounded text-xs">mvn package -DskipTests</code> produces <code class="bg-white px-1 rounded text-xs">target/pmst-api-service-lambda.jar</code></span></div>
+                </div>
+            </div>
+
+            <!-- Step 5 -->
+            <div class="bg-white rounded-xl shadow-lg p-6 mb-6">
+                <h3 class="text-xl font-bold mb-4 flex items-center gap-2">
+                    <span class="bg-green-100 text-green-700 w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm">5</span>
+                    Deploy (only after all Step 4 items are checked)
+                </h3>
+                <div class="bg-gray-900 text-green-400 rounded-lg p-5 text-xs font-mono space-y-1">
+                    <div class="text-gray-400"># 1. Build Lambda JAR</div>
+                    <div>cd D:\pmst-services\pmst-api-service &amp;&amp; mvn package -DskipTests</div>
+                    <div class="mt-2 text-gray-400"># 2. Terraform dev</div>
+                    <div>terraform -chdir=environments/dev apply</div>
+                    <div class="mt-2 text-gray-400"># 3. Angular prod build</div>
+                    <div>ng build --configuration=production</div>
+                    <div class="mt-2 text-gray-400"># 4. Upload to S3</div>
+                    <div>aws s3 sync dist/pmst-angular-ui/browser/ s3://pmst-dev-frontend/ --delete</div>
+                    <div class="mt-2 text-gray-400"># 5. CloudFront invalidation</div>
+                    <div>aws cloudfront create-invalidation --distribution-id &lt;ID&gt; --paths "/*"</div>
+                </div>
+                <div class="mt-4 bg-blue-50 border border-blue-200 rounded-lg p-4 text-sm text-blue-800">
+                    <strong>&#128161; After deploy:</strong> Repeat Step 2 &amp; Step 3 on <code class="bg-white px-1 rounded">https://dev.pmstusnepal.com</code> before promoting to production.
+                </div>
+            </div>
+
+        </div><!-- closes tab-local-testing -->
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-gray-800 text-white py-8 mt-12">
+        <div class="container mx-auto px-6 text-center">
+            <p class="mb-2">PMST US-Nepal Master Plan</p>
+            <p class="text-sm text-gray-400">Migration from WordPress to AWS Serverless</p>
+            <div class="mt-4 flex justify-center gap-3 text-xs text-gray-500">
+                <span class="bg-gray-700 px-2 py-1 rounded">Angular 17+</span>
+                <span class="bg-gray-700 px-2 py-1 rounded">Java 21</span>
+                <span class="bg-gray-700 px-2 py-1 rounded">AWS Lambda</span>
+                <span class="bg-gray-700 px-2 py-1 rounded">PostgreSQL</span>
+                <span class="bg-gray-700 px-2 py-1 rounded">Cognito</span>
+                <span class="bg-gray-700 px-2 py-1 rounded">Terraform</span>
+                <span class="bg-gray-700 px-2 py-1 rounded">GitHub Actions</span>
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        // Initialize
+        document.addEventListener('DOMContentLoaded', function() {
+            lucide.createIcons();
+            mermaid.initialize({ startOnLoad: false });
+            document.getElementById('lastUpdated').textContent = new Date().toLocaleDateString('en-US', { 
+                year: 'numeric', month: 'short', day: 'numeric' 
+            });
+            loadProgress();
+            updateCounts();
+        });
+
+        // Tab switching
+        function showTab(tabName) {
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+            document.querySelectorAll('.tab-btn').forEach(b => {
+                b.classList.remove('bg-indigo-100', 'text-indigo-700');
+                b.classList.add('text-gray-600', 'hover:bg-gray-100');
+            });
+            
+            document.getElementById('tab-' + tabName).classList.add('active');
+            document.querySelector(`[data-tab="${tabName}"]`).classList.add('bg-indigo-100', 'text-indigo-700');
+            document.querySelector(`[data-tab="${tabName}"]`).classList.remove('text-gray-600', 'hover:bg-gray-100');
+            
+            lucide.createIcons();
+        }
+
+        // Dark mode
+        function toggleDarkMode() {
+            document.documentElement.classList.toggle('dark');
+            localStorage.setItem('darkMode', document.documentElement.classList.contains('dark'));
+        }
+
+        // Load dark mode preference
+        if (localStorage.getItem('darkMode') === 'true') {
+            document.documentElement.classList.add('dark');
+        }
+
+        // Plugin filtering
+        function filterPlugins(query) {
+            const cards = document.querySelectorAll('.plugin-card');
+            cards.forEach(card => {
+                const name = card.getAttribute('data-name').toLowerCase();
+                card.style.display = name.includes(query.toLowerCase()) ? 'block' : 'none';
+            });
+        }
+
+        function filterPluginCategory(category) {
+            const cards = document.querySelectorAll('.plugin-card');
+            cards.forEach(card => {
+                if (category === 'all') {
+                    card.style.display = 'block';
+                } else {
+                    card.style.display = card.getAttribute('data-category') === category ? 'block' : 'none';
+                }
+            });
+        }
+
+        // Kanban - Move card between columns
+        function moveCard(card) {
+            const currentStatus = card.getAttribute('data-status');
+            let newStatus, targetColumn;
+            
+            if (currentStatus === 'todo') {
+                newStatus = 'inprogress';
+                targetColumn = document.getElementById('inProgressColumn');
+            } else if (currentStatus === 'inprogress') {
+                newStatus = 'done';
+                targetColumn = document.getElementById('doneColumn');
+                card.classList.add('opacity-75');
+                card.querySelector('.font-medium').classList.add('line-through');
+                const existingStatus = card.querySelector('.text-green-600');
+                if (!existingStatus) {
+                    const statusDiv = document.createElement('div');
+                    statusDiv.className = 'mt-1 text-xs text-green-600';
+                    statusDiv.textContent = '✓ Completed';
+                    card.appendChild(statusDiv);
+                }
+            } else {
+                newStatus = 'todo';
+                targetColumn = document.getElementById('todoColumn');
+                card.classList.remove('opacity-75');
+                card.querySelector('.font-medium').classList.remove('line-through');
+                const statusDiv = card.querySelector('.text-green-600');
+                if (statusDiv) statusDiv.remove();
+            }
+            
+            card.setAttribute('data-status', newStatus);
+            targetColumn.appendChild(card);
+            updateCounts();
+            saveProgress();
+        }
+
+        // Update counts
+        function updateCounts() {
+            document.getElementById('todoCount').textContent = document.querySelectorAll('#todoColumn .kanban-card').length;
+            document.getElementById('inProgressCount').textContent = document.querySelectorAll('#inProgressColumn .kanban-card').length;
+            document.getElementById('doneCount').textContent = document.querySelectorAll('#doneColumn .kanban-card').length;
+        }
+
+        // Save/Load progress
+        function saveProgress() {
+            const progress = {
+                todo: Array.from(document.querySelectorAll('#todoColumn .kanban-card')).map(c => c.getAttribute('data-component')),
+                inprogress: Array.from(document.querySelectorAll('#inProgressColumn .kanban-card')).map(c => c.getAttribute('data-component')),
+                done: Array.from(document.querySelectorAll('#doneColumn .kanban-card')).map(c => c.getAttribute('data-component'))
+            };
+            localStorage.setItem('pmstProgress', JSON.stringify(progress));
+        }
+
+        function loadProgress() {
+            const saved = localStorage.getItem('pmstProgress');
+            if (!saved) return;
+            
+            const progress = JSON.parse(saved);
+            const todoCol = document.getElementById('todoColumn');
+            const inProgressCol = document.getElementById('inProgressColumn');
+            const doneCol = document.getElementById('doneColumn');
+            
+            // Move cards based on saved state
+            progress.inprogress?.forEach(comp => {
+                const card = document.querySelector(`[data-component="${comp}"]`);
+                if (card) {
+                    card.setAttribute('data-status', 'inprogress');
+                    inProgressCol.appendChild(card);
+                }
+            });
+            
+            progress.done?.forEach(comp => {
+                const card = document.querySelector(`[data-component="${comp}"]`);
+                if (card) {
+                    card.setAttribute('data-status', 'done');
+                    card.classList.add('opacity-75');
+                    card.querySelector('.font-medium').classList.add('line-through');
+                    const statusDiv = document.createElement('div');
+                    statusDiv.className = 'mt-1 text-xs text-green-600';
+                    statusDiv.textContent = '✓ Completed';
+                    card.appendChild(statusDiv);
+                    doneCol.appendChild(card);
+                }
+            });
+        }
+
+        function resetProgress() {
+            localStorage.removeItem('pmstProgress');
+            location.reload();
+        }
+    </script>
+
+    <script>
+        function showAllPlugins() {
+            alert('Full plugin list (38 plugins) available in the workflow documentation');
+        }
+
+        // Local Testing checklist persistence
+        function toggleCheck(id) {
+            const el = document.getElementById(id);
+            const checked = el.getAttribute('data-checked') === 'true';
+            el.setAttribute('data-checked', !checked);
+            el.querySelector('.check-icon').textContent = !checked ? '✅' : '⬜';
+            el.classList.toggle('opacity-50', !checked);
+            el.classList.toggle('line-through', !checked);
+            saveChecklist();
+            updateGateStatus();
+        }
+
+        function saveChecklist() {
+            const items = document.querySelectorAll('[data-gate-item]');
+            const state = {};
+            items.forEach(item => { state[item.id] = item.getAttribute('data-checked') === 'true'; });
+            localStorage.setItem('pmstGate', JSON.stringify(state));
+        }
+
+        function loadChecklist() {
+            const saved = localStorage.getItem('pmstGate');
+            if (!saved) return;
+            const state = JSON.parse(saved);
+            Object.entries(state).forEach(([id, checked]) => {
+                const el = document.getElementById(id);
+                if (el && checked) {
+                    el.setAttribute('data-checked', 'true');
+                    el.querySelector('.check-icon').textContent = '✅';
+                    el.classList.add('opacity-50', 'line-through');
+                }
+            });
+            updateGateStatus();
+        }
+
+        function updateGateStatus() {
+            const items = document.querySelectorAll('[data-gate-item]');
+            const total = items.length;
+            const done = Array.from(items).filter(i => i.getAttribute('data-checked') === 'true').length;
+            const bar = document.getElementById('gateProgress');
+            const label = document.getElementById('gateLabel');
+            const badge = document.getElementById('gateBadge');
+            if (!bar) return;
+            const pct = Math.round((done / total) * 100);
+            bar.style.width = pct + '%';
+            label.textContent = done + ' / ' + total + ' checks passed';
+            if (done === total) {
+                badge.textContent = '🚀 READY TO DEPLOY';
+                badge.className = 'px-4 py-2 rounded-full text-sm font-bold bg-green-100 text-green-700';
+            } else {
+                badge.textContent = '🔒 NOT READY';
+                badge.className = 'px-4 py-2 rounded-full text-sm font-bold bg-red-100 text-red-700';
+            }
+        }
+
+        function resetChecklist() {
+            localStorage.removeItem('pmstGate');
+            document.querySelectorAll('[data-gate-item]').forEach(el => {
+                el.setAttribute('data-checked', 'false');
+                el.querySelector('.check-icon').textContent = '⬜';
+                el.classList.remove('opacity-50', 'line-through');
+            });
+            updateGateStatus();
+        }
+
+        document.addEventListener('DOMContentLoaded', () => { loadChecklist(); });
+    </script>
+</body>
+</html>
