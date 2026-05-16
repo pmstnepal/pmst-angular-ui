@@ -979,32 +979,121 @@ aws s3 sync D:/pmst-migration/uploads/ s3://pmst-prod-media/media/ \
 
 ### Step 1 — Start Local Stack
 
-**Backend (`pmst-api-service`):**
-```bash
-cd D:\pmst-services\pmst-api-service
+#### Prerequisites Checklist
 
-# Start PostgreSQL
-docker compose up -d
+Before starting, verify you have:
+- [ ] **Docker Desktop** running (system tray icon green)
+- [ ] **Java 21** installed (`java -version` shows 21.x)
+- [ ] **Node.js 18+** installed (`node -v` shows v18.x)
+- [ ] **Maven 3.9+** installed (`mvn -v` shows 3.9.x)
+- [ ] **All repositories** cloned and on correct branches:
+  - `pmst-angular-ui` → `feature/angular-ui-setup` at `D:\pmstmigrate`
+  - `pmst-api-service` → `feature/initial-setup` at `D:\pmst-services\pmst-api-service`
 
-# Verify DB is healthy
-docker ps   # should show pmst-api-db as healthy
+#### Quick Start (Windows PowerShell)
 
-# Run Spring Boot
-mvn spring-boot:run   # → http://localhost:8080
-```
-
-**Frontend (`pmst-angular-ui`):**
-```bash
+**Option A: Run the batch script**
+```powershell
 cd D:\pmstmigrate
-npm start             # → http://localhost:4200
+.\start-dev.bat
 ```
 
-**API health check (open in browser or curl):**
+**Option B: Manual startup**
+```powershell
+# Terminal 1 - Backend
+cd D:\pmst-services\pmst-api-service
+docker compose up -d
+mvn spring-boot:run
+
+# Terminal 2 - Frontend
+cd D:\pmstmigrate
+npm start
 ```
-GET http://localhost:8080/articles
-GET http://localhost:8080/galleries
-GET http://localhost:8080/articles?category=spotlight
+
+#### Detailed Step-by-Step Instructions
+
+**Step 1A: Start Database (PostgreSQL)**
+```powershell
+cd D:\pmst-services\pmst-api-service
+docker compose up -d
 ```
+- **Verify:** `docker ps` should show `pmst-api-db` with status "healthy"
+- **Port:** `:5432` (PostgreSQL default)
+- **Data:** 131 articles and 3,337 images already migrated
+
+**Step 1B: Start Backend API (Spring Boot)**
+```powershell
+cd D:\pmst-services\pmst-api-service
+mvn spring-boot:run
+```
+- **Wait for:** "Started Application in X seconds"
+- **Port:** `http://localhost:8080`
+- **Verify:** Open browser → `http://localhost:8080/articles` should return JSON
+
+**Step 1C: Start Frontend (Angular)**
+```powershell
+cd D:\pmstmigrate
+npm start
+```
+- **Wait for:** "Compiled successfully" or browser opens automatically
+- **Port:** `http://localhost:4201`
+- **Verify:** Homepage loads with news articles and images
+
+#### Service Reference
+
+| Service | Port | Local URL | Repository Path | Purpose |
+|---------|------|-----------|-------------------|---------|
+| **PostgreSQL** | 5432 | `localhost:5432` | — | Database |
+| **Backend API** | 8080 | `http://localhost:8080` | `D:\pmst-services\pmst-api-service` | REST API (Java) |
+| **Frontend** | 4201 | `http://localhost:4201` | `D:\pmstmigrate` | Angular dev server |
+
+#### Health Check Commands
+
+**Verify all services are running:**
+```powershell
+# Check Docker container
+docker ps --filter "name=pmst-api-db" --format "table {{.Names}}\t{{.Status}}"
+
+# Check backend API (PowerShell)
+Invoke-RestMethod -Uri "http://localhost:8080/articles" | Select-Object -First 3
+
+# Check frontend (should open in browser)
+Start-Process "http://localhost:4201"
+```
+
+#### Troubleshooting Common Issues
+
+| Issue | Solution |
+|-------|----------|
+| **Port 5432 in use** | `docker stop pmst-api-db` or restart Docker Desktop |
+| **Port 8080 in use** | `taskkill /F /IM java.exe` then restart backend |
+| **Port 4201 in use** | `taskkill /F /IM node.exe` then restart frontend |
+| **CORS errors in browser** | Verify backend is running on `:8080` |
+| **Images not loading** | Verify `src/assets/images/` folder has 3,337 images |
+| **Database connection failed** | Run `docker compose up -d` in api-service folder |
+| **npm start fails** | Run `npm install` first to install dependencies |
+| **mvn command not found** | Add Maven to PATH or use IntelliJ's Maven panel |
+
+#### Shutdown Procedure
+
+When done developing:
+```powershell
+# Terminal 1 (Backend) - Press Ctrl+C, then:
+docker compose down
+
+# Terminal 2 (Frontend) - Press Ctrl+C
+```
+
+#### Daily Startup Checklist
+
+- [ ] Docker Desktop is running
+- [ ] PostgreSQL container is healthy (`docker ps`)
+- [ ] Backend API responds (`http://localhost:8080/articles`)
+- [ ] Frontend loads (`http://localhost:4201`)
+- [ ] No red errors in browser DevTools Console
+- [ ] Featured images display on homepage
+
+---
 
 ---
 

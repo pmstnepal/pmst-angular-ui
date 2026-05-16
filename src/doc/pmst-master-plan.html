@@ -1727,37 +1727,281 @@
                 </div>
             </div>
 
+            <!-- Prerequisites -->
+            <div class="bg-white rounded-xl shadow-lg p-6 mb-6 border-l-4 border-blue-500">
+                <h3 class="text-xl font-bold mb-4 flex items-center gap-2">
+                    <span class="bg-blue-100 text-blue-700 w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm">0</span>
+                    Prerequisites Checklist
+                </h3>
+                <p class="text-gray-600 mb-4">Before starting, verify these are installed and running:</p>
+                <div class="grid md:grid-cols-2 gap-4">
+                    <div class="space-y-2">
+                        <div class="flex items-center gap-2 p-2 bg-gray-50 rounded">
+                            <span class="text-green-600 font-bold">✓</span>
+                            <span class="text-sm"><strong>Docker Desktop</strong> running (system tray icon green)</span>
+                        </div>
+                        <div class="flex items-center gap-2 p-2 bg-gray-50 rounded">
+                            <span class="text-green-600 font-bold">✓</span>
+                            <span class="text-sm"><strong>Java 21</strong> installed (<code>java -version</code>)</span>
+                        </div>
+                        <div class="flex items-center gap-2 p-2 bg-gray-50 rounded">
+                            <span class="text-green-600 font-bold">✓</span>
+                            <span class="text-sm"><strong>Node.js 18+</strong> installed (<code>node -v</code>)</span>
+                        </div>
+                    </div>
+                    <div class="space-y-2">
+                        <div class="flex items-center gap-2 p-2 bg-gray-50 rounded">
+                            <span class="text-green-600 font-bold">✓</span>
+                            <span class="text-sm"><strong>Maven 3.9+</strong> installed (<code>mvn -v</code>)</span>
+                        </div>
+                        <div class="flex items-center gap-2 p-2 bg-gray-50 rounded">
+                            <span class="text-green-600 font-bold">✓</span>
+                            <span class="text-sm">All repos cloned on correct branches</span>
+                        </div>
+                        <div class="flex items-center gap-2 p-2 bg-gray-50 rounded">
+                            <span class="text-green-600 font-bold">✓</span>
+                            <span class="text-sm">Images available in <code>src/assets/images/</code></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <!-- Step 1 -->
             <div class="bg-white rounded-xl shadow-lg p-6 mb-6">
                 <h3 class="text-xl font-bold mb-4 flex items-center gap-2">
                     <span class="bg-emerald-100 text-emerald-700 w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm">1</span>
                     Start Local Stack
                 </h3>
-                <div class="grid md:grid-cols-2 gap-6">
-                    <div>
-                        <h4 class="font-semibold text-gray-700 mb-2">&#9881; Backend (pmst-api-service)</h4>
-                        <div class="bg-gray-900 text-green-400 rounded-lg p-4 text-xs font-mono space-y-1">
-                            <div class="text-gray-400"># D:\pmst-services\pmst-api-service</div>
+
+                <!-- Quick Start -->
+                <div class="bg-emerald-50 rounded-lg p-4 mb-6 border border-emerald-200">
+                    <h4 class="font-bold text-emerald-800 mb-2 flex items-center gap-2">
+                        <i data-lucide="zap" class="w-5 h-5"></i> Quick Start (PowerShell)
+                    </h4>
+                    <div class="bg-gray-900 text-green-400 rounded-lg p-3 text-xs font-mono space-y-1 mb-2">
+                        <div class="text-gray-400"># Option A: Run the batch script (recommended)</div>
+                        <div>cd D:\pmstmigrate</div>
+                        <div>.\start-dev.bat</div>
+                    </div>
+                    <p class="text-sm text-emerald-700">Or follow the detailed steps below for manual control.</p>
+                </div>
+
+                <!-- Step 1A: Database -->
+                <div class="mb-6 border rounded-lg p-4 bg-gray-50">
+                    <h4 class="font-bold text-gray-800 mb-2 flex items-center gap-2">
+                        <span class="bg-blue-100 text-blue-700 w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold">1A</span>
+                        Start Database (PostgreSQL)
+                    </h4>
+                    <div class="grid md:grid-cols-2 gap-4">
+                        <div class="bg-gray-900 text-green-400 rounded-lg p-3 text-xs font-mono space-y-1">
+                            <div class="text-gray-400"># Terminal 1 - Navigate to backend</div>
+                            <div>cd D:\pmst-services\pmst-api-service</div>
+                            <div class="text-gray-400 mt-2"># Start PostgreSQL container</div>
                             <div>docker compose up -d</div>
-                            <div class="text-gray-400"># verify healthy</div>
-                            <div>docker ps</div>
-                            <div class="text-gray-400"># start Spring Boot</div>
-                            <div>mvn spring-boot:run</div>
-                            <div class="text-gray-400 mt-2"># &rarr; http://localhost:8080</div>
+                        </div>
+                        <div class="text-sm space-y-2">
+                            <div class="flex items-center gap-2">
+                                <span class="text-green-600">✓</span>
+                                <span><strong>Verify:</strong> <code>docker ps</code> shows "pmst-api-db (healthy)"</span>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <span class="text-blue-600">🖥️</span>
+                                <span><strong>Port:</strong> localhost:5432</span>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <span class="text-purple-600">📊</span>
+                                <span><strong>Data:</strong> 131 articles, 3,337 images migrated</span>
+                            </div>
                         </div>
                     </div>
-                    <div>
-                        <h4 class="font-semibold text-gray-700 mb-2">&#9889; Frontend (pmst-angular-ui)</h4>
-                        <div class="bg-gray-900 text-green-400 rounded-lg p-4 text-xs font-mono space-y-1">
-                            <div class="text-gray-400"># D:\pmstmigrate</div>
-                            <div>npm start</div>
-                            <div class="text-gray-400 mt-2"># &rarr; http://localhost:4200</div>
-                        </div>
-                        <h4 class="font-semibold text-gray-700 mb-2 mt-4">&#127760; API Health Check</h4>
+                </div>
+
+                <!-- Step 1B: Backend API -->
+                <div class="mb-6 border rounded-lg p-4 bg-gray-50">
+                    <h4 class="font-bold text-gray-800 mb-2 flex items-center gap-2">
+                        <span class="bg-blue-100 text-blue-700 w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold">1B</span>
+                        Start Backend API (Spring Boot)
+                    </h4>
+                    <div class="grid md:grid-cols-2 gap-4">
                         <div class="bg-gray-900 text-green-400 rounded-lg p-3 text-xs font-mono space-y-1">
-                            <div>GET localhost:8080/articles</div>
-                            <div>GET localhost:8080/galleries</div>
-                            <div>GET localhost:8080/articles?category=spotlight</div>
+                            <div class="text-gray-400"># Same terminal</div>
+                            <div>cd D:\pmst-services\pmst-api-service</div>
+                            <div class="text-gray-400 mt-2"># Start Spring Boot</div>
+                            <div>mvn spring-boot:run</div>
+                        </div>
+                        <div class="text-sm space-y-2">
+                            <div class="flex items-center gap-2">
+                                <span class="text-green-600">⏳</span>
+                                <span><strong>Wait for:</strong> "Started Application in X seconds"</span>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <span class="text-blue-600">🌐</span>
+                                <span><strong>URL:</strong> <a href="http://localhost:8080/articles" target="_blank" class="text-blue-600 underline">http://localhost:8080</a></span>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <span class="text-green-600">✓</span>
+                                <span><strong>Test:</strong> Click the URL → should show JSON articles</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Step 1C: Frontend -->
+                <div class="mb-6 border rounded-lg p-4 bg-gray-50">
+                    <h4 class="font-bold text-gray-800 mb-2 flex items-center gap-2">
+                        <span class="bg-blue-100 text-blue-700 w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold">1C</span>
+                        Start Frontend (Angular)
+                    </h4>
+                    <div class="grid md:grid-cols-2 gap-4">
+                        <div class="bg-gray-900 text-green-400 rounded-lg p-3 text-xs font-mono space-y-1">
+                            <div class="text-gray-400"># Terminal 2 - Navigate to frontend</div>
+                            <div>cd D:\pmstmigrate</div>
+                            <div class="text-gray-400 mt-2"># Start Angular dev server</div>
+                            <div>npm start</div>
+                        </div>
+                        <div class="text-sm space-y-2">
+                            <div class="flex items-center gap-2">
+                                <span class="text-green-600">⏳</span>
+                                <span><strong>Wait for:</strong> "Compiled successfully" message</span>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <span class="text-blue-600">🌐</span>
+                                <span><strong>URL:</strong> <a href="http://localhost:4201" target="_blank" class="text-blue-600 underline">http://localhost:4201</a></span>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <span class="text-green-600">✓</span>
+                                <span><strong>Test:</strong> Homepage loads with articles & images</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Service Reference Card -->
+                <div class="bg-indigo-50 rounded-lg p-4 border border-indigo-200">
+                    <h4 class="font-bold text-indigo-800 mb-3 flex items-center gap-2">
+                        <i data-lucide="server" class="w-5 h-5"></i> Service Reference
+                    </h4>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-sm">
+                            <thead class="bg-indigo-100">
+                                <tr>
+                                    <th class="px-3 py-2 text-left">Service</th>
+                                    <th class="px-3 py-2 text-left">Port</th>
+                                    <th class="px-3 py-2 text-left">Local URL</th>
+                                    <th class="px-3 py-2 text-left">Repository</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr class="bg-white">
+                                    <td class="px-3 py-2 font-semibold">PostgreSQL</td>
+                                    <td class="px-3 py-2 font-mono">5432</td>
+                                    <td class="px-3 py-2 font-mono">localhost:5432</td>
+                                    <td class="px-3 py-2 text-gray-500">—</td>
+                                </tr>
+                                <tr class="bg-gray-50">
+                                    <td class="px-3 py-2 font-semibold">Backend API</td>
+                                    <td class="px-3 py-2 font-mono">8080</td>
+                                    <td class="px-3 py-2"><a href="http://localhost:8080" target="_blank" class="text-blue-600 underline">localhost:8080</a></td>
+                                    <td class="px-3 py-2 font-mono text-xs">D:\pmst-services\pmst-api-service</td>
+                                </tr>
+                                <tr class="bg-white">
+                                    <td class="px-3 py-2 font-semibold">Frontend</td>
+                                    <td class="px-3 py-2 font-mono">4201</td>
+                                    <td class="px-3 py-2"><a href="http://localhost:4201" target="_blank" class="text-blue-600 underline">localhost:4201</a></td>
+                                    <td class="px-3 py-2 font-mono text-xs">D:\pmstmigrate</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Troubleshooting -->
+            <div class="bg-amber-50 rounded-xl shadow-lg p-6 mb-6 border-l-4 border-amber-500">
+                <h3 class="text-xl font-bold mb-4 flex items-center gap-2 text-amber-800">
+                    <i data-lucide="alert-triangle" class="w-6 h-6"></i>
+                    Common Issues & Solutions
+                </h3>
+                <div class="grid md:grid-cols-2 gap-4">
+                    <div class="space-y-3">
+                        <div class="bg-white rounded p-3 shadow-sm">
+                            <div class="font-semibold text-red-600 text-sm">Port 5432 in use</div>
+                            <div class="text-xs text-gray-600 mt-1">Run: <code>docker stop pmst-api-db</code> or restart Docker Desktop</div>
+                        </div>
+                        <div class="bg-white rounded p-3 shadow-sm">
+                            <div class="font-semibold text-red-600 text-sm">Port 8080 in use</div>
+                            <div class="text-xs text-gray-600 mt-1">Run: <code>taskkill /F /IM java.exe</code> then restart backend</div>
+                        </div>
+                        <div class="bg-white rounded p-3 shadow-sm">
+                            <div class="font-semibold text-red-600 text-sm">Port 4201 in use</div>
+                            <div class="text-xs text-gray-600 mt-1">Run: <code>taskkill /F /IM node.exe</code> then restart frontend</div>
+                        </div>
+                    </div>
+                    <div class="space-y-3">
+                        <div class="bg-white rounded p-3 shadow-sm">
+                            <div class="font-semibold text-red-600 text-sm">CORS errors in browser</div>
+                            <div class="text-xs text-gray-600 mt-1">Verify backend is running on <code>:8080</code></div>
+                        </div>
+                        <div class="bg-white rounded p-3 shadow-sm">
+                            <div class="font-semibold text-red-600 text-sm">Images not loading</div>
+                            <div class="text-xs text-gray-600 mt-1">Verify <code>src/assets/images/</code> folder has 3,337 images</div>
+                        </div>
+                        <div class="bg-white rounded p-3 shadow-sm">
+                            <div class="font-semibold text-red-600 text-sm">Database connection failed</div>
+                            <div class="text-xs text-gray-600 mt-1">Run <code>docker compose up -d</code> in api-service folder</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Startup Verification -->
+            <div class="bg-white rounded-xl shadow-lg p-6 mb-6">
+                <h3 class="text-xl font-bold mb-4 flex items-center gap-2">
+                    <span class="bg-purple-100 text-purple-700 w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm">✓</span>
+                    Startup Verification Checklist
+                </h3>
+                <p class="text-gray-600 mb-4">After starting all services, verify everything is working:</p>
+                <div class="grid md:grid-cols-2 gap-3">
+                    <div class="flex items-start gap-3 p-3 bg-green-50 rounded-lg">
+                        <input type="checkbox" class="mt-1 w-4 h-4 text-green-600 rounded">
+                        <div>
+                            <div class="font-semibold text-sm">Docker Desktop running</div>
+                            <div class="text-xs text-gray-500">System tray icon is green</div>
+                        </div>
+                    </div>
+                    <div class="flex items-start gap-3 p-3 bg-green-50 rounded-lg">
+                        <input type="checkbox" class="mt-1 w-4 h-4 text-green-600 rounded">
+                        <div>
+                            <div class="font-semibold text-sm">PostgreSQL container healthy</div>
+                            <div class="text-xs text-gray-500"><code>docker ps</code> shows "pmst-api-db (healthy)"</div>
+                        </div>
+                    </div>
+                    <div class="flex items-start gap-3 p-3 bg-green-50 rounded-lg">
+                        <input type="checkbox" class="mt-1 w-4 h-4 text-green-600 rounded">
+                        <div>
+                            <div class="font-semibold text-sm">Backend API responds</div>
+                            <div class="text-xs text-gray-500"><a href="http://localhost:8080/articles" target="_blank" class="text-blue-600 underline">localhost:8080/articles</a> returns JSON</div>
+                        </div>
+                    </div>
+                    <div class="flex items-start gap-3 p-3 bg-green-50 rounded-lg">
+                        <input type="checkbox" class="mt-1 w-4 h-4 text-green-600 rounded">
+                        <div>
+                            <div class="font-semibold text-sm">Frontend loads</div>
+                            <div class="text-xs text-gray-500"><a href="http://localhost:4201" target="_blank" class="text-blue-600 underline">localhost:4201</a> shows homepage</div>
+                        </div>
+                    </div>
+                    <div class="flex items-start gap-3 p-3 bg-green-50 rounded-lg">
+                        <input type="checkbox" class="mt-1 w-4 h-4 text-green-600 rounded">
+                        <div>
+                            <div class="font-semibold text-sm">No console errors</div>
+                            <div class="text-xs text-gray-500">DevTools Console shows zero red errors</div>
+                        </div>
+                    </div>
+                    <div class="flex items-start gap-3 p-3 bg-green-50 rounded-lg">
+                        <input type="checkbox" class="mt-1 w-4 h-4 text-green-600 rounded">
+                        <div>
+                            <div class="font-semibold text-sm">Images display</div>
+                            <div class="text-xs text-gray-500">Featured images show on homepage</div>
                         </div>
                     </div>
                 </div>
