@@ -67,6 +67,9 @@
                 <button onclick="showTab('overview')" class="tab-btn px-4 py-2 rounded-lg text-sm font-medium transition-colors bg-indigo-100 text-indigo-700" data-tab="overview">
                     <i data-lucide="layout-grid" class="w-4 h-4 inline mr-1"></i>Overview
                 </button>
+                <button onclick="showTab('repositories')" class="tab-btn px-4 py-2 rounded-lg text-sm font-medium transition-colors hover:bg-gray-100 text-gray-600" data-tab="repositories">
+                    <i data-lucide="git-branch" class="w-4 h-4 inline mr-1"></i>Repositories
+                </button>
                 <button onclick="showTab('architecture')" class="tab-btn px-4 py-2 rounded-lg text-sm font-medium transition-colors hover:bg-gray-100 text-gray-600" data-tab="architecture">
                     <i data-lucide="layers" class="w-4 h-4 inline mr-1"></i>Architecture
                 </button>
@@ -121,6 +124,30 @@
                     <div class="text-4xl font-bold text-orange-600 mb-2">8</div>
                     <div class="text-sm text-gray-600">Week Timeline</div>
                     <div class="text-xs text-gray-400 mt-1">5 phases</div>
+                </div>
+            </div>
+
+            <!-- Live Site Reference -->
+            <div class="bg-gradient-to-r from-red-600 to-red-700 text-white rounded-xl shadow-lg p-6 mb-8">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <h2 class="text-xl font-bold mb-2 flex items-center gap-2">
+                            <i data-lucide="external-link" class="w-6 h-6"></i>
+                            Live Reference Site
+                        </h2>
+                        <p class="text-red-100">
+                            <a href="https://pmstusnepal.com" target="_blank" class="underline font-semibold text-white">pmstusnepal.com</a> 
+                            — Production WordPress site that the Angular frontend must match
+                        </p>
+                        <div class="mt-3 text-sm text-red-200">
+                            Reference: <a href="https://github.com/pmstnepal/pmstusnepal-plugins" target="_blank" class="underline text-white">pmstusnepal-plugins</a> (38 WP plugins)
+                        </div>
+                    </div>
+                    <div class="text-right text-sm text-red-100">
+                        <div>Color: #c0392b</div>
+                        <div>Theme: Blocksy</div>
+                        <div>Plugins: 38</div>
+                    </div>
                 </div>
             </div>
 
@@ -257,7 +284,254 @@
             </div>
         </div>
 
-        <!-- Tab 2: Architecture -->
+        <!-- Development Progress Dashboard -->
+        <div class="bg-white rounded-xl shadow-lg p-8 mb-6">
+            <h2 class="text-2xl font-bold mb-6 flex items-center gap-2">
+                <i data-lucide="activity" class="text-green-600"></i>
+                Local Development Setup Progress
+            </h2>
+            <p class="text-gray-600 mb-4">Real-time tracking of development environment setup - Updated: May 16, 2026 11:20 AM</p>
+            
+            <div class="overflow-x-auto">
+                <table class="w-full text-sm">
+                    <thead class="bg-gray-100">
+                        <tr>
+                            <th class="px-4 py-2 text-left">Task</th>
+                            <th class="px-4 py-2 text-left">Status</th>
+                            <th class="px-4 py-2 text-left">Details</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y">
+                        <tr class="bg-green-50">
+                            <td class="px-4 py-2 font-semibold">Image Migration</td>
+                            <td class="px-4 py-2"><span class="px-2 py-1 bg-green-100 text-green-800 rounded-full text-xs">✅ Complete</span></td>
+                            <td class="px-4 py-2 text-gray-600">3,216 images extracted from 5.1GB ZIP, copied to Angular assets</td>
+                        </tr>
+                        <tr class="bg-green-50">
+                            <td class="px-4 py-2 font-semibold">Image URL Mapping</td>
+                            <td class="px-4 py-2"><span class="px-2 py-1 bg-green-100 text-green-800 rounded-full text-xs">✅ Complete</span></td>
+                            <td class="px-4 py-2 text-gray-600">ImageUrlMapperService integrated in all components</td>
+                        </tr>
+                        <tr class="bg-green-50">
+                            <td class="px-4 py-2 font-semibold">Docker Cleanup</td>
+                            <td class="px-4 py-2"><span class="px-2 py-1 bg-green-100 text-green-800 rounded-full text-xs">✅ Complete</span></td>
+                            <td class="px-4 py-2 text-gray-600">All containers stopped, conflicts resolved</td>
+                        </tr>
+                        <tr class="bg-green-50">
+                            <td class="px-4 py-2 font-semibold">Database Setup</td>
+                            <td class="px-4 py-2"><span class="px-2 py-1 bg-green-100 text-green-800 rounded-full text-xs">✅ Complete</span></td>
+                            <td class="px-4 py-2 text-gray-600">PostgreSQL running on :5432 with 131 articles</td>
+                        </tr>
+                        <tr class="bg-green-50">
+                            <td class="px-4 py-2 font-semibold">Featured Images Fix</td>
+                            <td class="px-4 py-2"><span class="px-2 py-1 bg-green-100 text-green-800 rounded-full text-xs">✅ Complete</span></td>
+                            <td class="px-4 py-2 text-gray-600">Fixed migration script, updated 131 articles with correct URLs</td>
+                        </tr>
+                        <tr class="bg-green-50">
+                            <td class="px-4 py-2 font-semibold">CORS Configuration</td>
+                            <td class="px-4 py-2"><span class="px-2 py-1 bg-green-100 text-green-800 rounded-full text-xs">✅ Complete</span></td>
+                            <td class="px-4 py-2 text-gray-600">Added port 4201 to CorsConfig.java</td>
+                        </tr>
+                        <tr class="bg-green-50">
+                            <td class="px-4 py-2 font-semibold">Backend (IntelliJ)</td>
+                            <td class="px-4 py-2"><span class="px-2 py-1 bg-green-100 text-green-800 rounded-full text-xs">✅ Running</span></td>
+                            <td class="px-4 py-2 text-gray-600">Java 21 Spring Boot on :8080</td>
+                        </tr>
+                        <tr class="bg-green-50">
+                            <td class="px-4 py-2 font-semibold">Frontend (Windsurf)</td>
+                            <td class="px-4 py-2"><span class="px-2 py-1 bg-green-100 text-green-800 rounded-full text-xs">✅ Running</span></td>
+                            <td class="px-4 py-2 text-gray-600">Angular dev server on :4201</td>
+                        </tr>
+                        <tr class="bg-green-50">
+                            <td class="px-4 py-2 font-semibold">End-to-End Test</td>
+                            <td class="px-4 py-2"><span class="px-2 py-1 bg-green-100 text-green-800 rounded-full text-xs">✅ Working</span></td>
+                            <td class="px-4 py-2 text-gray-600">Content + images fully working</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            
+            <div class="mt-6 bg-green-50 rounded-lg p-4 border-l-4 border-green-500">
+                <h4 class="font-bold text-green-800 mb-2">✅ Images Fully Working (May 16, 2026)</h4>
+                <p class="text-sm text-green-700 mb-2">
+                    <strong>Issue:</strong> <code>uploads.zip</code> was incomplete - only 2019/2023 images but database had 2024/2025/2026 article image URLs.
+                </p>
+                <p class="text-sm text-green-700 mb-2">
+                    <strong>Solution:</strong> Downloaded 130 missing images from live site, updated database with local paths, regenerated manifest.
+                </p>
+                <table class="w-full text-sm mb-2 bg-white rounded">
+                    <thead class="bg-gray-100">
+                        <tr><th class="px-2 py-1 text-left">Action</th><th class="px-2 py-1 text-left">Result</th></tr>
+                    </thead>
+                    <tbody>
+                        <tr class="bg-green-50"><td class="px-2 py-1">Downloaded from pmstusnepal.com</td><td class="px-2 py-1">130 images</td></tr>
+                        <tr class="bg-green-50"><td class="px-2 py-1">Total local images</td><td class="px-2 py-1">3,337 images</td></tr>
+                        <tr class="bg-green-50"><td class="px-2 py-1">Articles with images</td><td class="px-2 py-1">131 / 131 (100%)</td></tr>
+                    </tbody>
+                </table>
+                <p class="text-sm text-green-700">
+                    <strong>Status:</strong> ✅ All featured images display correctly. <code>ImageUrlMapperService</code> with manifest-based lookup working.
+                </p>
+            </div>
+            
+            <div class="mt-6 bg-green-50 rounded-lg p-4 border-l-4 border-green-500">
+                <h4 class="font-bold text-green-800 mb-2">🎉 Development Environment Ready!</h4>
+                <p class="text-sm text-green-700 mb-2">
+                    All services are running and communicating correctly. Frontend displays articles with featured images.
+                </p>
+                <div class="text-sm text-green-700 font-mono bg-white p-3 rounded">
+                    Frontend: http://localhost:4201<br>
+                    Backend API: http://localhost:8080<br>
+                    Database: localhost:5432 (131 articles, 3,337 images)
+                </div>
+            </div>
+            
+            <div class="mt-6 bg-blue-50 rounded-lg p-4">
+                <h4 class="font-bold text-blue-800 mb-2">Fixes Applied Today</h4>
+                <ul class="text-sm text-blue-700 space-y-1 list-disc list-inside">
+                    <li><strong>CORS Fix:</strong> Added port 4201 to CorsConfig.java for Angular dev server</li>
+                    <li><strong>Featured Images:</strong> Created fix_featured_images.py to correct migration script bug</li>
+                    <li><strong>Database Config:</strong> Updated config.py password to match docker-compose</li>
+                    <li><strong>Image Mapping:</strong> ImageUrlMapperService converts WP URLs to local paths</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Tab 2: Repositories -->
+        <div id="tab-repositories" class="tab-content">
+            <div class="bg-white rounded-xl shadow-lg p-8 mb-6">
+                <h2 class="text-2xl font-bold mb-6 flex items-center gap-2">
+                    <i data-lucide="git-branch" class="text-indigo-600"></i>
+                    Repository Cross-References
+                </h2>
+                
+                <div class="overflow-x-auto mb-8">
+                    <table class="w-full text-sm">
+                        <thead class="bg-gray-100">
+                            <tr>
+                                <th class="px-4 py-2 text-left">Repository</th>
+                                <th class="px-4 py-2 text-left">Local Path</th>
+                                <th class="px-4 py-2 text-left">GitHub</th>
+                                <th class="px-4 py-2 text-left">Port</th>
+                                <th class="px-4 py-2 text-left">Status</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y">
+                            <tr class="bg-blue-50">
+                                <td class="px-4 py-2 font-mono font-semibold">pmst-angular-ui</td>
+                                <td class="px-4 py-2 font-mono text-xs">d:\pmstmigrate\</td>
+                                <td class="px-4 py-2"><a href="https://github.com/pmstnepal/pmst-angular-ui" target="_blank" class="text-indigo-600 hover:underline text-xs">pmstnepal/pmst-angular-ui</a></td>
+                                <td class="px-4 py-2 font-mono">:4200</td>
+                                <td class="px-4 py-2"><span class="bg-green-100 text-green-700 px-2 py-0.5 rounded-full text-xs">🟢 Active</span></td>
+                            </tr>
+                            <tr class="bg-green-50">
+                                <td class="px-4 py-2 font-mono font-semibold">pmst-api-service</td>
+                                <td class="px-4 py-2 font-mono text-xs">d:\pmst-services\pmst-api-service\</td>
+                                <td class="px-4 py-2"><a href="https://github.com/pmstnepal/pmst-api-service" target="_blank" class="text-indigo-600 hover:underline text-xs">pmstnepal/pmst-api-service</a></td>
+                                <td class="px-4 py-2 font-mono">:8080</td>
+                                <td class="px-4 py-2"><span class="bg-green-100 text-green-700 px-2 py-0.5 rounded-full text-xs">🟢 Active</span></td>
+                            </tr>
+                            <tr class="bg-purple-50">
+                                <td class="px-4 py-2 font-mono font-semibold">pmst-terraform-infra</td>
+                                <td class="px-4 py-2 font-mono text-xs">d:\pmstmigrateinfra\</td>
+                                <td class="px-4 py-2"><a href="https://github.com/pmstnepal/pmst-terraform-infra" target="_blank" class="text-indigo-600 hover:underline text-xs">pmstnepal/pmst-terraform-infra</a></td>
+                                <td class="px-4 py-2 font-mono">N/A</td>
+                                <td class="px-4 py-2"><span class="bg-green-100 text-green-700 px-2 py-0.5 rounded-full text-xs">🟢 Active</span></td>
+                            </tr>
+                            <tr class="bg-orange-50">
+                                <td class="px-4 py-2 font-mono font-semibold">pmst-data-migration</td>
+                                <td class="px-4 py-2 font-mono text-xs">d:\pmst-migration\</td>
+                                <td class="px-4 py-2"><a href="https://github.com/pmstnepal/pmst-data-migration" target="_blank" class="text-indigo-600 hover:underline text-xs">pmstnepal/pmst-data-migration</a></td>
+                                <td class="px-4 py-2 font-mono">N/A</td>
+                                <td class="px-4 py-2"><span class="bg-green-100 text-green-700 px-2 py-0.5 rounded-full text-xs">🟢 Active</span></td>
+                            </tr>
+                            <tr class="bg-gray-50">
+                                <td class="px-4 py-2 font-mono font-semibold">pmstusnepal-plugins</td>
+                                <td class="px-4 py-2 text-xs text-gray-500">Reference only</td>
+                                <td class="px-4 py-2"><a href="https://github.com/pmstnepal/pmstusnepal-plugins" target="_blank" class="text-indigo-600 hover:underline text-xs">pmstnepal/pmstusnepal-plugins</a></td>
+                                <td class="px-4 py-2 font-mono">N/A</td>
+                                <td class="px-4 py-2"><span class="bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full text-xs">🔵 Reference</span></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="bg-indigo-50 rounded-lg p-6 border border-indigo-200">
+                    <h3 class="font-bold text-indigo-800 mb-3 flex items-center gap-2">
+                        <i data-lucide="external-link" class="w-5 h-5"></i>
+                        Live Site Reference
+                    </h3>
+                    <p class="text-indigo-700 mb-3">
+                        <strong>Production WordPress Site:</strong> 
+                        <a href="https://pmstusnepal.com" target="_blank" class="underline font-semibold">pmstusnepal.com</a>
+                    </p>
+                    <p class="text-sm text-indigo-600">
+                        The Angular frontend must match this site's layout, navigation, colors (#c0392b), and typography. 
+                        Reference the <a href="https://github.com/pmstnepal/pmstusnepal-plugins" target="_blank" class="underline">pmstusnepal-plugins</a> 
+                        repo for WordPress shortcode logic.
+                    </p>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-xl shadow-lg p-8">
+                <h2 class="text-2xl font-bold mb-6 flex items-center gap-2">
+                    <i data-lucide="puzzle" class="text-purple-600"></i>
+                    WordPress Plugin to Angular Component Mapping
+                </h2>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-sm">
+                        <thead class="bg-gray-100">
+                            <tr>
+                                <th class="px-4 py-2 text-left">WP Plugin</th>
+                                <th class="px-4 py-2 text-left">Shortcode</th>
+                                <th class="px-4 py-2 text-left">Angular Component</th>
+                                <th class="px-4 py-2 text-left">Backend API</th>
+                                <th class="px-4 py-2 text-left">Status</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y">
+                            <tr>
+                                <td class="px-4 py-2 font-semibold">pmst-banner-section</td>
+                                <td class="px-4 py-2 font-mono text-xs">[pmst_banner]</td>
+                                <td class="px-4 py-2"><code>pmst-hero-lite</code> CSS</td>
+                                <td class="px-4 py-2 text-gray-500">N/A</td>
+                                <td class="px-4 py-2"><span class="bg-green-100 text-green-700 px-2 py-0.5 rounded text-xs">✅ Done</span></td>
+                            </tr>
+                            <tr>
+                                <td class="px-4 py-2 font-semibold">pmst-post-carousel</td>
+                                <td class="px-4 py-2 font-mono text-xs">[pmst_post_carousel]</td>
+                                <td class="px-4 py-2"><code>PostCarouselComponent</code></td>
+                                <td class="px-4 py-2 font-mono text-xs">/articles?size=6</td>
+                                <td class="px-4 py-2"><span class="bg-green-100 text-green-700 px-2 py-0.5 rounded text-xs">✅ Done</span></td>
+                            </tr>
+                            <tr>
+                                <td class="px-4 py-2 font-semibold">pmst-yt-playlists</td>
+                                <td class="px-4 py-2 font-mono text-xs">[pmst_yt_playlists]</td>
+                                <td class="px-4 py-2"><code>YoutubePlaylistComponent</code></td>
+                                <td class="px-4 py-2 text-gray-500">N/A</td>
+                                <td class="px-4 py-2"><span class="bg-green-100 text-green-700 px-2 py-0.5 rounded text-xs">✅ Done</span></td>
+                            </tr>
+                            <tr>
+                                <td class="px-4 py-2 font-semibold">pmst-model-gallery-cpt</td>
+                                <td class="px-4 py-2 font-mono text-xs">[pmst_model_gallery_slider]</td>
+                                <td class="px-4 py-2"><code>GalleryCarouselComponent</code></td>
+                                <td class="px-4 py-2 font-mono text-xs">/galleries?size=6</td>
+                                <td class="px-4 py-2"><span class="bg-green-100 text-green-700 px-2 py-0.5 rounded text-xs">✅ Done</span></td>
+                            </tr>
+                            <tr>
+                                <td class="px-4 py-2 font-semibold">pmst-follow-plugin</td>
+                                <td class="px-4 py-2 font-mono text-xs">[pmst_follow]</td>
+                                <td class="px-4 py-2"><code>FollowButtonComponent</code></td>
+                                <td class="px-4 py-2 font-mono text-xs">POST /users/{id}/follow</td>
+                                <td class="px-4 py-2"><span class="bg-blue-100 text-blue-700 px-2 py-0.5 rounded text-xs">🔄 Planned</span></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab 3: Architecture -->
         <div id="tab-architecture" class="tab-content">
             <div class="bg-white rounded-xl shadow-lg p-8 mb-6">
                 <h2 class="text-2xl font-bold mb-6">System Architecture</h2>
@@ -611,7 +885,7 @@
                 <!-- Table Schemas -->
                 <div class="space-y-4">
                     <div class="border rounded-lg overflow-hidden">
-                        <div class="bg-gray-100 px-4 py-2 font-semibold text-sm">users</div>
+                        <div class="bg-blue-600 text-white px-4 py-2 font-semibold text-sm flex items-center justify-between">users <span class="bg-white text-blue-700 text-xs px-2 py-0.5 rounded font-normal">18 rows migrated</span></div>
                         <table class="w-full text-sm">
                             <thead class="bg-gray-50"><tr><th class="px-4 py-2 text-left">Column</th><th class="px-4 py-2 text-left">Type</th><th class="px-4 py-2 text-left">Notes</th></tr></thead>
                             <tbody class="divide-y">
@@ -628,7 +902,18 @@
                     </div>
 
                     <div class="border rounded-lg overflow-hidden">
-                        <div class="bg-gray-100 px-4 py-2 font-semibold text-sm">follows (from pmst_follows plugin)</div>
+                        <div class="bg-gray-100 px-4 py-2 font-semibold text-sm flex items-center justify-between">articles <span class="text-xs text-gray-500">1,446 rows &middot; +youtube_link, embed_code, gallery_images JSONB</span></div>
+                        <table class="w-full text-sm">
+                            <thead class="bg-gray-50"><tr><th class="px-4 py-2 text-left">Column</th><th class="px-4 py-2 text-left">Type</th><th class="px-4 py-2 text-left">Notes</th></tr></thead>
+                            <tbody class="divide-y">
+                                <tr><td class="px-4 py-2 font-mono">youtube_link</td><td class="px-4 py-2">TEXT</td><td class="px-4 py-2 text-gray-500 flex items-center gap-1">From wp_postmeta &middot; <span class="bg-green-100 text-green-700 text-xs px-1 rounded">32 articles</span></td></tr>
+                                <tr><td class="px-4 py-2 font-mono">embed_code</td><td class="px-4 py-2">TEXT</td><td class="px-4 py-2 text-gray-500">Social embeds &middot; <span class="bg-green-100 text-green-700 text-xs px-1 rounded">12 articles</span></td></tr>
+                                <tr><td class="px-4 py-2 font-mono">gallery_images</td><td class="px-4 py-2">JSONB</td><td class="px-4 py-2 text-gray-500">PHP serialize → JSON array &middot; <span class="bg-green-100 text-green-700 text-xs px-1 rounded">27 articles</span></td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="border rounded-lg overflow-hidden">
+                    <div class="bg-gray-100 px-4 py-2 font-semibold text-sm">follows (from pmst_follows plugin)</div>
                         <table class="w-full text-sm">
                             <thead class="bg-gray-50"><tr><th class="px-4 py-2 text-left">Column</th><th class="px-4 py-2 text-left">Type</th><th class="px-4 py-2 text-left">Notes</th></tr></thead>
                             <tbody class="divide-y">
@@ -862,6 +1147,18 @@
                                 <div class="text-xs text-gray-500">shared/components/comments/</div>
                                 <div class="mt-1 text-xs text-green-600">✓ Completed</div>
                             </div>
+                            <div class="kanban-card bg-white p-3 rounded-lg shadow opacity-75" data-component="news-detail" data-status="done">
+                                <div class="font-medium text-sm line-through">NewsDetailComponent</div>
+                                <div class="text-xs text-gray-500">features/news/news-detail</div>
+                                <div class="mt-1 flex gap-1"><span class="text-xs bg-indigo-100 text-indigo-700 px-1.5 rounded">WP-replica</span></div>
+                                <div class="mt-1 text-xs text-green-600">✓ Full rebuild — YouTube, Fancybox, related posts, JSON-LD</div>
+                            </div>
+                            <div class="kanban-card bg-white p-3 rounded-lg shadow opacity-75" data-component="data-migration" data-status="done">
+                                <div class="font-medium text-sm line-through">Data Migration (10 scripts)</div>
+                                <div class="text-xs text-gray-500">pmst-data-migration</div>
+                                <div class="mt-1 flex gap-1 flex-wrap"><span class="text-xs bg-orange-100 text-orange-700 px-1.5 rounded">1,446 articles</span><span class="text-xs bg-orange-100 text-orange-700 px-1.5 rounded">5,471 tags</span><span class="text-xs bg-orange-100 text-orange-700 px-1.5 rounded">377 comments</span></div>
+                                <div class="mt-1 text-xs text-green-600">✓ Completed — all 10 scripts run successfully</div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -892,9 +1189,13 @@
                 </div>
 
                 <!-- Status banner -->
-                <div class="bg-green-50 border border-green-300 rounded-lg p-4 mb-6 flex items-center gap-3">
-                    <i data-lucide="check-circle" class="w-5 h-5 text-green-600 shrink-0"></i>
-                    <div class="text-sm text-green-800"><strong>Step 1 complete</strong> &mdash; All CSV exports downloaded from phpMyAdmin to <code class="bg-green-100 px-1 rounded">D:\pmst-migration\exports\</code> &nbsp;&middot;&nbsp; Scripts committed to <code class="bg-green-100 px-1 rounded">feature/migration-scripts</code></div>
+                <div class="bg-emerald-600 text-white rounded-lg p-4 mb-4 flex items-center gap-3">
+                    <i data-lucide="check-circle" class="w-5 h-5 shrink-0"></i>
+                    <div class="text-sm"><strong>All 10 migration scripts completed successfully on local Docker PostgreSQL</strong> &mdash; 1,446 articles &middot; 5,471 tags &middot; 15,773 article-tag links &middot; 13 galleries &middot; <strong>612 gallery images</strong> &middot; 377 comments &middot; 68 articles with meta (youtube / embed / gallery)</div>
+                </div>
+                <div class="bg-amber-50 border border-amber-300 rounded-lg p-3 mb-6 flex items-center gap-3">
+                    <i data-lucide="alert-circle" class="w-5 h-5 text-amber-600 shrink-0"></i>
+                    <div class="text-sm text-amber-800"><strong>Next:</strong> Re-run these scripts against AWS RDS once Terraform provisions the instance. Media files still need FTP download → S3 sync.</div>
                 </div>
 
                 <!-- Table mapping -->
@@ -910,15 +1211,15 @@
                             </tr>
                         </thead>
                         <tbody class="divide-y">
-                            <tr class="bg-green-50"><td class="px-4 py-2 font-mono text-xs">wp_users</td><td class="px-4 py-2">18</td><td class="px-4 py-2">users + user_profiles</td><td class="px-4 py-2"><span class="bg-green-200 text-green-800 px-2 py-0.5 rounded text-xs">Exported</span></td></tr>
-                            <tr class="bg-green-50"><td class="px-4 py-2 font-mono text-xs">wp_usermeta</td><td class="px-4 py-2">—</td><td class="px-4 py-2">user_profiles (merged)</td><td class="px-4 py-2"><span class="bg-green-200 text-green-800 px-2 py-0.5 rounded text-xs">Exported</span></td></tr>
-                            <tr class="bg-green-50"><td class="px-4 py-2 font-mono text-xs">wp_posts</td><td class="px-4 py-2">6,739</td><td class="px-4 py-2">articles + galleries + gallery_images</td><td class="px-4 py-2"><span class="bg-green-200 text-green-800 px-2 py-0.5 rounded text-xs">Exported</span></td></tr>
-                            <tr class="bg-green-50"><td class="px-4 py-2 font-mono text-xs">wp_postmeta</td><td class="px-4 py-2">—</td><td class="px-4 py-2">articles (meta fields)</td><td class="px-4 py-2"><span class="bg-green-200 text-green-800 px-2 py-0.5 rounded text-xs">Exported</span></td></tr>
-                            <tr class="bg-green-50"><td class="px-4 py-2 font-mono text-xs">wp_terms / wp_term_taxonomy</td><td class="px-4 py-2">—</td><td class="px-4 py-2">tags + gallery_categories</td><td class="px-4 py-2"><span class="bg-green-200 text-green-800 px-2 py-0.5 rounded text-xs">Exported</span></td></tr>
-                            <tr class="bg-green-50"><td class="px-4 py-2 font-mono text-xs">wp_term_relationships</td><td class="px-4 py-2">—</td><td class="px-4 py-2">article_tags</td><td class="px-4 py-2"><span class="bg-green-200 text-green-800 px-2 py-0.5 rounded text-xs">Exported</span></td></tr>
-                            <tr class="bg-green-50"><td class="px-4 py-2 font-mono text-xs">wp_comments</td><td class="px-4 py-2">379</td><td class="px-4 py-2">comments</td><td class="px-4 py-2"><span class="bg-green-200 text-green-800 px-2 py-0.5 rounded text-xs">Exported</span></td></tr>
-                            <tr class="bg-green-50"><td class="px-4 py-2 font-mono text-xs">wp_pmst_author_profiles</td><td class="px-4 py-2">2</td><td class="px-4 py-2">user_profiles (merge)</td><td class="px-4 py-2"><span class="bg-green-200 text-green-800 px-2 py-0.5 rounded text-xs">Exported</span></td></tr>
-                            <tr class="bg-green-50"><td class="px-4 py-2 font-mono text-xs">wp_social_users</td><td class="px-4 py-2">4</td><td class="px-4 py-2">users (social login)</td><td class="px-4 py-2"><span class="bg-green-200 text-green-800 px-2 py-0.5 rounded text-xs">Exported</span></td></tr>
+                            <tr class="bg-green-50"><td class="px-4 py-2 font-mono text-xs">wp_users</td><td class="px-4 py-2">18</td><td class="px-4 py-2">users + user_profiles</td><td class="px-4 py-2"><span class="bg-emerald-500 text-white px-2 py-0.5 rounded text-xs font-semibold">✅ Migrated</span></td></tr>
+                            <tr class="bg-green-50"><td class="px-4 py-2 font-mono text-xs">wp_usermeta</td><td class="px-4 py-2">—</td><td class="px-4 py-2">user_profiles (merged)</td><td class="px-4 py-2"><span class="bg-emerald-500 text-white px-2 py-0.5 rounded text-xs font-semibold">✅ Migrated</span></td></tr>
+                            <tr class="bg-green-50"><td class="px-4 py-2 font-mono text-xs">wp_posts</td><td class="px-4 py-2">6,739</td><td class="px-4 py-2">articles (1,446) + galleries (13) + gallery_images (612)</td><td class="px-4 py-2"><span class="bg-emerald-500 text-white px-2 py-0.5 rounded text-xs font-semibold">✅ Migrated</span></td></tr>
+                            <tr class="bg-green-50"><td class="px-4 py-2 font-mono text-xs">wp_postmeta</td><td class="px-4 py-2">~42 MB</td><td class="px-4 py-2">articles.youtube_link / embed_code / gallery_images (68 articles updated)</td><td class="px-4 py-2"><span class="bg-emerald-500 text-white px-2 py-0.5 rounded text-xs font-semibold">✅ Migrated</span></td></tr>
+                            <tr class="bg-green-50"><td class="px-4 py-2 font-mono text-xs">wp_terms / wp_term_taxonomy</td><td class="px-4 py-2">—</td><td class="px-4 py-2">tags (5,471) + gallery_categories (65)</td><td class="px-4 py-2"><span class="bg-emerald-500 text-white px-2 py-0.5 rounded text-xs font-semibold">✅ Migrated</span></td></tr>
+                            <tr class="bg-green-50"><td class="px-4 py-2 font-mono text-xs">wp_term_relationships</td><td class="px-4 py-2">—</td><td class="px-4 py-2">article_tags (15,773)</td><td class="px-4 py-2"><span class="bg-emerald-500 text-white px-2 py-0.5 rounded text-xs font-semibold">✅ Migrated</span></td></tr>
+                            <tr class="bg-green-50"><td class="px-4 py-2 font-mono text-xs">wp_comments</td><td class="px-4 py-2">379</td><td class="px-4 py-2">comments (377 approved)</td><td class="px-4 py-2"><span class="bg-emerald-500 text-white px-2 py-0.5 rounded text-xs font-semibold">✅ Migrated</span></td></tr>
+                            <tr class="bg-green-50"><td class="px-4 py-2 font-mono text-xs">wp_pmst_author_profiles</td><td class="px-4 py-2">2</td><td class="px-4 py-2">user_profiles (merge)</td><td class="px-4 py-2"><span class="bg-emerald-500 text-white px-2 py-0.5 rounded text-xs font-semibold">✅ Migrated</span></td></tr>
+                            <tr class="bg-green-50"><td class="px-4 py-2 font-mono text-xs">wp_social_users</td><td class="px-4 py-2">4</td><td class="px-4 py-2">users (social login)</td><td class="px-4 py-2"><span class="bg-emerald-500 text-white px-2 py-0.5 rounded text-xs font-semibold">✅ Migrated</span></td></tr>
                             <tr class="opacity-50"><td class="px-4 py-2 font-mono text-xs">wp_e_events</td><td class="px-4 py-2">1</td><td class="px-4 py-2 text-gray-400">Rebuilding fresh</td><td class="px-4 py-2"><span class="bg-gray-200 text-gray-600 px-2 py-0.5 rounded text-xs">Skip</span></td></tr>
                             <tr class="opacity-50"><td class="px-4 py-2 font-mono text-xs">wp_pmst_messages</td><td class="px-4 py-2">7</td><td class="px-4 py-2 text-gray-400">Rebuilding fresh</td><td class="px-4 py-2"><span class="bg-gray-200 text-gray-600 px-2 py-0.5 rounded text-xs">Skip</span></td></tr>
                             <tr class="opacity-50"><td class="px-4 py-2 font-mono text-xs">wp_pmst_reactions</td><td class="px-4 py-2">3</td><td class="px-4 py-2 text-gray-400">Rebuilding fresh</td><td class="px-4 py-2"><span class="bg-gray-200 text-gray-600 px-2 py-0.5 rounded text-xs">Skip</span></td></tr>
@@ -927,29 +1228,127 @@
                     </table>
                 </div>
 
+                <!-- Gallery Images Migration Details -->
+                <div class="bg-indigo-50 rounded-lg p-6 mb-6 border-l-4 border-indigo-500">
+                    <h3 class="font-bold text-lg text-indigo-800 mb-4 flex items-center gap-2">
+                        <i data-lucide="images" class="w-5 h-5"></i>
+                        Gallery Images Migration (May 16, 2026)
+                    </h3>
+                    
+                    <div class="grid md:grid-cols-2 gap-4 mb-4">
+                        <div class="bg-white rounded-lg p-4">
+                            <h4 class="font-semibold text-indigo-700 mb-2">Challenge</h4>
+                            <p class="text-sm text-gray-600">
+                                Original script looked for <code class="bg-gray-100 px-1 rounded">post_parent</code> in attachments, 
+                                but WordPress galleries store images differently using serialized PHP arrays in <code class="bg-gray-100 px-1 rounded">wp_postmeta.image_upload</code>.
+                            </p>
+                        </div>
+                        <div class="bg-white rounded-lg p-4">
+                            <h4 class="font-semibold text-indigo-700 mb-2">Solution</h4>
+                            <p class="text-sm text-gray-600">
+                                Created PHP serialized array parser using regex to extract attachment IDs, 
+                                then looked up file paths from <code class="bg-gray-100 px-1 rounded">_wp_attached_file</code> meta.
+                            </p>
+                        </div>
+                    </div>
+
+                    <table class="w-full text-sm bg-white rounded-lg mb-4">
+                        <thead class="bg-indigo-100">
+                            <tr>
+                                <th class="px-3 py-2 text-left">Script</th>
+                                <th class="px-3 py-2 text-left">Purpose</th>
+                                <th class="px-3 py-2 text-left">Result</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y">
+                            <tr><td class="px-3 py-2 font-mono text-xs">07_migrate_gallery_images.py</td><td class="px-3 py-2">Parse image_upload meta</td><td class="px-3 py-2"><span class="bg-green-100 text-green-700 px-2 py-0.5 rounded text-xs">306 images</span></td></tr>
+                            <tr><td class="px-3 py-2 font-mono text-xs">copy_gallery_images.py</td><td class="px-3 py-2">Copy files to Angular assets</td><td class="px-3 py-2"><span class="bg-green-100 text-green-700 px-2 py-0.5 rounded text-xs">418 images</span></td></tr>
+                            <tr><td class="px-3 py-2 font-mono text-xs">fix_remaining_gallery_images.py</td><td class="px-3 py-2">Fix slug-based URLs</td><td class="px-3 py-2"><span class="bg-green-100 text-green-700 px-2 py-0.5 rounded text-xs">194 images</span></td></tr>
+                            <tr class="bg-yellow-50"><td class="px-3 py-2 font-mono text-xs">fix_gallery_featured_images.py</td><td class="px-3 py-2">Set featured_image from _thumbnail_id</td><td class="px-3 py-2"><span class="bg-green-100 text-green-700 px-2 py-0.5 rounded text-xs">13 galleries ✓</span></td></tr>
+                        </tbody>
+                    </table>
+
+                    <div class="grid md:grid-cols-5 gap-3 mb-4">
+                        <div class="bg-white rounded-lg p-3 text-center">
+                            <div class="text-2xl font-bold text-indigo-600">612</div>
+                            <div class="text-xs text-gray-500">Total Gallery Images</div>
+                        </div>
+                        <div class="bg-white rounded-lg p-3 text-center">
+                            <div class="text-2xl font-bold text-indigo-600">13</div>
+                            <div class="text-xs text-gray-500">Galleries</div>
+                        </div>
+                        <div class="bg-green-50 rounded-lg p-3 text-center border-2 border-green-200">
+                            <div class="text-2xl font-bold text-green-600">13</div>
+                            <div class="text-xs text-green-700 font-semibold">✓ Featured Images</div>
+                        </div>
+                        <div class="bg-white rounded-lg p-3 text-center">
+                            <div class="text-2xl font-bold text-indigo-600">306</div>
+                            <div class="text-xs text-gray-500">Unique Image Files</div>
+                        </div>
+                        <div class="bg-white rounded-lg p-3 text-center">
+                            <div class="text-2xl font-bold text-indigo-600">3,644</div>
+                            <div class="text-xs text-gray-500">Manifest Entries</div>
+                        </div>
+                    </div>
+
+                    <h4 class="font-semibold text-indigo-700 mb-2">Top Galleries by Image Count</h4>
+                    <div class="grid md:grid-cols-2 gap-3">
+                        <div class="bg-white rounded-lg p-3">
+                            <div class="flex justify-between items-center">
+                                <span class="text-sm">Biskaa Jatraa 2025 Part 1</span>
+                                <span class="bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded text-xs font-semibold">80 images</span>
+                            </div>
+                        </div>
+                        <div class="bg-white rounded-lg p-3">
+                            <div class="flex justify-between items-center">
+                                <span class="text-sm">Biskaa Jatraa 2025 Part 2</span>
+                                <span class="bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded text-xs font-semibold">80 images</span>
+                            </div>
+                        </div>
+                        <div class="bg-white rounded-lg p-3">
+                            <div class="flex justify-between items-center">
+                                <span class="text-sm">Bhim Bahadur Tamang Photography</span>
+                                <span class="bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded text-xs font-semibold">22 images</span>
+                            </div>
+                        </div>
+                        <div class="bg-white rounded-lg p-3">
+                            <div class="flex justify-between items-center">
+                                <span class="text-sm">Kathmandu PABSON Dance Competition</span>
+                                <span class="bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded text-xs font-semibold">12 images</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mt-4 text-sm text-indigo-700 bg-white rounded-lg p-3">
+                        <strong>Backend Fix:</strong> Added <code class="bg-gray-100 px-1 rounded">@JsonIgnore</code> to <code class="bg-gray-100 px-1 rounded">GalleryImage.gallery</code> 
+                        to prevent circular JSON serialization. API now correctly returns <code class="bg-gray-100 px-1 rounded">images</code> array.
+                    </div>
+                </div>
+
                 <!-- Migration pipeline steps -->
                 <h3 class="font-bold text-lg mb-3">Migration Pipeline</h3>
                 <ol class="space-y-2 text-sm mb-6">
                     <li class="flex items-center gap-3"><span class="w-6 h-6 bg-green-500 text-white rounded-full flex items-center justify-center text-xs font-bold shrink-0">✓</span><span><strong>Export CSVs</strong> from phpMyAdmin &rarr; <code class="bg-gray-100 px-1 rounded">D:\pmst-migration\exports\</code></span></li>
                     <li class="flex items-center gap-3"><span class="w-6 h-6 bg-gray-200 text-gray-600 rounded-full flex items-center justify-center text-xs font-bold shrink-0">2</span><span><strong>Provision RDS</strong> via <code class="bg-gray-100 px-1 rounded">terraform apply</code> &rarr; run schema SQL</span></li>
                     <li class="flex items-center gap-3"><span class="w-6 h-6 bg-gray-200 text-gray-600 rounded-full flex items-center justify-center text-xs font-bold shrink-0">3</span><span><strong>Migrate media</strong> &rarr; Hostinger FTP download &rarr; <code class="bg-gray-100 px-1 rounded">aws s3 sync</code> to prod bucket</span></li>
-                    <li class="flex items-center gap-3"><span class="w-6 h-6 bg-gray-200 text-gray-600 rounded-full flex items-center justify-center text-xs font-bold shrink-0">4</span><span><strong>Run 9 Python scripts</strong> in dependency order (users first, content last)</span></li>
-                    <li class="flex items-center gap-3"><span class="w-6 h-6 bg-gray-200 text-gray-600 rounded-full flex items-center justify-center text-xs font-bold shrink-0">5</span><span><strong>Validate</strong> row counts + spot-check known article slugs</span></li>
+                    <li class="flex items-center gap-3"><span class="w-6 h-6 bg-green-500 text-white rounded-full flex items-center justify-center text-xs font-bold shrink-0">✓</span><span><strong>Run 10 Python scripts</strong> in dependency order (users first, article meta last) &mdash; <span class="bg-green-100 text-green-700 px-1.5 py-0.5 rounded text-xs font-semibold">DONE locally</span></span></li>
+                    <li class="flex items-center gap-3"><span class="w-6 h-6 bg-green-500 text-white rounded-full flex items-center justify-center text-xs font-bold shrink-0">✓</span><span><strong>Validate</strong> row counts + spot-check known article slugs &mdash; <span class="bg-green-100 text-green-700 px-1.5 py-0.5 rounded text-xs font-semibold">Verified locally (1,446 articles · 5,471 tags · 377 comments)</span></span></li>
                     <li class="flex items-center gap-3"><span class="w-6 h-6 bg-gray-200 text-gray-600 rounded-full flex items-center justify-center text-xs font-bold shrink-0">6</span><span><strong>DNS cutover</strong> &rarr; keep WordPress read-only for 1 week</span></li>
                 </ol>
 
                 <!-- Scripts order -->
                 <div class="bg-gray-900 text-green-400 rounded-lg p-4 font-mono text-xs">
                     <pre>D:\pmst-migration\scripts\
-├── migrate_users.py              # wp_users → users
-├── migrate_user_profiles.py      # wp_usermeta + wp_pmst_author_profiles → user_profiles
-├── migrate_tags.py               # wp_terms → tags + gallery_categories
-├── migrate_articles.py           # wp_posts (post) → articles  [Gutenberg clean + URL rewrite]
-├── migrate_article_tags.py       # wp_term_relationships → article_tags
-├── migrate_galleries.py          # wp_posts (model_gallery) → galleries
-├── migrate_gallery_images.py     # wp_posts (attachment) → gallery_images
-├── migrate_comments.py           # wp_comments → comments
-└── migrate_follows.py            # wp_pmst_follows → follows</pre>
+├── 01_migrate_users.py           # wp_users → users (18 rows)
+├── 02_migrate_user_profiles.py   # wp_usermeta + wp_pmst_author_profiles → user_profiles (18)
+├── 03_migrate_tags.py            # wp_terms → tags (5,471) + gallery_categories (65)
+├── 04_migrate_articles.py        # wp_posts (post) → articles (1,446) [Gutenberg + URL rewrite]
+├── 05_migrate_article_tags.py    # wp_term_relationships → article_tags (15,773)
+├── 06_migrate_galleries.py       # wp_posts (model_gallery) → galleries (13)
+├── 07_migrate_gallery_images.py  # wp_posts (attachment) → gallery_images (306)
+├── 08_migrate_comments.py        # wp_comments → comments (377)
+├── 09_migrate_follows.py         # wp_pmst_follows → follows (skipped – table absent)
+└── 10_migrate_article_meta.py    # wp_postmeta → articles.youtube_link/embed_code/gallery_images (68 updated)</pre>
                 </div>
             </div>
 
@@ -1320,7 +1719,7 @@
                     </div>
                     <div class="text-center">
                         <div id="gateBadge" class="px-4 py-2 rounded-full text-sm font-bold bg-red-100 text-red-700">&#128274; NOT READY</div>
-                        <div class="mt-2 text-xs text-emerald-100" id="gateLabel">0 / 9 checks passed</div>
+                        <div class="mt-2 text-xs text-emerald-100" id="gateLabel">0 / 12 checks passed</div>
                     </div>
                 </div>
                 <div class="mt-4 bg-white/20 rounded-full h-3">
@@ -1377,7 +1776,7 @@
                         <tbody class="divide-y">
                             <tr><td class="px-4 py-2 font-mono text-xs">/</td><td class="px-4 py-2">Home</td><td class="px-4 py-2 text-gray-600">Hero banner, videos, latest news cards, gallery grid, CTA</td></tr>
                             <tr class="bg-gray-50"><td class="px-4 py-2 font-mono text-xs">/news</td><td class="px-4 py-2">News list</td><td class="px-4 py-2 text-gray-600">Articles grid, category filter tabs, pagination</td></tr>
-                            <tr><td class="px-4 py-2 font-mono text-xs">/news/:slug</td><td class="px-4 py-2">Article detail</td><td class="px-4 py-2 text-gray-600">Full content, featured image, date, author</td></tr>
+                            <tr><td class="px-4 py-2 font-mono text-xs">/news/:slug</td><td class="px-4 py-2">Article detail <span class="bg-green-100 text-green-700 px-1 rounded text-xs">✅ Rebuilt</span></td><td class="px-4 py-2 text-gray-600">Hero (YouTube iframe OR blurred img + logo overlay) &middot; title, author/date &middot; HTML content &middot; social embed block &middot; gallery grid (Fancybox) &middot; related posts (3, by category) &middot; comments &middot; JSON-LD in &lt;head&gt;</td></tr>
                             <tr class="bg-gray-50"><td class="px-4 py-2 font-mono text-xs">/showcase</td><td class="px-4 py-2">Gallery list</td><td class="px-4 py-2 text-gray-600">Gallery cards, pagination</td></tr>
                             <tr><td class="px-4 py-2 font-mono text-xs">/showcase/:id</td><td class="px-4 py-2">Gallery detail</td><td class="px-4 py-2 text-gray-600">Images, title, description</td></tr>
                             <tr class="bg-gray-50"><td class="px-4 py-2 font-mono text-xs">/spotlight</td><td class="px-4 py-2">Spotlight</td><td class="px-4 py-2 text-gray-600">Entertainment articles, category filters</td></tr>
@@ -1418,7 +1817,7 @@
                     </h3>
                     <button onclick="resetChecklist()" class="text-xs text-gray-500 hover:text-gray-700 px-3 py-1 border rounded-lg">Reset</button>
                 </div>
-                <p class="text-sm text-gray-500 mb-4">Click each item to mark it complete. <strong>All 9 must be green before deploying to AWS.</strong></p>
+                <p class="text-sm text-gray-500 mb-4">Click each item to mark it complete. <strong>All 12 must be green before deploying to AWS.</strong></p>
                 <div class="space-y-2">
                     <div id="gate1" data-gate-item data-checked="false" onclick="toggleCheck('gate1')" class="flex items-center gap-3 p-3 bg-gray-50 rounded-lg cursor-pointer hover:bg-gray-100"><span class="check-icon text-lg">&#11036;</span><span class="text-sm"><code class="bg-white px-1 rounded text-xs">GET /articles</code> returns real article data (no 500 error)</span></div>
                     <div id="gate2" data-gate-item data-checked="false" onclick="toggleCheck('gate2')" class="flex items-center gap-3 p-3 bg-gray-50 rounded-lg cursor-pointer hover:bg-gray-100"><span class="check-icon text-lg">&#11036;</span><span class="text-sm"><code class="bg-white px-1 rounded text-xs">GET /galleries</code> returns real gallery data</span></div>
@@ -1429,6 +1828,9 @@
                     <div id="gate7" data-gate-item data-checked="false" onclick="toggleCheck('gate7')" class="flex items-center gap-3 p-3 bg-gray-50 rounded-lg cursor-pointer hover:bg-gray-100"><span class="check-icon text-lg">&#11036;</span><span class="text-sm">Mobile layout (375px) renders correctly &mdash; no overflow or broken nav</span></div>
                     <div id="gate8" data-gate-item data-checked="false" onclick="toggleCheck('gate8')" class="flex items-center gap-3 p-3 bg-gray-50 rounded-lg cursor-pointer hover:bg-gray-100"><span class="check-icon text-lg">&#11036;</span><span class="text-sm">No CORS errors in browser DevTools Network tab</span></div>
                     <div id="gate9" data-gate-item data-checked="false" onclick="toggleCheck('gate9')" class="flex items-center gap-3 p-3 bg-gray-50 rounded-lg cursor-pointer hover:bg-gray-100"><span class="check-icon text-lg">&#11036;</span><span class="text-sm"><code class="bg-white px-1 rounded text-xs">mvn package -DskipTests</code> produces <code class="bg-white px-1 rounded text-xs">target/pmst-api-service-lambda.jar</code></span></div>
+                    <div id="gate10" data-gate-item data-checked="false" onclick="toggleCheck('gate10')" class="flex items-center gap-3 p-3 bg-indigo-50 rounded-lg cursor-pointer hover:bg-indigo-100"><span class="check-icon text-lg">&#11036;</span><span class="text-sm"><code class="bg-white px-1 rounded text-xs">/news/:slug</code> renders YouTube iframe when <code class="bg-white px-1 rounded text-xs">youtubeLink</code> is set</span></div>
+                    <div id="gate11" data-gate-item data-checked="false" onclick="toggleCheck('gate11')" class="flex items-center gap-3 p-3 bg-indigo-50 rounded-lg cursor-pointer hover:bg-indigo-100"><span class="check-icon text-lg">&#11036;</span><span class="text-sm"><code class="bg-white px-1 rounded text-xs">/news/:slug</code> gallery grid shows up to 6 images with Fancybox lightbox</span></div>
+                    <div id="gate12" data-gate-item data-checked="false" onclick="toggleCheck('gate12')" class="flex items-center gap-3 p-3 bg-indigo-50 rounded-lg cursor-pointer hover:bg-indigo-100"><span class="check-icon text-lg">&#11036;</span><span class="text-sm">Related posts section on article detail shows &le;3 articles by same category</span></div>
                 </div>
             </div>
 

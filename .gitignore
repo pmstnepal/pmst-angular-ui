@@ -54,5 +54,8 @@ Thumbs.db
 # Netlify
 .netlify
 
-# Documentation with secrets
-src/doc/
+# Documentation secrets (keep local only)
+src/doc/secrets
+
+# Image assets - managed separately (S3 or manual copy)
+src/assets/images/

@@ -54,6 +54,10 @@ export const routes: Routes = [
     loadComponent: () => import('./features/spotlight/spotlight.component').then(m => m.SpotlightComponent)
   },
   {
+    path: 'events',
+    loadComponent: () => import('./features/events/events-list.component').then(m => m.EventsListComponent)
+  },
+  {
     path: '**',
     redirectTo: ''
   }

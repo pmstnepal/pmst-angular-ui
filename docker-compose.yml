@@ -1,0 +1,61 @@
+version: '3.8'
+
+services:
+  # Angular Frontend
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: pmst-frontend
+    ports:
+      - "4200:80"
+    depends_on:
+      - backend
+    networks:
+      - pmst-network
+
+  # Backend API (using external service or build)
+  backend:
+    build:
+      context: ../pmst-services/pmst-api-service
+      dockerfile: Dockerfile
+    container_name: pmst-api-service
+    ports:
+      - "8080:8080"
+    environment:
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/pmst
+      - SPRING_DATASOURCE_USERNAME=pmst
+      - SPRING_DATASOURCE_PASSWORD=pmst
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - pmst-network
+
+  # PostgreSQL Database
+  postgres:
+    image: postgres:16-alpine
+    container_name: pmst-postgres
+    environment:
+      POSTGRES_DB: pmst
+      POSTGRES_USER: pmst
+      POSTGRES_PASSWORD: pmst
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ../pmst-services/pmst-api-service/src/main/resources/db/init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U pmst"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - pmst-network
+
+networks:
+  pmst-network:
+    driver: bridge
+
+volumes:
+  postgres_data:

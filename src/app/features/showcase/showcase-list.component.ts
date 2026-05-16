@@ -1,17 +1,18 @@
-import { Component, signal } from '@angular/core';
+import { Component, OnInit, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
+import { HttpClient } from '@angular/common/http';
+import { environment } from '../../../environments/environment';
+import { ImageUrlMapperService } from '../../services/image-url-mapper.service';
 
-export interface Model {
+export interface Gallery {
   id: string;
-  name: string;
-  imageUrl?: string;
-  categories: string[];
-  location: string;
-  stats: {
-    followers: number;
-    photos: number;
-  };
+  title: string;
+  slug: string;
+  description?: string;
+  featuredImage?: string;
+  status: string;
+  createdAt: string;
 }
 
 @Component({
@@ -19,140 +20,105 @@ export interface Model {
   standalone: true,
   imports: [CommonModule, RouterLink],
   template: `
-    <div class="showcase-page py-8">
-      <div class="container mx-auto px-4">
-        <!-- Header -->
-        <div class="text-center mb-12">
-          <h1 class="text-3xl md:text-4xl font-bold mb-4">Model Showcase</h1>
-          <p class="text-gray-600 max-w-2xl mx-auto">
-            Discover talented models from Nepal and around the world. Browse portfolios, connect with professionals, and find your next collaboration.
-          </p>
-        </div>
+    <div style="background:#f8f8f8; min-height:100vh;">
 
-        <!-- Filters -->
-        <div class="flex flex-wrap justify-center gap-2 mb-8">
-          @for (category of categories(); track category) {
-            <button
-              (click)="setCategory(category)"
-              [class.bg-indigo-600]="selectedCategory() === category"
-              [class.text-white]="selectedCategory() === category"
-              [class.bg-gray-200]="selectedCategory() !== category"
-              [class.text-gray-700]="selectedCategory() !== category"
-              class="px-4 py-2 rounded-full font-medium transition-colors"
-            >
-              {{ category }}
-            </button>
-          }
+      <!-- Page Header -->
+      <div class="py-10" style="background:#1a1a2e;">
+        <div class="container mx-auto px-4">
+          <p class="text-red-400 text-xs font-semibold uppercase tracking-widest mb-2">Photography</p>
+          <h1 class="text-3xl md:text-4xl font-extrabold text-white uppercase tracking-wide">Model &amp; Gallery</h1>
+          <p class="text-gray-400 text-sm mt-2">Discover stunning photography from Nepali artists and events.</p>
         </div>
+      </div>
 
-        <!-- Models Grid -->
+      <div class="container mx-auto px-4 py-10">
+
+        <!-- Gallery Grid -->
         @if (loading()) {
           <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-            @for (i of [1, 2, 3, 4, 5, 6, 7, 8]; track i) {
-              <div class="animate-pulse">
-                <div class="aspect-[3/4] bg-gray-200 rounded-lg"></div>
-                <div class="mt-3 h-4 bg-gray-200 rounded w-2/3"></div>
-                <div class="mt-2 h-3 bg-gray-200 rounded w-1/2"></div>
-              </div>
+            @for (i of [1,2,3,4,5,6,7,8]; track i) {
+              <div class="animate-pulse rounded-lg overflow-hidden aspect-[4/3] bg-gray-200"></div>
             }
+          </div>
+        } @else if (galleries().length === 0) {
+          <div class="text-center py-20 text-gray-500">
+            <p class="text-lg font-medium">No galleries found.</p>
           </div>
         } @else {
           <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-            @for (model of models(); track model.id) {
-              <a [routerLink]="['/showcase', model.id]" class="group">
-                <div class="relative aspect-[3/4] rounded-lg overflow-hidden bg-gray-100">
-                  @if (model.imageUrl) {
-                    <img 
-                      [src]="model.imageUrl" 
-                      [alt]="model.name"
-                      class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                    >
-                  } @else {
-                    <div class="w-full h-full bg-gradient-to-br from-indigo-400 to-purple-500 flex items-center justify-center">
-                      <span class="text-4xl font-bold text-white">{{ model.name[0] }}</span>
-                    </div>
-                  }
-                  
-                  <!-- Overlay -->
-                  <div class="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity">
-                    <div class="absolute bottom-0 left-0 right-0 p-4 text-white">
-                      <h3 class="font-semibold text-lg">{{ model.name }}</h3>
-                      <p class="text-sm text-gray-300">{{ model.location }}</p>
-                      <div class="flex gap-4 mt-2 text-xs">
-                        <span>{{ model.stats.followers | number }} followers</span>
-                        <span>{{ model.stats.photos }} photos</span>
-                      </div>
-                    </div>
+            @for (gallery of galleries(); track gallery.id) {
+              <a [routerLink]="['/showcase', gallery.slug]" class="relative group overflow-hidden rounded-lg aspect-[4/3] block bg-gray-200">
+                @if (gallery.featuredImage) {
+                  <img [src]="imageMapper.mapUrl(gallery.featuredImage)" [alt]="gallery.title"
+                       class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300">
+                }
+                <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-black/10 to-transparent">
+                  <div class="absolute bottom-0 left-0 right-0 p-3">
+                    <h3 class="text-white font-bold text-xs uppercase leading-tight line-clamp-2">{{ gallery.title }}</h3>
+                    <p class="text-gray-300 text-xs mt-1">By PMST US-Nepal</p>
                   </div>
-                </div>
-                
-                <!-- Mobile Info -->
-                <div class="mt-3 md:hidden">
-                  <h3 class="font-semibold text-gray-900">{{ model.name }}</h3>
-                  <p class="text-sm text-gray-500">{{ model.categories[0] }}</p>
                 </div>
               </a>
             }
           </div>
         }
 
-        <!-- Load More -->
-        @if (!loading() && hasMore()) {
-          <div class="text-center mt-12">
-            <button 
-              (click)="loadMore()"
-              class="px-8 py-3 bg-indigo-600 text-white rounded-lg font-semibold hover:bg-indigo-700 transition-colors"
-            >
-              Load More Models
-            </button>
+        <!-- Pagination -->
+        @if (totalPages() > 1) {
+          <div class="flex justify-center items-center mt-12 gap-3">
+            <button (click)="prevPage()" [disabled]="currentPage() === 0"
+              class="px-5 py-2 rounded font-semibold text-sm uppercase disabled:opacity-40"
+              style="background:#c0392b; color:#fff;">← Previous</button>
+            <span class="text-gray-600 text-sm">Page {{ currentPage() + 1 }} of {{ totalPages() }}</span>
+            <button (click)="nextPage()" [disabled]="currentPage() + 1 >= totalPages()"
+              class="px-5 py-2 rounded font-semibold text-sm uppercase disabled:opacity-40"
+              style="background:#c0392b; color:#fff;">Next →</button>
           </div>
         }
+
+        <!-- CTA -->
+        <div class="mt-16 rounded-xl p-10 text-center text-white" style="background:#1a1a2e;">
+          <h2 class="text-2xl font-extrabold uppercase mb-3">Model, Event, Gallery or Photography</h2>
+          <p class="text-gray-400 mb-6 text-sm max-w-xl mx-auto">
+            Become a part of our creative community! Whether you're a model, photographer, or someone who loves capturing beautiful moments — showcase your work and get recognized.
+          </p>
+          <div class="flex flex-wrap justify-center gap-3">
+            <a routerLink="/submit/gallery"
+               class="text-white font-bold px-8 py-3 rounded uppercase tracking-wide text-sm hover:opacity-90"
+               style="background:#c0392b;">SUBMIT YOUR GALLERY</a>
+          </div>
+        </div>
       </div>
     </div>
   `,
   styles: [``]
 })
-export class ShowcaseListComponent {
-  categories = signal(['All', 'Fashion', 'Commercial', 'Runway', 'Editorial', 'Lifestyle']);
-  selectedCategory = signal('All');
-  models = signal<Model[]>([]);
+export class ShowcaseListComponent implements OnInit {
+  galleries = signal<Gallery[]>([]);
   loading = signal(true);
-  hasMore = signal(true);
-  currentPage = signal(1);
+  currentPage = signal(0);
+  totalPages = signal(1);
 
-  constructor() {
-    this.loadModels();
+  constructor(private http: HttpClient, public imageMapper: ImageUrlMapperService) {}
+
+  ngOnInit(): void {
+    this.loadGalleries();
   }
 
-  private loadModels(): void {
-    // Mock data - replace with API call
-    const mockModels: Model[] = [
-      { id: '1', name: 'Priya Sharma', categories: ['Fashion', 'Runway'], location: 'Kathmandu, Nepal', stats: { followers: 12500, photos: 48 } },
-      { id: '2', name: 'Anika Gurung', categories: ['Commercial', 'Lifestyle'], location: 'Pokhara, Nepal', stats: { followers: 8900, photos: 32 } },
-      { id: '3', name: 'Sita Tamang', categories: ['Editorial', 'Fashion'], location: 'Lalitpur, Nepal', stats: { followers: 15200, photos: 67 } },
-      { id: '4', name: 'Maya Rai', categories: ['Runway', 'Fashion'], location: 'Bhaktapur, Nepal', stats: { followers: 21000, photos: 89 } },
-      { id: '5', name: 'Kavita Limbu', categories: ['Commercial', 'Lifestyle'], location: 'Kathmandu, Nepal', stats: { followers: 6700, photos: 24 } },
-      { id: '6', name: 'Rina Karki', categories: ['Editorial', 'Fashion'], location: 'Chitwan, Nepal', stats: { followers: 9800, photos: 41 } },
-      { id: '7', name: 'Bina Magar', categories: ['Fashion', 'Commercial'], location: 'Kathmandu, Nepal', stats: { followers: 11300, photos: 52 } },
-      { id: '8', name: 'Laxmi BK', categories: ['Runway', 'Editorial'], location: 'Pokhara, Nepal', stats: { followers: 14400, photos: 73 } }
-    ];
-
-    setTimeout(() => {
-      this.models.set(mockModels);
-      this.loading.set(false);
-    }, 500);
-  }
-
-  setCategory(category: string): void {
-    this.selectedCategory.set(category);
-    this.currentPage.set(1);
+  private loadGalleries(): void {
     this.loading.set(true);
-    this.loadModels();
+    const url = `${environment.apiUrl}/galleries?page=${this.currentPage()}&size=12&sort=createdAt,desc`;
+    this.http.get<{ content: Gallery[]; totalPages: number }>(url).subscribe({
+      next: res => { this.galleries.set(res.content); this.totalPages.set(res.totalPages); this.loading.set(false); },
+      error: () => this.loading.set(false)
+    });
   }
 
-  loadMore(): void {
-    this.currentPage.update(p => p + 1);
-    // Would load more from API
-    this.hasMore.set(false);
+  prevPage(): void {
+    if (this.currentPage() > 0) { this.currentPage.update(p => p - 1); this.loadGalleries(); }
+  }
+
+  nextPage(): void {
+    if (this.currentPage() + 1 < this.totalPages()) { this.currentPage.update(p => p + 1); this.loadGalleries(); }
   }
 }

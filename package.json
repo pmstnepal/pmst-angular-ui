@@ -16,7 +16,9 @@
     "test": "ng test",
     "test:ci": "ng test --no-watch --no-progress --browsers=ChromeHeadless",
     "lint": "ng lint",
-    "serve:ssr": "node dist/pmst-angular-ui/server/server.mjs"
+    "serve:ssr": "node dist/pmst-angular-ui/server/server.mjs",
+    "repo:commit": "node tools/repo-commit.js",
+    "repo:commit:dry": "node tools/repo-commit.js --dry-run"
   },
   "dependencies": {
     "@angular/animations": "^17.3.0",

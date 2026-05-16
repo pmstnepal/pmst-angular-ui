@@ -193,8 +193,8 @@ User → Cognito Hosted UI / Amplify → Cognito User Pool → JWT Tokens
 | pmst-user-profile-header | Profile cover + header | ProfileHeaderComponent, CoverPhotoComponent | ProfileCustomizationService |
 | pmst-author-profile-card | Author card display | AuthorProfileCardComponent | UserService |
 | pmst-lightweight-youtube-playlists | YouTube video embedding | VideoSectionComponent, YoutubePlaylistComponent | VideoContentService |
-| pmst-social-embed-allow | Social media embeds | SocialEmbedComponent | N/A (frontend only) |
-| pmst-custom-single-post-template | Custom post templates | ArticleDetailComponent | ContentService |
+| pmst-social-embed-allow | Social media embeds | Built into NewsDetailComponent | N/A (frontend only) |
+| pmst-custom-single-post-template | Custom post templates | NewsDetailComponent (WP replica) | ArticleController |
 | pmst-messaging-updated | ~~Messaging~~ → Comments | CommentSectionComponent | CommentService |
 | contributor-dashboard-enhanced-v3 | Post management dashboard | DashboardComponent | ContentService |
 | pmst-rankmath-keyword-injector | SEO keywords | SeoService | SeoService |
@@ -284,7 +284,8 @@ frontend/src/app/
 | pmst-follow-plugin | FollowButtonComponent | ✅ Created |
 | pmst-author-profile-card | AuthorProfileCardComponent | ⏳ In Progress |
 | pmst-post-carousel | PostCarouselComponent | ✅ Created |
-| pmst-social-embed-allow | SocialEmbedComponent | ⏳ In Progress |
+| pmst-social-embed-allow | Built into NewsDetailComponent | ✅ Built |
+| pmst-custom-single-post-template | NewsDetailComponent (WP replica) | ✅ Built |
 | mage-eventpress | EventsListComponent | ✅ Created |
 | wpDiscuz | CommentSectionComponent | ✅ Created |
 | contributor-dashboard-v3 | DashboardComponent | ✅ Created |
@@ -511,6 +512,9 @@ CREATE TABLE articles (
     excerpt TEXT,
     content TEXT NOT NULL,
     featured_image TEXT,
+    youtube_link TEXT,
+    embed_code TEXT,
+    gallery_images JSONB DEFAULT '[]',
     category VARCHAR(50) NOT NULL,
     status VARCHAR(20) DEFAULT 'pending',
     published_at TIMESTAMP,
@@ -795,6 +799,7 @@ jobs:
 | `wp_pmst_author_profiles` | 2 | `user_profiles` (merge) | custom author fields |
 | `wp_social_users` | 4 | `users` | social login → `cognito_id` NULL until first login |
 | `wp_e_events` | — | ❌ Skip | rebuilding events fresh |
+| `wp_postmeta` | ~42 MB | `articles` (3 cols) | Filter keys: `youtube_link`, `image_upload`, `embed_code`; PHP serialize → JSON |
 | `wp_pmst_messages` | — | ❌ Skip | rebuilding messaging fresh |
 | `wp_pmst_reactions` | — | ❌ Skip | rebuilding reactions fresh |
 | `wp_community_hub_posts` | — | ❌ Skip | community feature removed |
@@ -823,9 +828,10 @@ All scripts read from `D:\pmst-migration\exports\` and write to RDS.
 4. migrate_articles.py           # wp_posts (post) → articles
 5. migrate_article_tags.py       # wp_term_relationships → article_tags
 6. migrate_galleries.py          # wp_posts (model_gallery) → galleries
-7. migrate_gallery_images.py     # wp_posts (attachment) → gallery_images
+7. migrate_gallery_images.py     # wp_postmeta (image_upload) → gallery_images ✅ FIXED — 306 images migrated
 8. migrate_comments.py           # wp_comments → comments
 9. migrate_follows.py            # wp_pmst_follows → follows (if table exists)
+10. migrate_article_meta.py      # wp_postmeta (youtube_link, image_upload, embed_code) → articles
 ```
 
 ### Key Transform Rules
@@ -859,6 +865,66 @@ UNION ALL SELECT 'follows', COUNT(*) FROM follows;
 SELECT COUNT(*) FROM articles WHERE author_id NOT IN (SELECT id FROM users);
 ```
 
+### Gallery Images Migration Fix (May 16, 2026) ✅ COMPLETE
+
+**Issue:** Original script looked for `post_parent` in attachments, but galleries store images differently.
+
+**WordPress Storage Method:**
+- `model_gallery` posts use `image_upload` meta key (serialized PHP array of attachment IDs)
+- `mep_events` use `mep_gallery_images` meta key (different format)
+- Example: `a:11:{i:0;s:5:"22785";i:1;s:5:"22786";...}`
+
+**Implementation:**
+
+1. **Migration Script Fixed** (`07_migrate_gallery_images.py`)
+   - Reads `image_upload` from `wp_postmeta`
+   - Parses PHP serialized array with regex: `i:\d+;(?:i:(\d+);|s:\d+:"(\d+)";?)`
+   - Extracts attachment IDs and looks up `_wp_attached_file` meta for paths
+   - Result: **306 gallery images migrated for 8 published galleries**
+
+2. **Image Files Copied** (`copy_gallery_images.py`)
+   - Copies images from `uploads-extracted/` to Angular assets
+   - Updates database with local paths: `/assets/images/filename.jpg`
+   - Updates `image-manifest.json`
+   - Result: **418 images copied**
+
+3. **Remaining Images Fixed** (`fix_remaining_gallery_images.py`)
+   - Fixes slug-based URLs (e.g., `https://pmstusnepal.com/img_8643/`)
+   - Maps URL slugs to file paths using `wp_posts.post_name`
+   - Result: **194 additional images fixed**
+
+4. **Backend Fix**
+   - Added `@JsonIgnore` to `GalleryImage.gallery` to prevent circular JSON serialization
+   - Gallery API now returns `images` array correctly
+
+5. **Featured Images Fix** (`fix_gallery_featured_images.py`)
+   - **Issue:** `06_migrate_galleries.py` didn't populate `featured_image` from `_thumbnail_id`
+   - **Discovery:** WordPress stores featured images in `wp_postmeta._thumbnail_id` (not `_thumbnail_id` column in wp_posts)
+   - **Solution:** Look up `_thumbnail_id` meta → get attachment file from `_wp_attached_file` → copy to assets → update database
+   - **Result:** **13 galleries now have featured images** (was 0)
+
+**Final Status:**
+- **Total gallery images:** 612
+- **All with local paths:** `/assets/images/{filename}`
+- **Files in Angular assets:** 306 unique images
+- **Image manifest:** 3,644 entries
+- **Galleries with featured images:** 13/13 (100%)
+
+**Galleries with Images:**
+| Gallery | Images |
+|---------|--------|
+| Bhim Bahadur Tamang Photography | 22 |
+| Kathmandu PABSON Inter School Dance Competition | 12 |
+| Biskaa Jatraa 2025 Part 1 | 80 |
+| Biskaa Jatraa 2025 Part 2 | 80 |
+| Punam Bhandari | 11 |
+| Najir Hussain and Keki Adhikari | 4 |
+| And others... | |
+
+**Test URLs:**
+- List: `http://localhost:4201/showcase`
+- Detail: `http://localhost:4201/showcase/bhim-bahadur-tamang-photography`
+
 ### Media Migration (S3)
 
 ```bash
@@ -877,7 +943,7 @@ aws s3 sync D:/pmst-migration/uploads/ s3://pmst-prod-media/media/ \
 1. ✅ Export WordPress CSVs from phpMyAdmin → `D:\pmst-migration\exports\`
 2. Run schema SQL on RDS (Terraform provisions the instance)
 3. Download media from Hostinger FTP → upload to S3
-4. Run Python scripts 1–9 in order above
+4. Run Python scripts 1–10 in order above
 5. Validate row counts and spot-check known slugs
 6. Keep WordPress live (read-only) until DNS cutover
 
@@ -950,7 +1016,7 @@ Open `http://localhost:4200` and walk every route. Compare to pmstusnepal.com:
 |---|---|---|
 | `/` | Home | Hero banner, YouTube section, latest news cards, gallery grid, CTA |
 | `/news` | News list | Articles grid, category filter tabs, pagination controls |
-| `/news/:slug` | Article detail | Full content, featured image, date, author |
+| `/news/:slug` | Article detail | Hero (YouTube iframe OR blurred img + logo overlay), title, author/date, HTML content, social embed block, gallery grid (Fancybox), related posts (3 by category), comments, JSON-LD in `<head>` |
 | `/showcase` | Gallery list | Gallery cards, pagination |
 | `/showcase/:id` | Gallery detail | Images, title, description |
 | `/spotlight` | Spotlight | Entertainment articles, category filters |
@@ -991,6 +1057,9 @@ Run these flows end-to-end as a real visitor would:
 - [ ] Mobile layout (375px) renders correctly — no overflow or broken nav
 - [ ] No CORS errors in browser DevTools Network tab
 - [ ] `mvn package -DskipTests` completes successfully → produces `target/pmst-api-service-lambda.jar`
+- [ ] `/news/:slug` detail page renders YouTube embed when `youtubeLink` is set
+- [ ] `/news/:slug` gallery grid shows up to 6 images with Fancybox lightbox
+- [ ] Related posts section shows ≤3 articles linked by same category
 
 ---
 

@@ -1,6 +1,9 @@
-import { Component, signal, effect } from '@angular/core';
+import { Component, OnInit, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
+import { HttpClient } from '@angular/common/http';
+import { environment } from '../../../environments/environment';
+import { ImageUrlMapperService } from '../../services/image-url-mapper.service';
 
 export interface NewsArticle {
   id: string;
@@ -8,12 +11,17 @@ export interface NewsArticle {
   slug: string;
   excerpt: string;
   featuredImage?: string;
+  youtubeLink?: string;
+  embedCode?: string;
+  galleryImages?: string;
   category: string;
   publishedAt: string;
-  author: {
-    name: string;
-    avatar?: string;
-  };
+}
+
+interface PageResponse<T> {
+  content: T[];
+  totalElements: number;
+  totalPages: number;
 }
 
 @Component({
@@ -21,20 +29,26 @@ export interface NewsArticle {
   standalone: true,
   imports: [CommonModule, RouterLink],
   template: `
-    <div class="news-page py-8">
-      <div class="container mx-auto px-4">
-        <h1 class="text-3xl md:text-4xl font-bold mb-8">News & Updates</h1>
+    <div class="news-page" style="background:#f8f8f8; min-height:100vh;">
 
-        <!-- Filters -->
+      <!-- Page Header -->
+      <div class="py-10" style="background:#1a1a2e;">
+        <div class="container mx-auto px-4">
+          <p class="text-red-400 text-xs font-semibold uppercase tracking-widest mb-2">Stories</p>
+          <h1 class="text-3xl md:text-4xl font-extrabold text-white uppercase tracking-wide">News &amp; Updates</h1>
+        </div>
+      </div>
+
+      <div class="container mx-auto px-4 py-10">
+
+        <!-- Category Filters -->
         <div class="flex flex-wrap gap-2 mb-8">
           @for (category of categories(); track category) {
             <button
               (click)="setCategory(category)"
-              [class.bg-indigo-600]="selectedCategory() === category"
-              [class.text-white]="selectedCategory() === category"
-              [class.bg-gray-200]="selectedCategory() !== category"
-              [class.text-gray-700]="selectedCategory() !== category"
-              class="px-4 py-2 rounded-full font-medium transition-colors"
+              class="px-4 py-2 rounded font-semibold text-sm uppercase tracking-wide transition-colors"
+              [style.background]="selectedCategory() === category ? '#c0392b' : '#e5e7eb'"
+              [style.color]="selectedCategory() === category ? '#fff' : '#374151'"
             >
               {{ category }}
             </button>
@@ -44,36 +58,43 @@ export interface NewsArticle {
         <!-- Articles Grid -->
         @if (loading()) {
           <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-            @for (i of [1, 2, 3, 4, 5, 6]; track i) {
-              <div class="animate-pulse bg-white rounded-lg shadow-md overflow-hidden">
+            @for (i of [1,2,3,4,5,6]; track i) {
+              <div class="animate-pulse bg-white rounded-lg shadow overflow-hidden">
                 <div class="h-48 bg-gray-200"></div>
                 <div class="p-4 space-y-3">
-                  <div class="h-4 bg-gray-200 rounded w-1/4"></div>
-                  <div class="h-6 bg-gray-200 rounded"></div>
-                  <div class="h-4 bg-gray-200 rounded w-3/4"></div>
+                  <div class="h-3 bg-gray-200 rounded w-1/4"></div>
+                  <div class="h-5 bg-gray-200 rounded"></div>
+                  <div class="h-3 bg-gray-200 rounded w-3/4"></div>
                 </div>
               </div>
             }
           </div>
+        } @else if (articles().length === 0) {
+          <div class="text-center py-20 text-gray-500">
+            <p class="text-lg font-medium">No articles found.</p>
+          </div>
         } @else {
           <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
             @for (article of articles(); track article.id) {
-              <article class="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow">
+              <article class="bg-white rounded-lg shadow overflow-hidden hover:shadow-lg transition-shadow group">
                 <a [routerLink]="['/news', article.slug]" class="block">
-                  <div class="h-48 bg-gray-200 relative overflow-hidden">
+                  <div class="h-48 overflow-hidden relative">
                     @if (article.featuredImage) {
-                      <img [src]="article.featuredImage" [alt]="article.title" class="w-full h-full object-cover">
+                      <img [src]="imageMapper.mapUrl(article.featuredImage)" [alt]="article.title"
+                           class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300">
+                    } @else {
+                      <div class="w-full h-full bg-gray-200 flex items-center justify-center">
+                        <span class="text-gray-400 text-xs uppercase">No image</span>
+                      </div>
                     }
+                    <span class="absolute top-3 left-3 text-white text-xs font-bold uppercase px-2 py-1 rounded" style="background:#c0392b;">
+                      {{ article.category | uppercase }}
+                    </span>
                   </div>
                   <div class="p-4">
-                    <span class="text-sm text-indigo-600 font-medium">{{ article.category }}</span>
-                    <h2 class="text-lg font-semibold mt-2 text-gray-900 line-clamp-2">{{ article.title }}</h2>
-                    <p class="text-gray-600 mt-2 text-sm line-clamp-2">{{ article.excerpt }}</p>
-                    <div class="flex items-center mt-4 text-sm text-gray-500">
-                      <span>{{ article.publishedAt | date:'mediumDate' }}</span>
-                      <span class="mx-2">•</span>
-                      <span>{{ article.author.name }}</span>
-                    </div>
+                    <h2 class="text-base font-bold text-gray-900 leading-snug line-clamp-2 group-hover:text-red-700 transition-colors">{{ article.title }}</h2>
+                    <p class="text-gray-500 mt-2 text-sm line-clamp-2">{{ article.excerpt }}</p>
+                    <p class="text-xs text-gray-400 mt-3">{{ article.publishedAt | date:'mediumDate' }}</p>
                   </div>
                 </a>
               </article>
@@ -82,126 +103,88 @@ export interface NewsArticle {
         }
 
         <!-- Pagination -->
-        <div class="flex justify-center mt-12 space-x-2">
-          <button 
-            (click)="prevPage()"
-            [disabled]="currentPage() === 1"
-            class="px-4 py-2 bg-gray-200 rounded-lg disabled:opacity-50 hover:bg-gray-300 transition-colors"
-          >
-            Previous
-          </button>
-          <span class="px-4 py-2 text-gray-700">
-            Page {{ currentPage() }} of {{ totalPages() }}
-          </span>
-          <button 
-            (click)="nextPage()"
-            [disabled]="currentPage() === totalPages()"
-            class="px-4 py-2 bg-gray-200 rounded-lg disabled:opacity-50 hover:bg-gray-300 transition-colors"
-          >
-            Next
-          </button>
+        @if (totalPages() > 1) {
+          <div class="flex justify-center items-center mt-12 gap-3">
+            <button
+              (click)="prevPage()"
+              [disabled]="currentPage() === 0"
+              class="px-5 py-2 rounded font-semibold text-sm uppercase disabled:opacity-40 transition-colors"
+              style="background:#c0392b; color:#fff;">
+              ← Previous
+            </button>
+            <span class="text-gray-600 text-sm">
+              Page {{ currentPage() + 1 }} of {{ totalPages() }}
+            </span>
+            <button
+              (click)="nextPage()"
+              [disabled]="currentPage() + 1 >= totalPages()"
+              class="px-5 py-2 rounded font-semibold text-sm uppercase disabled:opacity-40 transition-colors"
+              style="background:#c0392b; color:#fff;">
+              Next →
+            </button>
+          </div>
+        }
+
+        <!-- Submit CTA -->
+        <div class="mt-14 text-center">
+          <a routerLink="/submit/article"
+             class="inline-block text-white font-bold px-8 py-3 rounded uppercase tracking-wide text-sm hover:opacity-90 transition-opacity"
+             style="background:#c0392b;">SUBMIT YOUR ARTICLE / NEWS</a>
         </div>
       </div>
     </div>
   `,
   styles: [``]
 })
-export class NewsListComponent {
-  categories = signal(['All', 'Fashion', 'Events', 'Interviews', 'Industry']);
+export class NewsListComponent implements OnInit {
+  categories = signal(['All', 'Entertainment', 'Nepal News', 'Events']);
   selectedCategory = signal('All');
   articles = signal<NewsArticle[]>([]);
   loading = signal(true);
-  currentPage = signal(1);
+  currentPage = signal(0);
   totalPages = signal(1);
 
-  constructor() {
-    // Load mock data
+  constructor(private http: HttpClient, public imageMapper: ImageUrlMapperService) {}
+
+  ngOnInit(): void {
     this.loadArticles();
   }
 
   private loadArticles(): void {
-    // Mock data - replace with API call
-    const mockArticles: NewsArticle[] = [
-      {
-        id: '1',
-        title: '2024 Fashion Week Highlights: Top Models to Watch',
-        slug: '2024-fashion-week-highlights',
-        excerpt: 'Discover the rising stars who captured attention at this year\'s major fashion weeks around the globe.',
-        category: 'Fashion',
-        publishedAt: new Date().toISOString(),
-        author: { name: 'Editor' }
+    this.loading.set(true);
+    const cat = this.selectedCategory();
+    const page = this.currentPage();
+    let url = `${environment.apiUrl}/articles?page=${page}&size=9&sort=publishedAt,desc`;
+    if (cat !== 'All') {
+      url += `&category=${encodeURIComponent(cat.toLowerCase().replace(' ', '-'))}`;
+    }
+    this.http.get<PageResponse<NewsArticle>>(url).subscribe({
+      next: res => {
+        this.articles.set(res.content);
+        this.totalPages.set(res.totalPages);
+        this.loading.set(false);
       },
-      {
-        id: '2',
-        title: 'Behind the Scenes: Nepal\'s Growing Modeling Industry',
-        slug: 'nepal-modeling-industry',
-        excerpt: 'An in-depth look at how the modeling scene is evolving in Nepal and creating new opportunities.',
-        category: 'Industry',
-        publishedAt: new Date().toISOString(),
-        author: { name: 'Sarah Johnson' }
-      },
-      {
-        id: '3',
-        title: 'Exclusive Interview: Rising Star Priya Sharma',
-        slug: 'interview-priya-sharma',
-        excerpt: 'We sat down with the breakout model to discuss her journey from Kathmandu to international runways.',
-        category: 'Interviews',
-        publishedAt: new Date().toISOString(),
-        author: { name: 'Editor' }
-      },
-      {
-        id: '4',
-        title: 'Upcoming Casting Calls: May 2024',
-        slug: 'casting-calls-may-2024',
-        excerpt: 'Don\'t miss these exciting opportunities. Major brands are looking for fresh faces this month.',
-        category: 'Events',
-        publishedAt: new Date().toISOString(),
-        author: { name: 'Casting Team' }
-      },
-      {
-        id: '5',
-        title: 'Sustainable Fashion: Models Leading the Change',
-        slug: 'sustainable-fashion-models',
-        excerpt: 'How models are using their platforms to promote eco-friendly fashion choices and brands.',
-        category: 'Fashion',
-        publishedAt: new Date().toISOString(),
-        author: { name: 'Green Team' }
-      },
-      {
-        id: '6',
-        title: 'PMST Annual Gala: Save the Date',
-        slug: 'pmst-annual-gala-2024',
-        excerpt: 'Join us for our biggest event of the year celebrating excellence in modeling and fashion.',
-        category: 'Events',
-        publishedAt: new Date().toISOString(),
-        author: { name: 'Events Team' }
-      }
-    ];
-
-    setTimeout(() => {
-      this.articles.set(mockArticles);
-      this.totalPages.set(5);
-      this.loading.set(false);
-    }, 500);
+      error: () => this.loading.set(false)
+    });
   }
 
   setCategory(category: string): void {
     this.selectedCategory.set(category);
-    this.currentPage.set(1);
-    this.loading.set(true);
-    // Re-load with filter
+    this.currentPage.set(0);
     this.loadArticles();
   }
 
   prevPage(): void {
-    if (this.currentPage() > 1) {
+    if (this.currentPage() > 0) {
       this.currentPage.update(p => p - 1);
+      this.loadArticles();
     }
   }
 
   nextPage(): void {
-    if (this.currentPage() < this.totalPages()) {
+    if (this.currentPage() + 1 < this.totalPages()) {
       this.currentPage.update(p => p + 1);
+      this.loadArticles();
     }
   }
 }

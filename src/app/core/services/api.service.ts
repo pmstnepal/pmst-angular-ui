@@ -1,4 +1,5 @@
 import { Injectable, signal } from '@angular/core';
+import { environment } from '../../../environments/environment';
 import { HttpClient, HttpErrorResponse, HttpHeaders, HttpParams } from '@angular/common/http';
 import { Observable, throwError, catchError, map, retry } from 'rxjs';
 
@@ -12,7 +13,7 @@ export interface ApiError {
   providedIn: 'root'
 })
 export class ApiService {
-  private readonly API_BASE_URL = 'https://api.pmstusnepal.com/v1';
+  private readonly API_BASE_URL = environment.apiUrl;
   private isLoading = signal(false);
 
   constructor(private http: HttpClient) {}
