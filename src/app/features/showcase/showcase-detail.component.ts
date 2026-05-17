@@ -70,7 +70,7 @@ export interface Gallery {
                 <p class="text-gray-300 text-lg max-w-2xl">{{ gallery()!.description }}</p>
               }
               <div class="flex items-center gap-4 mt-4 text-gray-400 text-sm">
-                <span>{{ gallery()!.images?.length || 0 }} photos</span>
+                <span>{{ gallery()!.images.length || 0 }} photos</span>
                 <span>•</span>
                 <span>{{ gallery()!.createdAt | date:'mediumDate' }}</span>
               </div>

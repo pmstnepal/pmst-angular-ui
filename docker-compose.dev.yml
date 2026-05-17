@@ -6,9 +6,9 @@ services:
     image: node:20-alpine
     container_name: pmst-frontend-dev
     working_dir: /app
-    command: sh -c "npm install && ng serve --host 0.0.0.0 --port 4200 --disable-host-check"
+    command: sh -c "npm install && ng serve --host 0.0.0.0 --port 4201 --disable-host-check"
     ports:
-      - "4200:4200"
+      - "4201:4201"
     volumes:
       - .:/app
       - /app/node_modules  # Preserve node_modules

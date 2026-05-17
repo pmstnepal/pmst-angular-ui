@@ -2,7 +2,7 @@
 echo Starting PMST Development Environment...
 echo.
 echo Services:
-echo   - Frontend: http://localhost:4200 (Angular with hot reload)
+echo   - Frontend: http://localhost:4201 (Angular with hot reload)
 echo   - Backend:  http://localhost:8080 (Java Spring Boot)
 echo   - Database: localhost:5432 (PostgreSQL)
 echo.

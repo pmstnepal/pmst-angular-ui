@@ -56,7 +56,7 @@ export class ImageUrlMapperService {
         console.warn('[ImageUrlMapper] Failed to fetch manifest:', response.status);
       }
     } catch (error) {
-      console.warn('[ImageUrlMapper] Failed to load manifest, falling back to pattern matching', error);
+      console.warn('[ImageUrlMapper] Manifest not found, using pattern matching fallback');
     }
   }
 
