@@ -1,33 +1,14 @@
-import { Component, Input, signal, OnInit, HostListener } from '@angular/core';
+import { Component, Input, signal, OnInit, HostListener, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterLink, ActivatedRoute } from '@angular/router';
-import { HttpClient } from '@angular/common/http';
-import { environment } from '../../../environments/environment';
+import { Gallery } from '../../core/models';
+import { GalleryService } from '../../core/services/gallery.service';
 import { ImageUrlMapperService } from '../../services/image-url-mapper.service';
-
-// Gallery interfaces
-export interface GalleryImage {
-  id: string;
-  imageUrl: string;
-  caption?: string;
-  sortOrder: number;
-}
-
-export interface Gallery {
-  id: string;
-  title: string;
-  slug: string;
-  description?: string;
-  featuredImage?: string;
-  images: GalleryImage[];
-  status: string;
-  createdAt: string;
-  authorId?: string;
-}
 
 @Component({
   selector: 'pmst-showcase-detail',
   standalone: true,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [CommonModule, RouterLink],
   template: `
     <div class="showcase-detail" (keydown)="handleKeyboard($event)" tabindex="0">
@@ -52,28 +33,36 @@ export interface Gallery {
           </div>
         </div>
       } @else if (gallery()) {
-        <!-- Gallery Header with Featured Image -->
-        <div class="relative h-64 md:h-80 lg:h-96 overflow-hidden">
-          @if (gallery()!.featuredImage) {
-            <img 
-              [src]="imageMapper.mapUrl(gallery()!.featuredImage)" 
-              [alt]="gallery()!.title"
-              class="w-full h-full object-cover">
-          } @else {
-            <div class="w-full h-full bg-gradient-to-br from-gray-800 to-gray-900"></div>
-          }
-          <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent"></div>
-          <div class="absolute bottom-0 left-0 right-0 p-6 md:p-10">
-            <div class="container mx-auto">
-              <h1 class="text-3xl md:text-4xl lg:text-5xl font-bold text-white mb-2">{{ gallery()!.title }}</h1>
-              @if (gallery()!.description) {
-                <p class="text-gray-300 text-lg max-w-2xl">{{ gallery()!.description }}</p>
+        <!-- pmst_model_single_details Section - Plugin Styled -->
+        <div class="pmst-model-single-wrapper">
+          <div class="pmst-model-single-top">
+            <!-- Feature Image -->
+            <div class="pmst-feature-image">
+              @if (gallery()!.featuredImage) {
+                <div class="pmst-feature-image-bg" [style.background-image]="'url(' + imageMapper.mapUrl(gallery()!.featuredImage) + ')'">
+                </div>
+              } @else {
+                <div class="pmst-feature-image-placeholder"></div>
               }
-              <div class="flex items-center gap-4 mt-4 text-gray-400 text-sm">
-                <span>{{ gallery()!.images.length || 0 }} photos</span>
-                <span>•</span>
-                <span>{{ gallery()!.createdAt | date:'mediumDate' }}</span>
-              </div>
+            </div>
+            
+            <!-- Model Info -->
+            <div class="pmst-model-info">
+              <h1 class="pmst-model-title">{{ gallery()!.title | uppercase }}</h1>
+              
+              <p class="pmst-posted-by">
+                Posted by <strong>{{ gallery()!.authorName || 'Unknown' }}</strong> on <em>{{ gallery()!.createdAt | date:'mediumDate' }}</em>
+              </p>
+              
+              <h4 class="pmst-gallery-info-heading">Gallery Info:</h4>
+              @if (gallery()!.description) {
+                <div class="pmst-model-description" [innerHTML]="gallery()!.description">
+                </div>
+              } @else {
+                <div class="pmst-model-description">
+                  <p>No description available for this gallery.</p>
+                </div>
+              }
             </div>
           </div>
         </div>
@@ -140,6 +129,97 @@ export interface Gallery {
     </div>
   `,
   styles: [`
+    /* pmst_model_single_details - Plugin Styles */
+    .pmst-model-single-wrapper {
+      background: #222;
+      padding: 40px 0;
+    }
+    .pmst-model-single-top {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: flex-start;
+      justify-content: center;
+      gap: 40px;
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 0 20px;
+    }
+    .pmst-feature-image {
+      flex: 1;
+      min-width: 300px;
+      max-width: 500px;
+    }
+    .pmst-feature-image-bg {
+      width: 100%;
+      height: 420px;
+      background: top center/cover no-repeat;
+      border-radius: 15px;
+      box-shadow: 0 10px 20px rgba(0,0,0,0.4);
+    }
+    .pmst-feature-image-placeholder {
+      width: 100%;
+      height: 420px;
+      background: linear-gradient(135deg, #333 0%, #444 100%);
+      border-radius: 15px;
+    }
+    .pmst-model-info {
+      flex: 2;
+      min-width: 300px;
+      padding: 20px;
+    }
+    .pmst-model-title {
+      font-size: 36px;
+      text-transform: uppercase;
+      font-weight: 800;
+      margin-bottom: 10px;
+      color: #fff;
+      line-height: 1.2;
+    }
+    .pmst-posted-by {
+      color: #aaa;
+      font-size: 14px;
+      margin-bottom: 20px;
+    }
+    .pmst-posted-by strong {
+      color: #fff;
+      font-weight: 600;
+    }
+    .pmst-posted-by em {
+      font-style: italic;
+    }
+    .pmst-gallery-info-heading {
+      font-size: 18px;
+      margin-bottom: 8px;
+      color: #fff;
+      font-weight: 600;
+    }
+    .pmst-model-description {
+      font-size: 16px;
+      color: #ccc;
+      margin-bottom: 25px;
+      line-height: 1.6;
+    }
+    @media (max-width: 768px) {
+      .pmst-model-single-top {
+        flex-direction: column;
+        align-items: center;
+        gap: 20px;
+      }
+      .pmst-feature-image,
+      .pmst-model-info {
+        min-width: 100%;
+        max-width: 100%;
+      }
+      .pmst-feature-image-bg,
+      .pmst-feature-image-placeholder {
+        height: 300px;
+      }
+      .pmst-model-title {
+        font-size: 28px;
+      }
+    }
+    
+    /* Gallery Grid - Keeping existing style */
     .gallery-grid {
       display: grid;
       grid-template-columns: repeat(2, 1fr);
@@ -251,7 +331,7 @@ export class ShowcaseDetailComponent implements OnInit {
 
   constructor(
     private route: ActivatedRoute,
-    private http: HttpClient,
+    private galleryService: GalleryService,
     public imageMapper: ImageUrlMapperService
   ) {}
 
@@ -269,8 +349,7 @@ export class ShowcaseDetailComponent implements OnInit {
     this.loading.set(true);
     this.error.set(null);
     
-    const url = `${environment.apiUrl}/galleries/${slug}`;
-    this.http.get<Gallery>(url).subscribe({
+    this.galleryService.getGalleryBySlug(slug).subscribe({
       next: (gallery) => {
         this.gallery.set(gallery);
         this.loading.set(false);
