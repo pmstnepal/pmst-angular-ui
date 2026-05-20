@@ -1,40 +1,16 @@
-import { Component, Input, OnInit, signal, inject, PLATFORM_ID } from '@angular/core';
+import { Component, Input, OnInit, signal, inject, PLATFORM_ID, ChangeDetectionStrategy, HostListener } from '@angular/core';
 import { isPlatformBrowser, DatePipe } from '@angular/common';
 import { RouterLink } from '@angular/router';
-import { HttpClient } from '@angular/common/http';
 import { DomSanitizer, SafeHtml, SafeResourceUrl } from '@angular/platform-browser';
 import { CommentSectionComponent } from '../../shared/components/comments/comment-section.component';
-import { environment } from '../../../environments/environment';
+import { ArticleDetail, RelatedArticle } from '../../core/models';
+import { ArticleService } from '../../core/services/article.service';
 import { ImageUrlMapperService } from '../../services/image-url-mapper.service';
-
-interface ArticleDetail {
-  id: string;
-  slug: string;
-  title: string;
-  excerpt: string;
-  content: string;
-  featuredImage?: string;
-  youtubeLink?: string;
-  embedCode?: string;
-  galleryImages?: string;
-  category: string;
-  status: string;
-  publishedAt: string;
-  createdAt: string;
-  authorId?: string;
-}
-
-interface RelatedArticle {
-  id: string;
-  slug: string;
-  title: string;
-  featuredImage?: string;
-  publishedAt: string;
-}
 
 @Component({
   selector: 'pmst-news-detail',
   standalone: true,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [RouterLink, DatePipe, CommentSectionComponent],
   template: `
     @if (loading()) {
@@ -60,7 +36,7 @@ interface RelatedArticle {
         <!-- Featured Hero: YouTube OR Blurred Image -->
         <div class="pmst-featured-wrapper">
           <div class="pmst-logo-overlay">
-            <img src="https://nepalicommunityhub.com/wp-content/uploads/2025/03/pmstusnepal.png" alt="PMST Logo" />
+            <img src="/assets/images/logo/pmst-logo.png" alt="PMST Logo" />
           </div>
 
           @if (article().youtubeLink) {
@@ -106,14 +82,52 @@ interface RelatedArticle {
           </div>
         }
 
-        <!-- Gallery Grid -->
+        <!-- Gallery Grid with Lightbox -->
         @if (galleryUrls().length > 0) {
-          <div class="pmst-gallery-grid">
-            @for (img of galleryUrls(); track img) {
-              <a [href]="imageMapper.mapUrl(img)" data-fancybox="gallery" class="pmst-lightbox">
-                <img [src]="imageMapper.mapUrl(img)" alt="" loading="lazy" />
-              </a>
-            }
+          <div class="pmst-gallery-section">
+            <h3 class="pmst-gallery-title">📸 Photo Gallery ({{ galleryUrls().length }} images)</h3>
+            
+            <!-- Thumbnail Grid - Dynamic based on image count -->
+            <div class="pmst-gallery-grid" [class]="'pmst-gallery-count-' + galleryUrls().length">
+              @for (img of galleryUrls(); track $index) {
+                <div 
+                  class="pmst-gallery-item"
+                  (click)="openLightbox($index)">
+                  <img [src]="img" alt="Gallery image {{ $index + 1 }}" loading="lazy" />
+                  <div class="pmst-gallery-overlay">
+                    <svg class="pmst-zoom-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7"/>
+                    </svg>
+                  </div>
+                </div>
+              }
+            </div>
+          </div>
+        }
+
+        <!-- Lightbox (same as model gallery) -->
+        @if (lightboxOpen()) {
+          <div class="pmst-lightbox" (click)="closeLightbox()">
+            <div class="pmst-lightbox-content" (click)="$event.stopPropagation()">
+              <button class="pmst-lightbox-close" (click)="closeLightbox()">&times;</button>
+              
+              <img 
+                [src]="galleryUrls()[activeImageIndex()]" 
+                alt="Gallery image"
+                class="pmst-lightbox-image">
+              
+              @if (galleryUrls().length > 1) {
+                <button class="pmst-lightbox-nav prev" (click)="prevImage(); $event.stopPropagation()">
+                  &#8249;
+                </button>
+                <button class="pmst-lightbox-nav next" (click)="nextImage(); $event.stopPropagation()">
+                  &#8250;
+                </button>
+                <div class="pmst-lightbox-counter">
+                  {{ activeImageIndex() + 1 }} / {{ galleryUrls().length }}
+                </div>
+              }
+            </div>
           </div>
         }
 
@@ -207,7 +221,7 @@ interface RelatedArticle {
       border-radius: 8px;
     }
     .pmst-logo-overlay img {
-      height: 35px; width: auto;
+      height: 30px; width: auto;
       display: block; object-fit: contain; opacity: 0.95;
     }
     .pmst-video-responsive {
@@ -227,24 +241,6 @@ interface RelatedArticle {
       border: 1px dashed #444;
       border-radius: 8px;
     }
-    .pmst-gallery-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
-      gap: 12px;
-      margin: 30px 0;
-    }
-    .pmst-gallery-grid img {
-      width: 100%; height: 100%;
-      object-fit: cover;
-      aspect-ratio: 1/1;
-      border-radius: 10px;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-      transition: 0.3s ease;
-      cursor: pointer;
-    }
-    .pmst-gallery-grid img:hover { transform: scale(1.03); }
-    .pmst-related-posts { margin: 30px 0; }
-    .pmst-related-posts h3 { color: #fff; margin-bottom: 15px; }
     .pmst-related-posts ul { padding-left: 20px; }
     .pmst-related-posts li { margin-bottom: 8px; }
     .pmst-related-posts a { color: #FE5252; text-decoration: none; }
@@ -280,19 +276,173 @@ interface RelatedArticle {
       0%, 100% { opacity: 1; }
       50% { opacity: 0.4; }
     }
+    /* Gallery Grid with Lightbox Styles */
+    .pmst-gallery-section {
+      margin: 40px 0;
+      background: #1a1a2e;
+      padding: 24px;
+      border-radius: 16px;
+    }
+    .pmst-gallery-title {
+      color: #FE5252;
+      font-size: 20px;
+      margin-bottom: 20px;
+      text-align: center;
+    }
+    .pmst-gallery-grid {
+      display: grid;
+      gap: 12px;
+    }
+    /* Dynamic grid layouts based on image count */
+    .pmst-gallery-grid.pmst-gallery-count-1 {
+      grid-template-columns: 1fr;
+      max-width: 600px;
+      margin: 0 auto;
+    }
+    .pmst-gallery-grid.pmst-gallery-count-2 {
+      grid-template-columns: repeat(2, 1fr);
+    }
+    .pmst-gallery-grid.pmst-gallery-count-3 {
+      grid-template-columns: repeat(3, 1fr);
+    }
+    .pmst-gallery-grid.pmst-gallery-count-4 {
+      grid-template-columns: repeat(2, 1fr);
+    }
+    .pmst-gallery-grid.pmst-gallery-count-5,
+    .pmst-gallery-grid.pmst-gallery-count-6 {
+      grid-template-columns: repeat(3, 1fr);
+    }
+    .pmst-gallery-grid.pmst-gallery-count-7,
+    .pmst-gallery-grid.pmst-gallery-count-8,
+    .pmst-gallery-grid.pmst-gallery-count-9 {
+      grid-template-columns: repeat(3, 1fr);
+    }
+    .pmst-gallery-item {
+      position: relative;
+      aspect-ratio: 4/3;
+      border-radius: 12px;
+      overflow: hidden;
+      cursor: zoom-in;
+      display: block;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+      transition: transform 0.3s ease, box-shadow 0.3s ease;
+    }
+    .pmst-gallery-item:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+    }
+    .pmst-gallery-item img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      transition: transform 0.3s ease;
+    }
+    .pmst-gallery-item:hover img {
+      transform: scale(1.1);
+    }
+    .pmst-gallery-overlay {
+      position: absolute;
+      inset: 0;
+      background: rgba(0,0,0,0.4);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      opacity: 0;
+      transition: opacity 0.3s ease;
+    }
+    .pmst-gallery-item:hover .pmst-gallery-overlay {
+      opacity: 1;
+    }
+    .pmst-zoom-icon {
+      width: 40px;
+      height: 40px;
+      color: white;
+    }
+    /* Lightbox Styles (same as model gallery) */
+    .pmst-lightbox {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.95);
+      z-index: 1000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .pmst-lightbox-content {
+      position: relative;
+      max-width: 90vw;
+      max-height: 90vh;
+    }
+    .pmst-lightbox-image {
+      max-width: 100%;
+      max-height: 85vh;
+      object-fit: contain;
+    }
+    .pmst-lightbox-nav {
+      position: absolute;
+      top: 50%;
+      transform: translateY(-50%);
+      background: rgba(255,255,255,0.2);
+      border: none;
+      color: white;
+      width: 50px;
+      height: 50px;
+      border-radius: 50%;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 24px;
+      transition: background 0.3s;
+    }
+    .pmst-lightbox-nav:hover {
+      background: rgba(255,255,255,0.4);
+    }
+    .pmst-lightbox-nav.prev { left: -70px; }
+    .pmst-lightbox-nav.next { right: -70px; }
+    .pmst-lightbox-close {
+      position: absolute;
+      top: -50px;
+      right: 0;
+      background: none;
+      border: none;
+      color: white;
+      font-size: 32px;
+      cursor: pointer;
+    }
+    .pmst-lightbox-counter {
+      position: absolute;
+      bottom: -40px;
+      left: 50%;
+      transform: translateX(-50%);
+      color: white;
+      font-size: 14px;
+    }
     @media (max-width: 768px) {
+      .pmst-lightbox-nav.prev { left: 10px; }
+      .pmst-lightbox-nav.next { right: 10px; }
       .pmst-post-container { padding: 20px 16px; }
       .pmst-featured-wrapper { height: auto !important; padding: 20px 0; background: #111; }
       .pmst-featured-blur { display: none !important; }
       .pmst-featured-center img { max-width: 100%; max-height: 400px; }
       .pmst-title { font-size: 22px; }
+      .pmst-gallery-grid.pmst-gallery-count-1 { grid-template-columns: 1fr; }
+      .pmst-gallery-grid.pmst-gallery-count-2 { grid-template-columns: repeat(2, 1fr); }
+      .pmst-gallery-grid.pmst-gallery-count-3,
+      .pmst-gallery-grid.pmst-gallery-count-4,
+      .pmst-gallery-grid.pmst-gallery-count-5,
+      .pmst-gallery-grid.pmst-gallery-count-6 { grid-template-columns: repeat(2, 1fr); }
+      .pmst-gallery-grid.pmst-gallery-count-7,
+      .pmst-gallery-grid.pmst-gallery-count-8,
+      .pmst-gallery-grid.pmst-gallery-count-9 { grid-template-columns: repeat(3, 1fr); }
+      .pmst-gallery-section { padding: 16px; }
     }
   `]
 })
 export class NewsDetailComponent implements OnInit {
   @Input() slug!: string;
 
-  private http = inject(HttpClient);
+  private articleService = inject(ArticleService);
   private sanitizer = inject(DomSanitizer);
   private platformId = inject(PLATFORM_ID);
   imageMapper = inject(ImageUrlMapperService);
@@ -304,6 +454,10 @@ export class NewsDetailComponent implements OnInit {
     category: '', status: '', publishedAt: '', createdAt: ''
   });
   relatedArticles = signal<RelatedArticle[]>([]);
+
+  // Lightbox state (same as model gallery)
+  activeImageIndex = signal<number>(0);
+  lightboxOpen = signal(false);
 
   readonly googleAd: SafeHtml;
 
@@ -323,27 +477,34 @@ export class NewsDetailComponent implements OnInit {
 
   private loadArticle(): void {
     this.loading.set(true);
-    this.http.get<ArticleDetail>(`${environment.apiUrl}/articles/${this.slug}`)
-      .subscribe({
-        next: data => {
-          this.article.set(data);
-          this.loading.set(false);
-          this.loadRelated(data.category);
-          if (isPlatformBrowser(this.platformId)) {
-            this.injectJsonLd(data);
-            this.loadFancybox();
-          }
-        },
-        error: () => {
-          this.notFound.set(true);
-          this.loading.set(false);
+    this.articleService.getArticleBySlug(this.slug).subscribe({
+      next: data => {
+        this.article.set(data);
+        this.loading.set(false);
+        this.loadRelated(data.category);
+        if (isPlatformBrowser(this.platformId)) {
+          this.injectJsonLd(data);
         }
-      });
+      },
+      error: () => {
+        this.notFound.set(true);
+        this.loading.set(false);
+      }
+    });
   }
 
   private loadRelated(category: string): void {
-    this.http.get<RelatedArticle[]>(`${environment.apiUrl}/articles/${this.slug}/related`)
-      .subscribe({ next: data => this.relatedArticles.set(data), error: () => {} });
+    // Related articles - for now, fetch latest articles as fallback
+    this.articleService.getArticles(0, 4).subscribe({
+      next: res => this.relatedArticles.set(res.content.map(a => ({
+        id: a.id,
+        slug: a.slug,
+        title: a.title,
+        featuredImage: a.featuredImage,
+        publishedAt: a.publishedAt
+      }))),
+      error: () => {}
+    });
   }
 
   safeContent(): SafeHtml {
@@ -364,14 +525,87 @@ export class NewsDetailComponent implements OnInit {
 
   galleryUrls(): string[] {
     const raw = this.article().galleryImages;
+    const featuredImage = this.article().featuredImage;
+    
     if (!raw) return [];
-    try {
-      const parsed = JSON.parse(raw);
-      return Array.isArray(parsed)
-        ? parsed.filter((u: string) => u && !u.startsWith('attachment:')).slice(0, 6)
-        : [];
-    } catch {
-      return [];
+    
+    let urls: string[] = [];
+    
+    // Parse the gallery images data
+    if (Array.isArray(raw)) {
+      urls = raw;
+    } else if (typeof raw === 'string') {
+      try {
+        const parsed = JSON.parse(raw);
+        urls = Array.isArray(parsed) ? parsed : [];
+      } catch {
+        return [];
+      }
+    }
+    
+    // Filter out empty/null, featured image, and duplicates
+    const seen = new Set<string>();
+    return urls
+      .filter((u: string) => {
+        if (!u || u.trim() === '') return false;
+        // Skip if this is the featured image
+        if (featuredImage && (u === featuredImage || u.includes(featuredImage.split('/').pop() || ''))) {
+          return false;
+        }
+        // Skip duplicates
+        if (seen.has(u)) return false;
+        seen.add(u);
+        return true;
+      })
+      .map((u: string) => this.imageMapper.mapUrl(u))
+      .filter((u: string) => u && !u.startsWith('attachment:')) // Remove unresolvable attachments
+      .slice(0, 6);
+  }
+
+  // Lightbox methods (same as model gallery)
+  openLightbox(index: number): void {
+    this.activeImageIndex.set(index);
+    this.lightboxOpen.set(true);
+    document.body.style.overflow = 'hidden';
+  }
+
+  closeLightbox(): void {
+    this.lightboxOpen.set(false);
+    document.body.style.overflow = '';
+  }
+
+  nextImage(): void {
+    const urls = this.galleryUrls();
+    if (urls.length <= 1) return;
+    
+    this.activeImageIndex.update(current => 
+      current >= urls.length - 1 ? 0 : current + 1
+    );
+  }
+
+  prevImage(): void {
+    const urls = this.galleryUrls();
+    if (urls.length <= 1) return;
+    
+    this.activeImageIndex.update(current => 
+      current <= 0 ? urls.length - 1 : current - 1
+    );
+  }
+
+  @HostListener('document:keydown', ['$event'])
+  handleKeyboard(event: KeyboardEvent): void {
+    if (!this.lightboxOpen()) return;
+    
+    switch (event.key) {
+      case 'Escape':
+        this.closeLightbox();
+        break;
+      case 'ArrowRight':
+        this.nextImage();
+        break;
+      case 'ArrowLeft':
+        this.prevImage();
+        break;
     }
   }
 
@@ -395,7 +629,7 @@ export class NewsDetailComponent implements OnInit {
       publisher: {
         '@type': 'Organization',
         name: 'PMST US-Nepal',
-        logo: { '@type': 'ImageObject', url: 'https://nepalicommunityhub.com/wp-content/uploads/2025/03/pmstusnepal.png' }
+        logo: { '@type': 'ImageObject', url: '/assets/images/logo/pmst-logo.png' }
       },
       datePublished: data.publishedAt,
       dateModified: data.publishedAt
@@ -405,19 +639,5 @@ export class NewsDetailComponent implements OnInit {
     script.type = 'application/ld+json';
     script.text = JSON.stringify(schema);
     document.head.appendChild(script);
-  }
-
-  private loadFancybox(): void {
-    if (document.getElementById('fancybox-css')) return;
-    const link = document.createElement('link');
-    link.id = 'fancybox-css';
-    link.rel = 'stylesheet';
-    link.href = 'https://cdn.jsdelivr.net/npm/@fancyapps/ui/dist/fancybox/fancybox.css';
-    document.head.appendChild(link);
-
-    const script = document.createElement('script');
-    script.src = 'https://cdn.jsdelivr.net/npm/@fancyapps/ui@5/dist/fancybox/fancybox.umd.js';
-    script.onload = () => (window as any).Fancybox?.bind('[data-fancybox]');
-    document.body.appendChild(script);
   }
 }

@@ -22,23 +22,21 @@ interface PlaylistConfig {
   imports: [CommonModule, SafeUrlPipe],
   template: `
     <div class="youtube-playlist">
-      <!-- Tabs Navigation -->
+      <!-- Tabs Navigation (WP plugin style) -->
       @if (enableTabs && playlists.length > 1) {
-        <div class="flex gap-2 mb-6 border-b border-gray-700">
+        <div class="pmst-tabs">
           @for (playlist of playlists; track playlist.id; let i = $index) {
             <button
+              type="button"
               (click)="selectPlaylist(i)"
-              class="px-4 py-3 text-sm font-semibold uppercase tracking-wide transition-colors"
-              [class.text-white]="activePlaylistIndex() === i"
-              [class.border-b-2]="activePlaylistIndex() === i"
-              [class.border-red-500]="activePlaylistIndex() === i"
-              [class.text-gray-400]="activePlaylistIndex() !== i"
-              [class.hover:text-white]="activePlaylistIndex() !== i"
+              class="pmst-tab"
+              [class.active]="activePlaylistIndex() === i"
             >
               {{ playlist.title }}
             </button>
           }
         </div>
+        <p class="pmst-note">Discover the newest Nepali trailers, teasers, and videos. Click any thumbnail to play on the big screen.</p>
       } @else if (title) {
         <h3 class="text-xl font-bold text-white mb-4">{{ title }}</h3>
       }
@@ -133,6 +131,50 @@ interface PlaylistConfig {
   styles: [`
     :host { display: block; }
     .line-clamp-2 { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+
+    /* WP plugin tab style */
+    .pmst-tabs {
+      display: flex;
+      margin: 0 0 0.6rem 0;
+      border-bottom: 1px solid #2a2a2a;
+    }
+    .pmst-tab {
+      flex: 1 1 0;
+      text-align: center;
+      padding: 14px 0;
+      background: #f5f6f8;
+      color: #1d2a36;
+      font-weight: 600;
+      font-size: 14px;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      border: 1px solid #d3d6da;
+      border-left: none;
+      cursor: pointer;
+      transition: background 0.2s, color 0.2s;
+    }
+    .pmst-tab:first-child { border-left: 1px solid #d3d6da; }
+    .pmst-tab:hover:not(.active) { background: #e9ecef; }
+    .pmst-tab.active {
+      background: #fe5252;
+      color: #fff;
+      border-color: #fe5252;
+    }
+    .pmst-note {
+      color: #ccc;
+      font-size: 0.9rem;
+      opacity: 0.85;
+      margin: 0.2rem 0 1rem;
+    }
+    @media (max-width: 640px) {
+      .pmst-tabs { flex-direction: column; }
+      .pmst-tab {
+        border-left: 1px solid #d3d6da !important;
+        border-top: none;
+      }
+      .pmst-tab:first-child { border-top: 1px solid #d3d6da; }
+    }
+
     .strip-wrap { position: relative; }
     .strip {
       display: flex;

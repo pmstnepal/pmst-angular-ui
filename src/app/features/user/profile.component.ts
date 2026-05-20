@@ -1,10 +1,11 @@
-import { Component, Input, signal } from '@angular/core';
+import { Component, Input, signal, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
 
 @Component({
   selector: 'pmst-profile',
   standalone: true,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [CommonModule, RouterLink],
   template: `
     <div class="profile-page">

@@ -1,29 +1,33 @@
-import { Component, signal } from '@angular/core';
+import { Component, signal, OnInit, inject, PLATFORM_ID, HostListener } from '@angular/core';
 import { RouterLink, RouterLinkActive } from '@angular/router';
-import { CommonModule } from '@angular/common';
+import { CommonModule, isPlatformBrowser } from '@angular/common';
 
 @Component({
   selector: 'pmst-header',
   standalone: true,
   imports: [CommonModule, RouterLink, RouterLinkActive],
   template: `
-    <header class="sticky top-0 z-50 shadow-lg" style="background:#1a1a2e;">
-      <div class="container mx-auto px-4">
-        <nav class="flex items-center justify-between h-16">
+    <header class="sticky top-0 z-50 shadow-lg transition-all duration-300" 
+            [class]="isScrolled() ? 'h-12' : 'h-20'"
+            style="background:#1a1a2e;">
+      <div class="container mx-auto px-4 h-full">
+        <nav class="flex items-center justify-between h-full">
           <!-- Logo -->
-          <a routerLink="/" class="flex items-center space-x-2">
-            <span class="text-2xl font-extrabold text-white tracking-wide">PMST</span>
-            <span class="text-sm font-semibold text-red-400 uppercase tracking-widest">US-Nepal</span>
+          <a routerLink="/" class="flex items-center">
+            <img src="/assets/images/logo/pmst-logo.png" 
+                 alt="PMST US-Nepal" 
+                 [class]="isScrolled() ? 'h-8 w-auto object-contain transition-all duration-300' : 'h-14 w-auto object-contain transition-all duration-300'">
           </a>
 
           <!-- Desktop Navigation -->
           <div class="hidden md:flex items-center space-x-1">
             <a routerLink="/" routerLinkActive="text-red-400" [routerLinkActiveOptions]="{exact: true}"
-               class="px-3 py-2 text-gray-200 hover:text-red-400 transition-colors font-medium uppercase text-sm tracking-wide">Home</a>
+               [class]="isScrolled() ? 'px-2 py-1 text-gray-200 hover:text-red-400 transition-colors font-medium uppercase text-xs tracking-wide' : 'px-3 py-2 text-gray-200 hover:text-red-400 transition-colors font-medium uppercase text-sm tracking-wide'">Home</a>
 
             <!-- Spotlight dropdown -->
             <div class="relative group">
-              <button class="px-3 py-2 text-gray-200 hover:text-red-400 transition-colors font-medium uppercase text-sm tracking-wide flex items-center">
+              <button 
+                [class]="isScrolled() ? 'px-2 py-1 text-gray-200 hover:text-red-400 transition-colors font-medium uppercase text-xs tracking-wide flex items-center' : 'px-3 py-2 text-gray-200 hover:text-red-400 transition-colors font-medium uppercase text-sm tracking-wide flex items-center'">
                 Spotlight
                 <svg class="w-3 h-3 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
@@ -36,17 +40,20 @@ import { CommonModule } from '@angular/common';
             </div>
 
             <a routerLink="/news" routerLinkActive="text-red-400"
-               class="px-3 py-2 text-gray-200 hover:text-red-400 transition-colors font-medium uppercase text-sm tracking-wide">News</a>
+               [class]="isScrolled() ? 'px-2 py-1 text-gray-200 hover:text-red-400 transition-colors font-medium uppercase text-xs tracking-wide' : 'px-3 py-2 text-gray-200 hover:text-red-400 transition-colors font-medium uppercase text-sm tracking-wide'">News</a>
             <a routerLink="/showcase" routerLinkActive="text-red-400"
-               class="px-3 py-2 text-gray-200 hover:text-red-400 transition-colors font-medium uppercase text-sm tracking-wide">Gallery</a>
+               [class]="isScrolled() ? 'px-2 py-1 text-gray-200 hover:text-red-400 transition-colors font-medium uppercase text-xs tracking-wide' : 'px-3 py-2 text-gray-200 hover:text-red-400 transition-colors font-medium uppercase text-sm tracking-wide'">Gallery</a>
             <a routerLink="/events" routerLinkActive="text-red-400"
-               class="px-3 py-2 text-gray-200 hover:text-red-400 transition-colors font-medium uppercase text-sm tracking-wide">Events</a>
+               [class]="isScrolled() ? 'px-2 py-1 text-gray-200 hover:text-red-400 transition-colors font-medium uppercase text-xs tracking-wide' : 'px-3 py-2 text-gray-200 hover:text-red-400 transition-colors font-medium uppercase text-sm tracking-wide'">Events</a>
           </div>
 
           <!-- Auth Buttons -->
           <div class="hidden md:flex items-center space-x-3">
-            <a routerLink="/login" class="text-gray-300 hover:text-red-400 px-3 py-2 transition-colors text-sm font-medium">Sign In</a>
-            <a routerLink="/register" class="text-white px-5 py-2 rounded font-semibold text-sm uppercase tracking-wide transition-colors" style="background:#c0392b;" onmouseover="this.style.background='#a93226'" onmouseout="this.style.background='#c0392b'">Join Now</a>
+            <a routerLink="/login" 
+               [class]="isScrolled() ? 'text-gray-300 hover:text-red-400 px-2 py-1 transition-colors text-xs font-medium' : 'text-gray-300 hover:text-red-400 px-3 py-2 transition-colors text-sm font-medium'">Sign In</a>
+            <a routerLink="/register" 
+               [class]="isScrolled() ? 'text-white px-3 py-1 rounded font-semibold text-xs uppercase tracking-wide transition-colors' : 'text-white px-5 py-2 rounded font-semibold text-sm uppercase tracking-wide transition-colors'" 
+               style="background:#c0392b;" onmouseover="this.style.background='#a93226'" onmouseout="this.style.background='#c0392b'">Join Now</a>
           </div>
 
           <!-- Mobile Menu Button -->
@@ -85,8 +92,27 @@ import { CommonModule } from '@angular/common';
   `,
   styles: [``]
 })
-export class HeaderComponent {
+export class HeaderComponent implements OnInit {
   isMobileMenuOpen = signal(false);
+  isScrolled = signal(false);
+  
+  private platformId = inject(PLATFORM_ID);
+
+  ngOnInit(): void {
+    if (isPlatformBrowser(this.platformId)) {
+      // Check initial scroll position
+      this.isScrolled.set(window.scrollY > 50);
+    }
+  }
+
+  @HostListener('window:scroll', [])
+  onWindowScroll(): void {
+    if (isPlatformBrowser(this.platformId)) {
+      const scrollY = window.scrollY;
+      console.log('Scroll Y:', scrollY, 'isScrolled:', scrollY > 50);
+      this.isScrolled.set(scrollY > 50);
+    }
+  }
 
   toggleMobileMenu(): void {
     this.isMobileMenuOpen.update(value => !value);

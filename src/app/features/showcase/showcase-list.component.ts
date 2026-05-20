@@ -1,23 +1,14 @@
-import { Component, OnInit, signal } from '@angular/core';
+import { Component, OnInit, signal, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
-import { HttpClient } from '@angular/common/http';
-import { environment } from '../../../environments/environment';
+import { GallerySummary } from '../../core/models';
+import { GalleryService } from '../../core/services/gallery.service';
 import { ImageUrlMapperService } from '../../services/image-url-mapper.service';
-
-export interface Gallery {
-  id: string;
-  title: string;
-  slug: string;
-  description?: string;
-  featuredImage?: string;
-  status: string;
-  createdAt: string;
-}
 
 @Component({
   selector: 'pmst-showcase-list',
   standalone: true,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [CommonModule, RouterLink],
   template: `
     <div style="background:#f8f8f8; min-height:100vh;">
@@ -94,12 +85,15 @@ export interface Gallery {
   styles: [``]
 })
 export class ShowcaseListComponent implements OnInit {
-  galleries = signal<Gallery[]>([]);
+  galleries = signal<GallerySummary[]>([]);
   loading = signal(true);
   currentPage = signal(0);
   totalPages = signal(1);
 
-  constructor(private http: HttpClient, public imageMapper: ImageUrlMapperService) {}
+  constructor(
+    private galleryService: GalleryService,
+    public imageMapper: ImageUrlMapperService
+  ) {}
 
   ngOnInit(): void {
     this.loadGalleries();
@@ -107,9 +101,12 @@ export class ShowcaseListComponent implements OnInit {
 
   private loadGalleries(): void {
     this.loading.set(true);
-    const url = `${environment.apiUrl}/galleries?page=${this.currentPage()}&size=12&sort=createdAt,desc`;
-    this.http.get<{ content: Gallery[]; totalPages: number }>(url).subscribe({
-      next: res => { this.galleries.set(res.content); this.totalPages.set(res.totalPages); this.loading.set(false); },
+    this.galleryService.getGalleries(this.currentPage(), 12).subscribe({
+      next: res => { 
+        this.galleries.set(res.content); 
+        this.totalPages.set(res.totalPages); 
+        this.loading.set(false); 
+      },
       error: () => this.loading.set(false)
     });
   }

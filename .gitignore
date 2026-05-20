@@ -59,3 +59,6 @@ src/doc/secrets
 
 # Image assets - managed separately (S3 or manual copy)
 src/assets/images/
+
+.nx/cache
+.nx/workspace-data

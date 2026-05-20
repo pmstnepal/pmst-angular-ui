@@ -9,12 +9,20 @@ import { FooterComponent } from './core/components/footer/footer.component';
   imports: [RouterOutlet, HeaderComponent, FooterComponent],
   template: `
     <pmst-header />
-    <main class="min-h-screen">
+    <main class="main-content">
       <router-outlet />
     </main>
     <pmst-footer />
   `,
-  styles: [``]
+  styles: [`
+    :host {
+      display: block;
+    }
+    .main-content {
+      min-height: 100vh;
+      display: block;
+    }
+  `]
 })
 export class AppComponent {
   title = signal('PMST US-Nepal');

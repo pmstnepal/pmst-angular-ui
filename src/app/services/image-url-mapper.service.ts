@@ -28,19 +28,22 @@ export class ImageUrlMapperService {
   private fallbackImage = '/assets/images/placeholder.jpg';
   private imageManifest: Map<string, string> = new Map();
   private manifestLoaded = false;
+  private manifestLoading = false;
 
   constructor() {
-    // Manifest will be loaded via APP_INITIALIZER before app renders
+    // Manifest loads lazily on first use - no blocking
   }
 
   /**
    * Load image manifest for fast lookups
-   * Called by APP_INITIALIZER to ensure manifest is loaded before app renders
+   * Loads lazily on first use - does not block app startup
    */
-  async loadManifest(): Promise<void> {
-    if (this.manifestLoaded) {
+  private async loadManifest(): Promise<void> {
+    if (this.manifestLoaded || this.manifestLoading) {
       return;
     }
+    
+    this.manifestLoading = true;
     
     try {
       const response = await fetch('/assets/image-manifest.json');
@@ -52,21 +55,39 @@ export class ImageUrlMapperService {
         });
         this.manifestLoaded = true;
         console.log(`[ImageUrlMapper] Loaded ${this.imageManifest.size} images from manifest`);
-      } else {
-        console.warn('[ImageUrlMapper] Failed to fetch manifest:', response.status);
       }
-    } catch (error) {
-      console.warn('[ImageUrlMapper] Manifest not found, using pattern matching fallback');
+    } catch {
+      // Silent fail - pattern matching fallback works fine
+    } finally {
+      this.manifestLoading = false;
     }
   }
 
   /**
    * Map WordPress URL to local/development URL
    * Uses manifest-based lookup for unified image resolution
+   * Loads manifest lazily on first call
+   * Handles attachment IDs (e.g., "attachment:26217") by resolving to WordPress URLs
    */
   mapUrl(wpUrl: string | null | undefined): string {
+    // Trigger lazy manifest load (non-blocking)
+    this.loadManifest();
+    
     if (!wpUrl) {
       return this.fallbackImage;
+    }
+
+    // Handle attachment IDs from gallery_images (e.g., "attachment:26217")
+    // These are WordPress attachment IDs that need to be resolved to actual URLs
+    const attachmentMatch = wpUrl.match(/^attachment:(\d+)$/);
+    if (attachmentMatch) {
+      const attachmentId = attachmentMatch[1];
+      // Return WordPress attachment URL format
+      // In production, this would be an S3/CloudFront URL
+      // For now, return the WordPress URL which will work if images aren't local yet
+      const wpAttachmentUrl = `https://pmstusnepal.com/?attachment_id=${attachmentId}`;
+      console.warn(`[ImageUrlMapper] Attachment ID ${attachmentId} - using WordPress URL`);
+      return wpAttachmentUrl;
     }
 
     // Check non-year patterns first (ultimatemember, woocommerce)

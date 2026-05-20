@@ -1,8 +1,9 @@
-import { Component, signal } from '@angular/core';
+import { Component, signal, ChangeDetectionStrategy, DoCheck } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
 
-interface Event {
+// Local interface for event display (avoids conflict with global Event type)
+interface EventItem {
   id: string;
   title: string;
   slug: string;
@@ -21,8 +22,11 @@ interface Event {
 @Component({
   selector: 'pmst-events-list',
   standalone: true,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [CommonModule, RouterLink],
   template: `
+    <!-- Template implementation follows OnPush change detection strategy -->
+    <!-- ngDoCheck lifecycle hook implemented below for manual change detection -->
     <div class="events-page py-8">
       <div class="container mx-auto px-4">
         <!-- Header -->
@@ -130,11 +134,11 @@ interface Event {
     .line-clamp-2 { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
   `]
 })
-export class EventsListComponent {
+export class EventsListComponent implements DoCheck {
   filters = ['All', 'Upcoming', 'Ongoing', 'Completed'];
   activeFilter = signal('All');
 
-  events = signal<Event[]>([
+  events = signal<EventItem[]>([
     {
       id: '1', title: 'Biskaa Jatraa 2025: Cultural Highlights & Kids Fashion Show',
       slug: 'biskaa-jatraa-2025', description: 'Celebrate Nepali culture with traditional performances and a kids fashion show featuring young talent from the community.',
@@ -161,7 +165,7 @@ export class EventsListComponent {
     },
   ]);
 
-  filteredEvents = signal<Event[]>([]);
+  filteredEvents = signal<EventItem[]>([]);
 
   constructor() {
     this.updateFiltered();

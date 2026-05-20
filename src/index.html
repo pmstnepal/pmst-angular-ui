@@ -10,8 +10,19 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <!-- Preconnect to local API for faster data fetching -->
+  <link rel="preconnect" href="http://localhost:8080">
 </head>
 <body class="mat-typography">
-  <pmst-root></pmst-root>
+  <pmst-root>
+    <!-- Loading skeleton shown before Angular loads -->
+    <div style="display: flex; flex-direction: column; justify-content: center; align-items: center; height: 100vh; font-family: Inter, sans-serif; background: #f9fafb;">
+      <div style="width: 64px; height: 64px; border: 4px solid #f3f4f6; border-top-color: #db2777; border-radius: 50%; animation: spin 1s linear infinite;"></div>
+      <p style="margin-top: 20px; color: #6b7280; font-size: 14px;">Loading PMST US-Nepal...</p>
+    </div>
+    <style>
+      @keyframes spin { to { transform: rotate(360deg); } }
+    </style>
+  </pmst-root>
 </body>
 </html>

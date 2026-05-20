@@ -1,32 +1,14 @@
-import { Component, OnInit, signal } from '@angular/core';
+import { Component, OnInit, signal, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
-import { HttpClient } from '@angular/common/http';
-import { environment } from '../../../environments/environment';
+import { NewsArticle } from '../../core/models';
+import { ArticleService } from '../../core/services/article.service';
 import { ImageUrlMapperService } from '../../services/image-url-mapper.service';
-
-export interface NewsArticle {
-  id: string;
-  title: string;
-  slug: string;
-  excerpt: string;
-  featuredImage?: string;
-  youtubeLink?: string;
-  embedCode?: string;
-  galleryImages?: string;
-  category: string;
-  publishedAt: string;
-}
-
-interface PageResponse<T> {
-  content: T[];
-  totalElements: number;
-  totalPages: number;
-}
 
 @Component({
   selector: 'pmst-news-list',
   standalone: true,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [CommonModule, RouterLink],
   template: `
     <div class="news-page" style="background:#f8f8f8; min-height:100vh;">
@@ -144,7 +126,10 @@ export class NewsListComponent implements OnInit {
   currentPage = signal(0);
   totalPages = signal(1);
 
-  constructor(private http: HttpClient, public imageMapper: ImageUrlMapperService) {}
+  constructor(
+    private articleService: ArticleService,
+    public imageMapper: ImageUrlMapperService
+  ) {}
 
   ngOnInit(): void {
     this.loadArticles();
@@ -154,11 +139,8 @@ export class NewsListComponent implements OnInit {
     this.loading.set(true);
     const cat = this.selectedCategory();
     const page = this.currentPage();
-    let url = `${environment.apiUrl}/articles?page=${page}&size=9&sort=publishedAt,desc`;
-    if (cat !== 'All') {
-      url += `&category=${encodeURIComponent(cat.toLowerCase().replace(' ', '-'))}`;
-    }
-    this.http.get<PageResponse<NewsArticle>>(url).subscribe({
+    
+    this.articleService.getArticles(page, 9, cat === 'All' ? undefined : cat).subscribe({
       next: res => {
         this.articles.set(res.content);
         this.totalPages.set(res.totalPages);

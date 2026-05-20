@@ -1,9 +1,10 @@
-import { Component, signal } from '@angular/core';
+import { Component, signal, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 
-interface GalleryImage {
+// Local upload interface (different from shared GalleryImage model)
+interface GalleryUploadItem {
   id: string;
   file: File;
   preview: string;
@@ -13,6 +14,7 @@ interface GalleryImage {
 @Component({
   selector: 'pmst-submit-gallery',
   standalone: true,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [CommonModule, FormsModule, RouterLink],
   template: `
     <div class="submit-gallery py-8">
@@ -102,13 +104,13 @@ interface GalleryImage {
             </div>
 
             <!-- Uploaded Images Preview -->
-            @if (uploadedImages().length > 0) {
+            @if (selectedImages().length > 0) {
               <div>
                 <label class="block text-sm font-medium text-gray-700 mb-2">
-                  Uploaded Photos ({{ uploadedImages().length }})
+                  Uploaded Photos ({{ selectedImages().length }})
                 </label>
                 <div class="grid grid-cols-2 md:grid-cols-3 gap-4">
-                  @for (image of uploadedImages(); track image.id; let i = $index) {
+                  @for (image of selectedImages(); track image.id; let i = $index) {
                     <div class="relative group">
                       <img [src]="image.preview" class="w-full h-32 object-cover rounded-lg">
                       <div class="absolute inset-0 bg-black bg-opacity-50 opacity-0 group-hover:opacity-100 transition-opacity rounded-lg flex items-center justify-center">
@@ -158,7 +160,7 @@ interface GalleryImage {
                 </a>
                 <button 
                   type="submit"
-                  [disabled]="isSubmitting() || uploadedImages().length === 0"
+                  [disabled]="isSubmitting() || selectedImages().length === 0"
                   class="px-6 py-3 bg-pink-600 text-white rounded-lg hover:bg-pink-700 transition-colors disabled:opacity-50 flex items-center"
                 >
                   @if (isSubmitting()) {
@@ -201,7 +203,7 @@ export class SubmitGalleryComponent {
     tags: ''
   };
 
-  uploadedImages = signal<GalleryImage[]>([]);
+  selectedImages = signal<GalleryUploadItem[]>([]);
   isSubmitting = signal(false);
 
   onFileSelected(event: Event): void {
@@ -230,24 +232,24 @@ export class SubmitGalleryComponent {
     imageFiles.forEach(file => {
       const reader = new FileReader();
       reader.onload = (e) => {
-        const newImage: GalleryImage = {
-          id: Math.random().toString(36).substr(2, 9),
+        const newImage: GalleryUploadItem = {
+          id: Math.random().toString(36).substring(2, 9),
           file: file,
           preview: e.target?.result as string,
           caption: ''
         };
-        this.uploadedImages.update(images => [...images, newImage]);
+        this.selectedImages.update((images: GalleryUploadItem[]) => [...images, newImage]);
       };
       reader.readAsDataURL(file);
     });
   }
 
   removeImage(index: number): void {
-    this.uploadedImages.update(images => images.filter((_, i) => i !== index));
+    this.selectedImages.update((images: GalleryUploadItem[]) => images.filter((_: GalleryUploadItem, i: number) => i !== index));
   }
 
   onSubmit(): void {
-    if (this.uploadedImages().length === 0) return;
+    if (this.selectedImages().length === 0) return;
     
     this.isSubmitting.set(true);
     setTimeout(() => {

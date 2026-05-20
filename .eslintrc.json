@@ -1,0 +1,62 @@
+{
+  "root": true,
+  "ignorePatterns": [
+    "projects/**/*",
+    "dist/**/*",
+    "node_modules/**/*",
+    "e2e/**/*"
+  ],
+  "overrides": [
+    {
+      "files": ["*.ts"],
+      "excludedFiles": ["*.spec.ts"],
+      "parserOptions": {
+        "project": ["tsconfig.json"],
+        "createDefaultProgram": true
+      },
+      "extends": [
+        "plugin:@angular-eslint/recommended",
+        "plugin:@angular-eslint/template/process-inline-templates"
+      ],
+      "rules": {
+        "@angular-eslint/directive-selector": [
+          "error",
+          {
+            "type": "attribute",
+            "prefix": "pmst",
+            "style": "camelCase"
+          }
+        ],
+        "@angular-eslint/component-selector": [
+          "error",
+          {
+            "type": "element",
+            "prefix": "pmst",
+            "style": "kebab-case"
+          }
+        ],
+        "@angular-eslint/component-class-suffix": "error",
+        "@angular-eslint/directive-class-suffix": "error",
+        "@angular-eslint/use-lifecycle-interface": "error",
+        "no-console": ["warn", { "allow": ["warn", "error"] }],
+        "no-debugger": "error"
+      }
+    },
+    {
+      "files": ["*.spec.ts"],
+      "parserOptions": {
+        "project": ["tsconfig.spec.json"],
+        "createDefaultProgram": true
+      },
+      "extends": [
+        "plugin:@angular-eslint/recommended"
+      ],
+      "rules": {}
+    },
+    {
+      "files": ["*.html"],
+      "extends": ["plugin:@angular-eslint/template/recommended"],
+      "rules": {}
+    }
+  ]
+}
