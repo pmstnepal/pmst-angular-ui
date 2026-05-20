@@ -62,14 +62,9 @@ interface PlaylistConfig {
         }
       </div>
 
-      @if (activeVideo()) {
-        <h4 class="text-lg font-semibold text-white mb-4">{{ activeVideo()!.title }}</h4>
-      }
-
       <!-- Playlist - Single-row horizontal scroll with prev/next arrows -->
       @if (currentPlaylistVideos().length > 0) {
-        <div class="bg-gray-800 rounded-xl p-3">
-          <p class="text-sm font-semibold text-gray-400 mb-3">{{ currentPlaylistVideos().length }} videos</p>
+        <div class="mt-4">
           <div class="strip-wrap">
             <button
               type="button"
@@ -84,33 +79,20 @@ interface PlaylistConfig {
               @for (video of currentPlaylistVideos(); track video.id; let i = $index) {
                 <button
                   (click)="selectVideo(video)"
-                  class="thumb-btn flex-shrink-0 w-44 text-left hover:bg-gray-700 transition-colors rounded-lg p-2"
-                  [class.bg-gray-700]="activeVideo()?.id === video.id"
+                  type="button"
+                  class="thumb-btn"
+                  [class.active]="activeVideo()?.id === video.id"
+                  [attr.aria-label]="video.title"
                 >
-                  <div class="relative aspect-video bg-gray-900 rounded overflow-hidden mb-2">
-                    @if (video.thumbnailUrl) {
-                      <img [src]="video.thumbnailUrl" [alt]="video.title" class="w-full h-full object-cover">
-                    } @else {
-                      <div class="w-full h-full flex items-center justify-center">
-                        <svg class="w-8 h-8 text-gray-600" fill="currentColor" viewBox="0 0 24 24">
-                          <path d="M10 16.5l6-4.5-6-4.5v9zM12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z"/>
-                        </svg>
-                      </div>
-                    }
-                    @if (video.duration) {
-                      <span class="absolute bottom-1 right-1 bg-black/80 text-white text-xs px-1 rounded">{{ video.duration }}</span>
-                    }
-                    @if (activeVideo()?.id === video.id) {
-                      <div class="absolute inset-0 flex items-center justify-center bg-black/40">
-                        <div class="w-8 h-8 rounded-full bg-red-600 flex items-center justify-center">
-                          <svg class="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 24 24">
-                            <path d="M8 5v14l11-7z"/>
-                          </svg>
-                        </div>
-                      </div>
-                    }
-                  </div>
-                  <p class="text-xs font-medium text-gray-300 line-clamp-2">{{ video.title }}</p>
+                  @if (video.thumbnailUrl) {
+                    <img [src]="video.thumbnailUrl" [alt]="video.title" loading="lazy">
+                  } @else {
+                    <div class="thumb-fallback">
+                      <svg class="w-8 h-8 text-gray-600" fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M10 16.5l6-4.5-6-4.5v9zM12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z"/>
+                      </svg>
+                    </div>
+                  }
                 </button>
               }
             </div>
@@ -189,7 +171,35 @@ interface PlaylistConfig {
     .strip::-webkit-scrollbar { height: 6px; }
     .strip::-webkit-scrollbar-thumb { background: #555; border-radius: 99px; }
     .strip::-webkit-scrollbar-track { background: transparent; }
-    .thumb-btn { scroll-snap-align: start; }
+    .thumb-btn {
+      flex: 0 0 auto;
+      width: 240px;
+      min-width: 240px;
+      scroll-snap-align: start;
+      background: #121212;
+      border: 1px solid #2a2a2a;
+      border-radius: 10px;
+      overflow: hidden;
+      cursor: pointer;
+      padding: 0;
+      transition: transform 0.15s, border-color 0.15s;
+    }
+    .thumb-btn:hover { transform: translateY(-2px); }
+    .thumb-btn.active { outline: 2px solid #fe5252; border-color: #fe5252; }
+    .thumb-btn img {
+      width: 100%;
+      display: block;
+      aspect-ratio: 16/9;
+      object-fit: cover;
+    }
+    .thumb-fallback {
+      width: 100%;
+      aspect-ratio: 16/9;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #1a1a1a;
+    }
     .nav-btn {
       position: absolute;
       top: 50%;
