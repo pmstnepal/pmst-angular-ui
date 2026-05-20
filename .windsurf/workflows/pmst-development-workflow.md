@@ -67,6 +67,64 @@ PMST US-Nepal will migrate from Hostinger WordPress to AWS serverless architectu
 - **Theme:** Blocksy
 - **Plugins:** 38+ plugins (see plugin analysis below)
 
+### Production Environment Details (Hostinger)
+
+> **Last Verified:** May 17, 2026 via Hostinger MCP API
+
+| Property | Value |
+|----------|-------|
+| **Domain** | pmstusnepal.com |
+| **Status** | ✅ Active |
+| **Registration Date** | Feb 8, 2025 |
+| **Expiration Date** | Feb 8, 2027 |
+| **Privacy Protection** | ✅ Enabled |
+| **Domain Lock** | ✅ Enabled (prevents unauthorized transfer) |
+| **Name Servers** | ns1.dns-parking.com, ns2.dns-parking.com |
+| **Hosting Plan** | Business Plan |
+| **Hosting Status** | ✅ Active |
+| **Server IP (A Record)** | 46.202.182.16 |
+| **IPv6 (AAAA Record)** | 2a02:4780:2b:1870:0:1137:670d:d |
+| **Email Hosting** | ✅ Hostinger Mail (DKIM, SPF, DMARC configured) |
+| **Current Website** | WordPress on Hostinger |
+
+### DNS Configuration Summary
+
+| Record Type | Value | Purpose |
+|-------------|-------|---------|
+| A | 46.202.182.16 | Points domain to Hostinger server |
+| AAAA | 2a02:4780:2b:1870:0:1137:670d:d | IPv6 address |
+| MX | mx1.hostinger.com (prio 5), mx2.hostinger.com (prio 10) | Email routing |
+| TXT (SPF) | v=spf1 include:_spf.mail.hostinger.com ~all | Email authentication |
+| TXT (DMARC) | v=DMARC1; p=none; rua=mailto:info@pmstusnepal.com | Email reporting |
+| CNAME (www) | pmstusnepal.com | www redirect |
+| CNAME (DKIM) | 4 DKIM records | Email signing |
+
+### Pre-Migration Checklist
+
+Before DNS cutover to AWS:
+- [ ] Lower TTL on all DNS records to 300 seconds (5 minutes)
+- [ ] Provision AWS infrastructure via Terraform
+- [ ] Deploy Angular frontend to S3 + CloudFront
+- [ ] Verify SSL certificate on CloudFront
+- [ ] Test all 12 routes on CloudFront domain
+- [ ] Migrate all 3,337 images to S3
+- [ ] Validate PostgreSQL data migration (articles, users, comments)
+- [ ] Configure Cognito user pool with custom domain
+- [ ] Set up RDS Proxy for database connections
+- [ ] Configure Lambda functions with proper environment variables
+
+### DNS Cutover Plan
+
+| Step | Action | TTL | Rollback Time |
+|------|--------|-----|---------------|
+| 1 | Lower DNS TTL to 300s | 24h before | - |
+| 2 | Update A record to CloudFront | Cutover day | 5 min |
+| 3 | Update AAAA record to CloudFront | Cutover day | 5 min |
+| 4 | Monitor for 24 hours | Post-cutover | 5 min |
+| 5 | Decommission Hostinger | After 1 week stability | N/A |
+
+**Rollback:** Switch A/AAAA records back to 46.202.182.16 within 5 minutes if issues arise.
+
 ### Live Site Structure
 **Navigation:** HOME → SPOTLIGHT (dropdown: ENTERTAINMENTS, NEWS) → SHOWCASE → LOGIN
 
@@ -666,6 +724,123 @@ infrastructure/
 | CloudFront | Basic | Full caching + WAF |
 | VPC | 2 AZ, NAT Gateway | 2 AZ, NAT Gateway |
 
+### Frontend Hosting: Static S3 + CloudFront (Current)
+
+> **Current Architecture:** Static site hosting via S3 + CloudFront SPA fallback
+> 
+> **SSR Status:** Configured in `angular.json` but **NOT deployed** — requires additional Lambda@Edge infrastructure
+
+#### Build Output
+```bash
+npm run build:prod
+# Generates:
+# - dist/pmst-angular-ui/browser/    → Deployed to S3 (current)
+# - dist/pmst-angular-ui/server/   → NOT deployed (SSR - requires Lambda@Edge)
+```
+
+#### Current Deployment (GitHub Actions)
+```yaml
+# .github/workflows/deploy-frontend-prod.yml
+- run: aws s3 sync dist/pmst-angular-ui/browser/ s3://${{ vars.FRONTEND_BUCKET }} --delete
+- run: aws cloudfront create-invalidation --distribution-id ${{ vars.CF_DISTRIBUTION_ID }} --paths "/*"
+```
+
+#### CloudFront Configuration
+- **Origin:** S3 static website
+- **SPA Fallback:** 403/404 → index.html (client-side routing)
+- **Caching:** 1 hour default TTL
+- **SSL:** ACM certificate
+
+### Future: SSR with Lambda@Edge (Not Implemented)
+
+For full SEO + social sharing, add Lambda@Edge. **Decision needed post-launch based on metrics.**
+
+#### Implementation Details
+```hcl
+# Terraform addition needed: modules/cloudfront-ssr/
+resource "aws_lambda_function" "ssr" {
+  function_name = "${var.project_name}-${var.environment}-ssr"
+  runtime       = "nodejs20.x"
+  handler       = "main.server.handler"  # Angular Universal server
+  
+  # Deploy server bundle from dist/pmst-angular-ui/server/
+  filename = "${path.module}/ssr-server.zip"
+  
+  # Lambda@Edge requires us-east-1
+  provider = aws.us-east-1
+}
+
+# CloudFront origin request trigger
+resource "aws_cloudfront_distribution" "frontend" {
+  # ... existing config ...
+  
+  lambda_function_association {
+    event_type   = "origin-request"
+    lambda_arn   = aws_lambda_function.ssr.qualified_arn
+    include_body = false
+  }
+}
+```
+
+#### Cost Analysis: SSR vs Static
+
+| Cost Component | Static S3 (Current) | Lambda@Edge SSR | Difference |
+|----------------|---------------------|-------------------|------------|
+| **CloudFront** | $8.50/100GB | $8.50/100GB | Same |
+| **S3 Storage** | $2.30/100GB | $2.30/100GB | Same |
+| **Lambda@Edge** | $0 | ~$15-40/mo | **+$15-40** |
+| **Request Charges** | $0 | $0.60/million | Negligible |
+| **Data Transfer** | $0 | Included in CF | Same |
+| **Total** | **~$11/mo** | **~$26-51/mo** | **+$15-40/mo** |
+
+**Lambda@Edge Pricing Breakdown:**
+- $0.60 per 1 million requests (first 1B requests/month)
+- $0.00005001 per GB-second of memory (128MB default)
+- Typical Angular SSR: ~100ms execution, 128MB = $0.000000625 per request
+- 100K page views/month = ~$0.06/month compute
+
+#### Decision Framework
+
+**Implement SSR IF:**
+| Metric | Threshold | Check With |
+|--------|-----------|------------|
+| Google PageSpeed SEO score | < 90 | lighthouse CI |
+| Organic traffic drop | > 20% vs WordPress | Google Analytics |
+| Social share previews broken | Facebook/Twitter cards don't render | Sharing Debugger |
+| Google indexing issues | Articles not in search results | Search Console |
+| Time to First Contentful Paint | > 1.5s on 3G | WebPageTest |
+
+**Do NOT implement IF:**
+- SEO scores > 90 with current static setup
+- Social previews work with prerender.io or similar
+- Organic traffic stable or growing
+- Budget constrained (save $15-40/mo)
+
+#### Alternative: Prerender.io (Middle Ground)
+If SSR is overkill, use Prerender.io service:
+- **Cost**: $15-80/mo based on cache size
+- **Setup**: 1-line middleware, no Lambda
+- **Benefit**: SEO bot sees rendered HTML, users get fast SPA
+- **Trade-off**: Third-party dependency, not truly serverless
+
+#### Implementation Effort
+| Task | Hours | Complexity |
+|------|-------|------------|
+| Create Lambda@Edge module | 4-6 hrs | Medium |
+| Update CloudFront distribution | 2 hrs | Low |
+| CI/CD pipeline for server bundle | 2-3 hrs | Medium |
+| Test SSR hydration | 4-6 hrs | High |
+| Monitor & optimize | 2-4 hrs | Medium |
+| **Total** | **14-21 hrs** | **High** |
+
+#### Recommendation
+**Start with Static S3**, monitor metrics for 2-3 months post-launch. Implement SSR only if:
+1. SEO metrics justify the $15-40/mo cost
+2. Development time (14-21 hrs) is available
+3. Complexity trade-off is acceptable
+
+> **Current Status**: SSR is configured in angular.json but NOT deployed. Safe to launch without it.
+
 ### Cost Estimates
 
 | Component | Dev/Month | Prod/Month |
@@ -676,6 +851,111 @@ infrastructure/
 | S3 (100GB) | $2.30 | $2.30 |
 | CloudFront (100GB) | $8.50 | $8.50 |
 | **Total** | **~$58** | **~$120** |
+
+---
+
+## Part 6.5: Secrets Management
+
+> **Pattern:** Spring `${ENV_VAR:}` placeholders + local override file + Terraform-managed AWS SSM in prod.
+
+### Standard Pattern for All Secrets
+
+**Backend `application.properties` (committed):**
+```properties
+# Use env var with empty default
+pmst.youtube.api-key=${PMST_YT_API_KEY:}
+some.other.secret=${SOME_OTHER_SECRET:}
+```
+
+**Local `application-local.properties` (gitignored, in `src/main/resources/`):**
+```properties
+PMST_YT_API_KEY=AIzaSy...your-actual-key
+SOME_OTHER_SECRET=value
+```
+
+**`.gitignore` must contain:**
+```
+application-local.properties
+src/main/resources/application-local.properties
+```
+
+**Run locally:**
+```powershell
+# Option 1: Use local profile (auto-picks up application-local.properties)
+mvn spring-boot:run -Dspring-boot.run.profiles=local
+
+# Option 2: Set env var in shell
+$env:PMST_YT_API_KEY="AIzaSy..."
+mvn spring-boot:run
+```
+
+### Production: Terraform → AWS SSM → Lambda
+
+**Why SSM Parameter Store (not Secrets Manager):**
+- **Free:** 10,000 parameters free (Secrets Manager: $0.40/secret/month)
+- **Same encryption:** KMS-encrypted SecureString
+- **Native Lambda integration**
+
+**Terraform Pattern (`pmst-terraform-infra`):**
+
+```hcl
+# variables.tf
+variable "youtube_api_key" {
+  description = "YouTube Data API v3 key (set via terraform.tfvars or TF_VAR_youtube_api_key)"
+  type        = string
+  sensitive   = true
+}
+
+# modules/api-service/secrets.tf
+resource "aws_ssm_parameter" "youtube_api_key" {
+  name        = "/pmst/${var.environment}/youtube-api-key"
+  type        = "SecureString"
+  value       = var.youtube_api_key
+  tags        = { Service = "pmst-api-service" }
+}
+
+# Lambda IAM role permission
+data "aws_iam_policy_document" "lambda_ssm_read" {
+  statement {
+    actions   = ["ssm:GetParameter", "ssm:GetParameters"]
+    resources = [aws_ssm_parameter.youtube_api_key.arn]
+  }
+  statement {
+    actions   = ["kms:Decrypt"]
+    resources = ["arn:aws:kms:*:*:alias/aws/ssm"]
+  }
+}
+
+# Inject as Lambda env var
+resource "aws_lambda_function" "api" {
+  environment {
+    variables = {
+      SPRING_PROFILES_ACTIVE = var.environment
+      PMST_YT_API_KEY        = aws_ssm_parameter.youtube_api_key.value
+    }
+  }
+}
+```
+
+**Source the key value:**
+- **Local TF runs:** `terraform.tfvars` (gitignored by default)
+- **CI/CD:** GitHub Actions secret → `TF_VAR_youtube_api_key`
+
+### Key Rotation Procedure
+1. Generate new key in Google Cloud Console (or other provider)
+2. Restrict the new key (HTTP referrer, API allowlist)
+3. Update local `application-local.properties` with new key
+4. Update `terraform.tfvars` with new key
+5. Run `terraform apply` — Lambda picks up new key on next cold start
+6. Revoke old key in provider console
+
+### Current Secrets Inventory
+
+| Secret | Pattern | Local | Prod (planned) |
+|--------|---------|-------|----------------|
+| `PMST_YT_API_KEY` | YouTube Data API v3 | `application-local.properties` | SSM `/pmst/prod/youtube-api-key` |
+| Cognito Client Secret | Auth | TBD | SSM `/pmst/prod/cognito-client-secret` |
+| RDS Password | DB | docker-compose env | SSM `/pmst/prod/rds-password` |
 
 ---
 
@@ -695,15 +975,42 @@ pmst-terraform-infra/.github/workflows/
 
 pmst-angular-ui/.github/workflows/
 └── deploy-frontend-prod.yml    # AUTO: build + S3 sync + CF invalidate on push to main
-```
 
-### Branching Strategy (Solo Phase)
+### Branching Strategy (Solo Phase — Updated)
+
+**⚠️ RULE**: Never push directly to `main`. Always use feature branches + PR merge (even as solo developer).
 
 | Branch | Purpose |
-|--------|--------|
-| `main` | Active — push here → auto-deploys to prod |
-| feature branches | Optional short-lived branches merged to `main` |
+|--------|---------|
+| `main` | Protected — deploys to prod on merge ONLY |
+| `feature/{description}` | New features — PR required to merge |
+| `fix/{description}` | Bug fixes — PR required to merge |
+| `hotfix/{description}` | Urgent fixes — PR required to merge |
 | `develop` / `staging` | Not used — reactivate when team grows |
+
+### CI/CD Trigger Requirements
+
+**Updated**: Pipelines now run on **both** PR to `main` AND push to `main`:
+
+```yaml
+on:
+  pull_request:
+    branches: [main]    # Run tests/lint on PR
+  push:
+    branches: [main]    # Deploy after merge
+```
+
+**PR Checks** (required before merge):
+- Lint passes (`npm run lint`, Checkstyle)
+- Unit tests pass (70%+ coverage)
+- Build succeeds
+- Terraform plan (for infra changes)
+
+**Deploy** (after merge to `main`):
+- Full test suite
+- Production build
+- AWS deployment
+- Smoke tests
 
 ### Active Workflows
 
@@ -773,6 +1080,22 @@ jobs:
 ### Variables Required (GitHub → Settings → Variables)
 - `FRONTEND_BUCKET` — prod S3 bucket name (e.g. `pmst-prod-frontend`)
 - `CF_DISTRIBUTION_ID` — CloudFront distribution ID
+
+### Documentation Sync Requirements
+
+**Triple Sync Rule**: When implementing new logic or patterns, update all three documentation layers:
+
+| Documentation | Purpose | Location | Update When |
+|--------------|---------|----------|-------------|
+| **AI Rules** | Coding standards for Windsurf | `.windsurf/rules.md` | New standards, optimization rules |
+| **Developer Guide** | Step-by-step reference | `.windsurf/workflows/pmst-development-workflow.md` | Architecture patterns, CI/CD changes |
+| **Visual Dashboard** | Status tracking | `src/doc/pmst-master-plan.html` | Component status, compliance |
+
+**Mandatory**: If implementing logic NOT in this workflow document:
+1. Update this workflow file with new section
+2. Add corresponding rule to `.windsurf/rules.md`
+3. Update status board in HTML dashboard
+4. Reference section in PR description
 
 ---
 
@@ -1094,6 +1417,35 @@ docker compose down
 - [ ] Featured images display on homepage
 
 ---
+
+#### Testing Setup (One-time Installation)
+
+**ESLint Setup:**
+```bash
+cd d:\pmstmigrate
+npm install -D @angular-eslint/schematics
+ng add @angular-eslint/schematics
+```
+
+**Playwright Setup:**
+```bash
+cd d:\pmstmigrate
+npm install -D @playwright/test
+npx playwright install
+```
+
+**Run Tests:**
+```bash
+# Angular Unit Tests (Karma + Jasmine)
+npm test
+
+# Playwright E2E Tests
+npx playwright test
+
+# Java Unit Tests (JUnit 5 + Mockito)
+cd d:\pmst-services\pmst-api-service
+mvn test
+```
 
 ---
 

@@ -1,38 +1,26 @@
-import { Component, OnInit, signal } from '@angular/core';
+import { Component, OnInit, signal, ChangeDetectionStrategy, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
-import { HttpClient } from '@angular/common/http';
-import { environment } from '../../../environments/environment';
+import { Article, GallerySummary } from '../../core/models';
+import { ArticleService } from '../../core/services/article.service';
+import { GalleryService } from '../../core/services/gallery.service';
+import { YoutubeService } from '../../core/services/youtube.service';
 import { YoutubePlaylistComponent } from '../../shared/components/youtube-playlist/youtube-playlist.component';
 import { PostCarouselComponent } from '../../shared/components/post-carousel/post-carousel.component';
 import { GalleryCarouselComponent } from '../../shared/components/gallery-carousel/gallery-carousel.component';
 
-interface Article {
-  id: string;
-  title: string;
-  slug: string;
-  excerpt: string;
-  featuredImage?: string;
-  category: string;
-  publishedAt: string;
-}
-
-interface Gallery {
-  id: string;
-  title: string;
-  slug: string;
-  featuredImage?: string;
-}
-
-interface PageResponse<T> {
-  content: T[];
-  totalElements: number;
-  totalPages: number;
-}
+// Live site playlist IDs (from WP shortcode [pmst_yt_playlists ids="..."])
+const YOUTUBE_PLAYLIST_IDS = [
+  'PL706KEgmVFK9d0swdjzjVCau3fSZBLcjH',
+  'PL706KEgmVFK9HIMBXBUpdRJlovKTzCmhe',
+  'PL706KEgmVFK-lbYXEVF7HnS6A5zdo0wK7'
+];
+const YOUTUBE_PLAYLIST_TITLES = ['NEW TRAILERS', 'TRENDING SONGS', 'PMST VIDEOS'];
 
 @Component({
   selector: 'pmst-home',
   standalone: true,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [CommonModule, RouterLink, YoutubePlaylistComponent, PostCarouselComponent, GalleryCarouselComponent],
   template: `
     <div class="home-page">
@@ -53,10 +41,28 @@ interface PageResponse<T> {
       <!-- ③ YOUTUBE PLAYLISTS (Tabbed) -->
       <section class="py-10 bg-gray-900">
         <div class="container mx-auto px-4">
-          <pmst-youtube-playlist
-            [enableTabs]="true"
-            [playlists]="youtubePlaylists()">
-          </pmst-youtube-playlist>
+          @if (youtubeLoading()) {
+            <div class="animate-pulse">
+              <div class="flex gap-2 mb-6 border-b border-gray-700">
+                <div class="h-10 w-32 bg-gray-700 rounded-t"></div>
+                <div class="h-10 w-32 bg-gray-800 rounded-t"></div>
+                <div class="h-10 w-32 bg-gray-800 rounded-t"></div>
+              </div>
+              <div class="aspect-video bg-gray-800 rounded-xl mb-4"></div>
+              <div class="flex gap-3 overflow-hidden">
+                @for (i of [1,2,3,4,5,6]; track i) {
+                  <div class="w-40 h-24 bg-gray-800 rounded flex-shrink-0"></div>
+                }
+              </div>
+            </div>
+          } @else if (youtubePlaylists().length > 0) {
+            <pmst-youtube-playlist
+              [enableTabs]="true"
+              [playlists]="youtubePlaylists()">
+            </pmst-youtube-playlist>
+          } @else {
+            <div class="text-center text-gray-400 py-12">Videos unavailable. Please try again later.</div>
+          }
         </div>
       </section>
 
@@ -180,40 +186,15 @@ interface PageResponse<T> {
 })
 export class HomeComponent implements OnInit {
   latestNews = signal<Article[]>([]);
-  featuredGalleries = signal<Gallery[]>([]);
+  featuredGalleries = signal<GallerySummary[]>([]);
   newsLoading = signal(true);
   galleriesLoading = signal(true);
 
-  // YouTube playlists configuration (from WordPress shortcode)
-  youtubePlaylists = signal([
-    {
-      id: 'trailers',
-      title: 'NEW TRAILERS',
-      videos: [
-        { id: 't1', title: 'Nepali Movie Trailer 2025', thumbnailUrl: '', videoId: 'dQw4w9WgXcQ', duration: '2:30' },
-        { id: 't2', title: 'Latest Nepali Film Teaser', thumbnailUrl: '', videoId: 'dQw4w9WgXcQ', duration: '1:45' },
-        { id: 't3', title: 'Upcoming Release Preview', thumbnailUrl: '', videoId: 'dQw4w9WgXcQ', duration: '3:15' }
-      ]
-    },
-    {
-      id: 'songs',
-      title: 'TRENDING SONGS',
-      videos: [
-        { id: 's1', title: 'Top Nepali Song 2025', thumbnailUrl: '', videoId: 'dQw4w9WgXcQ', duration: '4:20' },
-        { id: 's2', title: 'Viral Music Video', thumbnailUrl: '', videoId: 'dQw4w9WgXcQ', duration: '3:50' },
-        { id: 's3', title: 'New Release Hit', thumbnailUrl: '', videoId: 'dQw4w9WgXcQ', duration: '3:30' }
-      ]
-    },
-    {
-      id: 'pmst',
-      title: 'PMST VIDEOS',
-      videos: [
-        { id: 'p1', title: 'PMST Community Highlights', thumbnailUrl: '', videoId: 'dQw4w9WgXcQ', duration: '5:45' },
-        { id: 'p2', title: 'Event Coverage 2025', thumbnailUrl: '', videoId: 'dQw4w9WgXcQ', duration: '8:20' },
-        { id: 'p3', title: 'Behind the Scenes', thumbnailUrl: '', videoId: 'dQw4w9WgXcQ', duration: '6:10' }
-      ]
-    }
-  ]);
+  // YouTube playlists loaded from backend (proxies YouTube Data API v3)
+  youtubePlaylists = signal<Array<{ id: string; title: string; videos: Array<{ id: string; title: string; thumbnailUrl: string; videoId: string; duration: string }> }>>([]);
+  youtubeLoading = signal(true);
+
+  private youtubeService = inject(YoutubeService);
 
   // Transform API data for post-carousel component
   carouselNews = () => this.latestNews().map(article => ({
@@ -234,21 +215,44 @@ export class HomeComponent implements OnInit {
     featuredImage: gallery.featuredImage || ''
   }));
 
-  constructor(private http: HttpClient) {}
+  constructor(
+    private articleService: ArticleService,
+    private galleryService: GalleryService
+  ) {}
 
   ngOnInit(): void {
-    // Load 6 articles for carousel
-    this.http.get<PageResponse<Article>>(`${environment.apiUrl}/articles?size=6&sort=publishedAt,desc`)
-      .subscribe({
-        next: res => { this.latestNews.set(res.content); this.newsLoading.set(false); },
-        error: () => this.newsLoading.set(false)
-      });
+    // Load 6 articles for carousel (with caching via ArticleService)
+    this.articleService.getLatestArticles(6).subscribe({
+      next: res => { this.latestNews.set(res.content); this.newsLoading.set(false); },
+      error: () => this.newsLoading.set(false)
+    });
 
-    // Load 6 galleries for carousel
-    this.http.get<PageResponse<Gallery>>(`${environment.apiUrl}/galleries?size=6&sort=createdAt,desc`)
-      .subscribe({
-        next: res => { this.featuredGalleries.set(res.content); this.galleriesLoading.set(false); },
-        error: () => this.galleriesLoading.set(false)
-      });
+    // Load 6 galleries for carousel (with caching via GalleryService)
+    this.galleryService.getFeaturedGalleries(6).subscribe({
+      next: res => { this.featuredGalleries.set(res.content); this.galleriesLoading.set(false); },
+      error: () => this.galleriesLoading.set(false)
+    });
+
+    // Load YouTube playlists from backend (cached 1h server-side)
+    this.youtubeService.getPlaylists(YOUTUBE_PLAYLIST_IDS, YOUTUBE_PLAYLIST_TITLES, 30).subscribe({
+      next: playlists => {
+        this.youtubePlaylists.set(playlists.map(pl => ({
+          id: pl.playlistId,
+          title: pl.title,
+          videos: pl.items.map(v => ({
+            id: v.videoId,
+            title: v.title,
+            thumbnailUrl: v.thumbUrl,
+            videoId: v.videoId,
+            duration: ''
+          }))
+        })));
+        this.youtubeLoading.set(false);
+      },
+      error: err => {
+        console.error('Failed to load YouTube playlists:', err);
+        this.youtubeLoading.set(false);
+      }
+    });
   }
 }
