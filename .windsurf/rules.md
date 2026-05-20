@@ -11,14 +11,32 @@ Strict development standards optimized for solo developer workflow with branch p
 ## 1. Branch & Workflow Rules
 
 ### Branch Protection (Solo Developer)
-- **NEVER push directly to `main`/`master`** — always use feature branches
-- **Feature branch naming**: 
+- **NEVER push directly to `main`/`master`** — always use the repo's single active feature branch
+- **One feature branch per repo policy** (solo dev mode):
+  - Each repo has exactly **ONE active feature branch** that all work goes into
+  - **Do NOT create new feature branches per feature/fix** — reuse the existing one
+  - Only create a new branch if the existing feature branch is being merged to `main` or if explicitly requested
+  - Multiple commits with different scopes (`feat:`, `fix:`, `style:`) on the same branch is expected and OK
+- **Active feature branches by repo**:
+  | Repo | Active Branch |
+  |------|---------------|
+  | `pmst-angular-ui` | `feature/angular-ui-setup` |
+  | `pmst-api-service` | `feature/initial-setup` |
+  | `pmst-data-migration` | `feature/migration-scripts` |
+  | `pmst-terraform-infra` | TBD on first work |
+- **Workflow per commit**:
+  1. Confirm current branch matches the repo's active feature branch (`git branch --show-current`)
+  2. If not, `git checkout <active-branch>`
+  3. Commit with conventional commit message
+  4. `git push` (no branch arg — pushes to tracked upstream)
+- **If accidentally on `main`/`master`**: 
+  - `git stash` → `git checkout <active-feature-branch>` → `git stash pop` → commit & push
+- **Branch naming reference** (for future repos / large refactors only):
   - `feature/{description}` — new features
-  - `fix/{description}` — bug fixes  
+  - `fix/{description}` — bug fixes
   - `hotfix/{description}` — urgent production fixes
   - `refactor/{description}` — code restructuring
-- **Merge requirement**: Create PR and merge yourself (or merge locally: `git checkout main && git merge feature/{name}`)
-- **If accidentally on master**: Create new branch immediately: `git checkout -b feature/{current-work} && git push origin feature/{current-work}`
+- **Merge to main**: Only via PR with review (or self-merge after manual verification)
 
 ### CI/CD Triggers
 Pipeline runs on:
