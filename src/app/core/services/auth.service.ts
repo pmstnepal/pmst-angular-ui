@@ -1,7 +1,8 @@
-import { Injectable, signal, computed, effect } from '@angular/core';
+import { Injectable, signal, computed, effect, inject } from '@angular/core';
+import { HttpClient } from '@angular/common/http';
 import { Router } from '@angular/router';
-import { ApiService } from './api.service';
 import { Observable, tap, catchError, throwError, of, map } from 'rxjs';
+import { environment } from '../../../environments/environment';
 
 export interface User {
   id: string;
@@ -25,96 +26,126 @@ export interface RegisterData {
   displayName?: string;
 }
 
-@Injectable({
-  providedIn: 'root'
-})
+/**
+ * Backend AuthResponse (matches AuthResponse.java).
+ * Cognito returns 3 tokens; we store all three.
+ */
+interface AuthResponse {
+  idToken: string;
+  accessToken: string;
+  refreshToken: string;
+  expiresIn: number;
+  tokenType: string;
+  user: User | null;
+}
+
+const STORAGE_KEYS = {
+  ID_TOKEN: 'id_token',
+  ACCESS_TOKEN: 'access_token',
+  REFRESH_TOKEN: 'refresh_token',
+  USER: 'user'
+} as const;
+
+@Injectable({ providedIn: 'root' })
 export class AuthService {
+  private http = inject(HttpClient);
+  private router = inject(Router);
+  private readonly baseUrl = `${environment.apiUrl}/auth`;
+
   private currentUser = signal<User | null>(null);
   private isAuthenticated = signal(false);
 
   readonly user = computed(() => this.currentUser());
   readonly authenticated = computed(() => this.isAuthenticated());
 
-  constructor(
-    private apiService: ApiService,
-    private router: Router
-  ) {
-    // Check for stored token on init
+  constructor() {
     this.checkAuthStatus();
 
-    // Persist auth state changes
     effect(() => {
       const user = this.currentUser();
       if (user) {
-        localStorage.setItem('user', JSON.stringify(user));
+        localStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(user));
       } else {
-        localStorage.removeItem('user');
-        localStorage.removeItem('access_token');
+        Object.values(STORAGE_KEYS).forEach(k => localStorage.removeItem(k));
       }
     });
   }
 
   private checkAuthStatus(): void {
-    const token = localStorage.getItem('access_token');
-    const userJson = localStorage.getItem('user');
-
+    const token = localStorage.getItem(STORAGE_KEYS.ACCESS_TOKEN);
+    const userJson = localStorage.getItem(STORAGE_KEYS.USER);
     if (token && userJson) {
       try {
-        const user = JSON.parse(userJson) as User;
-        this.currentUser.set(user);
+        this.currentUser.set(JSON.parse(userJson) as User);
         this.isAuthenticated.set(true);
       } catch {
-        this.logout();
+        this.logoutLocal();
       }
     }
   }
 
+  /** Used by the HTTP interceptor on each request. */
+  getAccessToken(): string | null {
+    return localStorage.getItem(STORAGE_KEYS.ACCESS_TOKEN);
+  }
+
+  getRefreshToken(): string | null {
+    return localStorage.getItem(STORAGE_KEYS.REFRESH_TOKEN);
+  }
+
   login(credentials: LoginCredentials): Observable<User> {
-    return this.apiService.post<{ user: User; token: string }>('/auth/login', credentials).pipe(
-      tap(response => {
-        localStorage.setItem('access_token', response.token);
-        this.currentUser.set(response.user);
-        this.isAuthenticated.set(true);
-      }),
-      map(response => response.user),
-      catchError(error => throwError(() => error))
+    return this.http.post<AuthResponse>(`${this.baseUrl}/login`, credentials).pipe(
+      tap(resp => this.storeTokens(resp)),
+      map(resp => resp.user!),
+      catchError(err => throwError(() => err))
     );
   }
 
   register(data: RegisterData): Observable<User> {
-    return this.apiService.post<{ user: User; token: string }>('/auth/register', data).pipe(
-      tap(response => {
-        localStorage.setItem('access_token', response.token);
-        this.currentUser.set(response.user);
-        this.isAuthenticated.set(true);
+    return this.http.post<AuthResponse>(`${this.baseUrl}/register`, data).pipe(
+      tap(resp => this.storeTokens(resp)),
+      map(resp => resp.user!),
+      catchError(err => throwError(() => err))
+    );
+  }
+
+  /**
+   * Called by HTTP interceptor when an API call returns 401.
+   * Exchanges refresh token for a new access token.
+   */
+  refreshAccessToken(): Observable<string> {
+    const refreshToken = this.getRefreshToken();
+    if (!refreshToken) {
+      return throwError(() => new Error('No refresh token available'));
+    }
+    return this.http.post<AuthResponse>(`${this.baseUrl}/refresh`, { refreshToken }).pipe(
+      tap(resp => {
+        localStorage.setItem(STORAGE_KEYS.ID_TOKEN, resp.idToken);
+        localStorage.setItem(STORAGE_KEYS.ACCESS_TOKEN, resp.accessToken);
+        // refreshToken stays the same
       }),
-      map(response => response.user),
-      catchError(error => throwError(() => error))
+      map(resp => resp.accessToken)
     );
   }
 
   logout(): void {
-    this.apiService.post('/auth/logout', {}).pipe(
-      catchError(() => of(null))
-    ).subscribe(() => {
-      this.currentUser.set(null);
-      this.isAuthenticated.set(false);
-      localStorage.removeItem('access_token');
-      localStorage.removeItem('user');
-      this.router.navigate(['/']);
-    });
+    // Optional: call backend /auth/logout to revoke refresh token
+    this.logoutLocal();
+    this.router.navigate(['/']);
+  }
+
+  /** Clears local state without server call. Used by interceptor on refresh failure. */
+  logoutLocal(): void {
+    this.currentUser.set(null);
+    this.isAuthenticated.set(false);
   }
 
   refreshUser(): Observable<User> {
-    return this.apiService.get<User>('/auth/me').pipe(
-      tap(user => {
-        this.currentUser.set(user);
-      }),
-      catchError(error => {
-        if (error.code === 'UNAUTHORIZED') {
-          this.logout();
-        }
-        return throwError(() => error);
+    return this.http.get<User>(`${this.baseUrl}/me`).pipe(
+      tap(user => this.currentUser.set(user)),
+      catchError(err => {
+        if (err.status === 401) this.logoutLocal();
+        return throwError(() => err);
       })
     );
   }
@@ -123,11 +154,16 @@ export class AuthService {
     return this.currentUser()?.role === role;
   }
 
-  isAdmin(): boolean {
-    return this.hasRole('admin');
-  }
+  isAdmin(): boolean { return this.hasRole('admin'); }
+  isModerator(): boolean { return this.hasRole('moderator') || this.hasRole('admin'); }
 
-  isModerator(): boolean {
-    return this.hasRole('moderator') || this.hasRole('admin');
+  private storeTokens(resp: AuthResponse): void {
+    localStorage.setItem(STORAGE_KEYS.ID_TOKEN, resp.idToken);
+    localStorage.setItem(STORAGE_KEYS.ACCESS_TOKEN, resp.accessToken);
+    localStorage.setItem(STORAGE_KEYS.REFRESH_TOKEN, resp.refreshToken);
+    if (resp.user) {
+      this.currentUser.set(resp.user);
+      this.isAuthenticated.set(true);
+    }
   }
 }

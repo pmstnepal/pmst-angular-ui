@@ -365,22 +365,87 @@ frontend/src/app/
 
 **Run locally (no AWS needed):**
 ```bash
-# 1. Start local PostgreSQL
+# 1. Start local PostgreSQL + cognito-local (auth emulator)
 docker compose up -d
 
-# 2. Run Spring Boot
+# 2. Seed cognito-local with User Pool + 3 test users (one-time, idempotent)
+./scripts/seed-cognito-local.ps1
+
+# 3. Run Spring Boot
 mvn spring-boot:run
 
-# 3. Run tests
+# 4. Run tests
 mvn test
 
-# 4. Build Lambda JAR (for AWS deploy later)
+# 5. Build Lambda JAR (for AWS deploy later)
 mvn package -DskipTests
 ```
 
 **Local PostgreSQL:**
 - pmst-api-service → `localhost:5432`
 - pmst-ticketing-service → `localhost:5433`
+
+### Part 5.2: Local Authentication (Cognito Emulator)
+
+> **No AWS account needed.** Daily auth dev runs against `jagregory/cognito-local` Docker container that mimics Cognito API. Same Spring code works against real Cognito later — just config changes via env vars.
+
+**How it works:**
+```
+Angular login form 
+   ↓ POST /auth/login {email, password}
+Spring Boot AuthController
+   ↓ Cognito SDK (endpoint override: localhost:9229)
+cognito-local container
+   ↓ validates password, returns JWT tokens
+Back to Angular (stores in localStorage)
+   ↓ All API calls: Authorization: Bearer {accessToken}
+Spring Security validates JWT against cognito-local JWKS
+```
+
+**Test users (created by `seed-cognito-local.ps1`):**
+
+| Email | Password | Role |
+|-------|----------|------|
+| `admin@pmst.local` | `Test1234!` | admin |
+| `user@pmst.local` | `Test1234!` | user |
+| `moderator@pmst.local` | `Test1234!` | moderator |
+
+**Verify auth works (curl):**
+```powershell
+# Login
+$body = '{"email":"admin@pmst.local","password":"Test1234!"}'
+$resp = Invoke-RestMethod -Uri http://localhost:8080/auth/login -Method POST -ContentType "application/json" -Body $body
+$resp.accessToken
+
+# Use the token
+Invoke-RestMethod -Uri http://localhost:8080/auth/me -Headers @{Authorization="Bearer $($resp.accessToken)"}
+```
+
+**Configuration files:**
+
+| File | Purpose |
+|------|---------|
+| `docker-compose.yml` | `cognito-local` service on port 9229 |
+| `application.properties` | Env-var placeholders (`${COGNITO_*}`) |
+| `application-local.properties` | Local values (gitignored) — pool=`local_pool`, client=`local_client`, endpoint=`http://localhost:9229` |
+| `config/CognitoConfig.java` | SDK client bean — supports both local emulator (endpoint override) and real Cognito |
+| `config/SecurityConfig.java` | Spring Security: public read endpoints, JWT-protected write endpoints |
+| `service/AuthService.java` | Login/register/refresh logic (Cognito SDK wrapper) |
+| `service/UserSyncService.java` | Keeps local `users` table in sync with Cognito |
+| `controller/AuthController.java` | REST endpoints: `/auth/login`, `/auth/register`, `/auth/refresh`, `/auth/me` |
+
+**Production swap (when AWS ready):**
+Only env vars change — code is identical:
+```
+COGNITO_ENDPOINT=                              # empty = real AWS
+COGNITO_USER_POOL_ID=us-east-1_XXXXXXXXX       # from Terraform output
+COGNITO_CLIENT_ID=abc123xyz                    # from Terraform output  
+COGNITO_ISSUER_URI=https://cognito-idp.us-east-1.amazonaws.com/us-east-1_XXXXXXXXX
+```
+All injected via SSM Parameter Store → Lambda env vars (see Part 6.5).
+
+**WP user migration (deferred — pre-launch):**
+Existing WordPress users will be migrated transparently via a Cognito `UserMigration_Authentication` Lambda trigger that validates legacy phpass hashes on first login. No user action required. Not built yet — Phase 5 task before go-live.
 
 **Lambda handler classes:**
 - `com.pmst.api.LambdaHandler`

@@ -1075,41 +1075,135 @@ mvn test</code></pre>
                 </div>
             </div>
 
+            <!-- Local Development Setup -->
+            <div class="bg-white rounded-xl shadow-lg p-8 mb-6">
+                <h3 class="text-xl font-bold mb-4 flex items-center gap-2">
+                    <i data-lucide="laptop" class="w-6 h-6 text-purple-600"></i>
+                    Local Development Setup (cognito-local emulator)
+                </h3>
+                <div class="bg-purple-50 border-l-4 border-purple-400 p-4 mb-4">
+                    <p class="text-sm text-purple-900">
+                        <strong>Zero AWS cost, works offline.</strong> The <code class="bg-white px-1 rounded">jagregory/cognito-local</code> Docker container mimics Cognito's API.
+                        Same Spring Boot code runs against it as against real Cognito &mdash; only config differs.
+                    </p>
+                </div>
+
+                <div class="grid md:grid-cols-2 gap-6 mb-6">
+                    <div>
+                        <h4 class="font-bold mb-3 text-sm text-gray-700">LOCAL DEV</h4>
+                        <div class="bg-gray-900 text-green-300 rounded p-4 text-xs font-mono">
+                            <div>$ docker compose up -d</div>
+                            <div>$ ./scripts/seed-cognito-local.ps1</div>
+                            <div>$ mvn spring-boot:run</div>
+                            <div class="text-gray-500 mt-2"># cognito-local on :9229</div>
+                            <div class="text-gray-500"># 3 test users seeded</div>
+                        </div>
+                        <table class="w-full text-xs mt-3">
+                            <tr class="border-b"><td class="py-1 font-semibold">admin@pmst.local</td><td class="py-1 text-gray-600">Test1234! (admin)</td></tr>
+                            <tr class="border-b"><td class="py-1 font-semibold">user@pmst.local</td><td class="py-1 text-gray-600">Test1234! (user)</td></tr>
+                            <tr><td class="py-1 font-semibold">moderator@pmst.local</td><td class="py-1 text-gray-600">Test1234! (moderator)</td></tr>
+                        </table>
+                    </div>
+                    <div>
+                        <h4 class="font-bold mb-3 text-sm text-gray-700">PRODUCTION</h4>
+                        <div class="bg-gray-900 text-blue-300 rounded p-4 text-xs font-mono">
+                            <div class="text-gray-500"># Same code. Only env vars change:</div>
+                            <div>COGNITO_ENDPOINT=</div>
+                            <div>COGNITO_USER_POOL_ID=us-east-1_XXX</div>
+                            <div>COGNITO_CLIENT_ID=abc123</div>
+                            <div>COGNITO_ISSUER_URI=https://...</div>
+                            <div class="text-gray-500 mt-2"># Injected via AWS SSM</div>
+                        </div>
+                        <p class="text-xs text-gray-600 mt-3">
+                            Real WordPress users log in with their original email + password.
+                            JIT Lambda migrates them transparently (see below).
+                        </p>
+                    </div>
+                </div>
+
+                <div class="bg-gray-50 rounded-lg p-4">
+                    <h4 class="font-bold mb-3 text-sm">Token Flow (Local &amp; Prod identical)</h4>
+                    <div class="text-xs font-mono leading-relaxed">
+                        <div>Angular login form &rarr; <span class="text-blue-600">POST /auth/login</span></div>
+                        <div class="ml-4">&darr;</div>
+                        <div>Spring AuthController &rarr; <span class="text-orange-600">Cognito SDK</span></div>
+                        <div class="ml-4">&darr;</div>
+                        <div>Cognito returns 3 JWT tokens (idToken, accessToken, refreshToken)</div>
+                        <div class="ml-4">&darr;</div>
+                        <div>Angular stores in localStorage</div>
+                        <div class="ml-4">&darr;</div>
+                        <div>HTTP interceptor adds <span class="text-purple-600">Authorization: Bearer {accessToken}</span> to every API call</div>
+                        <div class="ml-4">&darr;</div>
+                        <div>Spring Security validates JWT signature against JWKS &rarr; routes to controller</div>
+                    </div>
+                </div>
+            </div>
+
             <!-- Migration Strategy -->
             <div class="bg-white rounded-xl shadow-lg p-8">
-                <h3 class="text-xl font-bold mb-4">User Migration Strategy</h3>
+                <h3 class="text-xl font-bold mb-4">WordPress User Migration Strategy</h3>
                 <div class="grid md:grid-cols-2 gap-6">
                     <div class="border-2 border-indigo-500 rounded-lg p-4">
                         <div class="flex items-center gap-2 mb-3">
                             <span class="bg-indigo-100 text-indigo-700 px-2 py-1 rounded text-xs font-bold">RECOMMENDED</span>
-                            <h4 class="font-bold">Password Reset Approach</h4>
+                            <h4 class="font-bold">JIT (Just-In-Time) Migration</h4>
                         </div>
                         <ul class="text-sm space-y-2 text-gray-600">
-                            <li>1. Export WordPress users (email, username)</li>
-                            <li>2. Import to Cognito with FORCE_CHANGE_PASSWORD status</li>
-                            <li>3. Users receive "set password" email on first login</li>
-                            <li>4. No password hash migration needed</li>
+                            <li>1. User logs in with WordPress credentials</li>
+                            <li>2. Cognito UserMigration Lambda trigger fires</li>
+                            <li>3. Lambda validates against legacy phpass hash</li>
+                            <li>4. Cognito user auto-created &mdash; user sees nothing</li>
                         </ul>
                         <div class="mt-3 text-xs bg-green-50 text-green-700 p-2 rounded">
-                            <strong>Pros:</strong> Simple, secure, no hash compatibility issues
+                            <strong>Pros:</strong> Zero user friction. Same credentials they always used.
+                        </div>
+                        <div class="mt-2 text-xs bg-yellow-50 text-yellow-700 p-2 rounded">
+                            <strong>Status:</strong> Designed, not yet implemented. Phase 5 task before go-live.
                         </div>
                     </div>
                     <div class="border border-gray-300 rounded-lg p-4">
                         <div class="flex items-center gap-2 mb-3">
                             <span class="bg-gray-100 text-gray-600 px-2 py-1 rounded text-xs font-bold">ALTERNATIVE</span>
-                            <h4 class="font-bold">Seamless Migration</h4>
+                            <h4 class="font-bold">Bulk Import + Email Reset</h4>
                         </div>
                         <ul class="text-sm space-y-2 text-gray-600">
-                            <li>1. Lambda trigger on Cognito sign-in</li>
-                            <li>2. Check WordPress DB for password hash</li>
-                            <li>3. Validate against old hash format</li>
-                            <li>4. Silently migrate to Cognito</li>
+                            <li>1. Export all WP users to Cognito (no password)</li>
+                            <li>2. Every user gets "set new password" email</li>
+                            <li>3. Users must reset before logging in</li>
+                            <li>4. Simpler tech, no Lambda needed</li>
                         </ul>
-                        <div class="mt-3 text-xs bg-yellow-50 text-yellow-700 p-2 rounded">
-                            <strong>Pros:</strong> No user action required. <strong>Cons:</strong> More complex
+                        <div class="mt-3 text-xs bg-red-50 text-red-700 p-2 rounded">
+                            <strong>Cons:</strong> Disruptive &mdash; all users forced to act
                         </div>
                     </div>
                 </div>
+            </div>
+
+            <!-- Implementation Status -->
+            <div class="bg-white rounded-xl shadow-lg p-8 mt-6">
+                <h3 class="text-xl font-bold mb-4">Implementation Status</h3>
+                <table class="w-full text-sm">
+                    <thead class="bg-gray-100">
+                        <tr>
+                            <th class="px-3 py-2 text-left">Component</th>
+                            <th class="px-3 py-2 text-left">Location</th>
+                            <th class="px-3 py-2 text-left">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y">
+                        <tr><td class="px-3 py-2">cognito-local Docker</td><td class="px-3 py-2 font-mono text-xs">docker-compose.yml</td><td class="px-3 py-2"><span class="bg-green-100 text-green-700 px-2 py-0.5 rounded-full text-xs">&#10003; Done</span></td></tr>
+                        <tr><td class="px-3 py-2">Spring Security + AWS SDK</td><td class="px-3 py-2 font-mono text-xs">pom.xml</td><td class="px-3 py-2"><span class="bg-green-100 text-green-700 px-2 py-0.5 rounded-full text-xs">&#10003; Done</span></td></tr>
+                        <tr><td class="px-3 py-2">CognitoConfig (SDK client)</td><td class="px-3 py-2 font-mono text-xs">config/CognitoConfig.java</td><td class="px-3 py-2"><span class="bg-green-100 text-green-700 px-2 py-0.5 rounded-full text-xs">&#10003; Done</span></td></tr>
+                        <tr><td class="px-3 py-2">SecurityConfig (JWT validation)</td><td class="px-3 py-2 font-mono text-xs">config/SecurityConfig.java</td><td class="px-3 py-2"><span class="bg-green-100 text-green-700 px-2 py-0.5 rounded-full text-xs">&#10003; Done</span></td></tr>
+                        <tr><td class="px-3 py-2">AuthService + UserSyncService</td><td class="px-3 py-2 font-mono text-xs">service/Auth*Service.java</td><td class="px-3 py-2"><span class="bg-green-100 text-green-700 px-2 py-0.5 rounded-full text-xs">&#10003; Done</span></td></tr>
+                        <tr><td class="px-3 py-2">AuthController (REST endpoints)</td><td class="px-3 py-2 font-mono text-xs">controller/AuthController.java</td><td class="px-3 py-2"><span class="bg-green-100 text-green-700 px-2 py-0.5 rounded-full text-xs">&#10003; Done</span></td></tr>
+                        <tr><td class="px-3 py-2">Seed script (test users)</td><td class="px-3 py-2 font-mono text-xs">scripts/seed-cognito-local.ps1</td><td class="px-3 py-2"><span class="bg-green-100 text-green-700 px-2 py-0.5 rounded-full text-xs">&#10003; Done</span></td></tr>
+                        <tr><td class="px-3 py-2">Angular HTTP interceptor</td><td class="px-3 py-2 font-mono text-xs">core/interceptors/auth.interceptor.ts</td><td class="px-3 py-2"><span class="bg-green-100 text-green-700 px-2 py-0.5 rounded-full text-xs">&#10003; Done</span></td></tr>
+                        <tr><td class="px-3 py-2">Angular AuthService (3-token model)</td><td class="px-3 py-2 font-mono text-xs">core/services/auth.service.ts</td><td class="px-3 py-2"><span class="bg-green-100 text-green-700 px-2 py-0.5 rounded-full text-xs">&#10003; Done</span></td></tr>
+                        <tr><td class="px-3 py-2">Terraform Cognito User Pool (prod)</td><td class="px-3 py-2 font-mono text-xs">pmst-terraform-infra/modules/cognito/</td><td class="px-3 py-2"><span class="bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full text-xs">&#9633; Planned</span></td></tr>
+                        <tr><td class="px-3 py-2">WP UserMigration Lambda (JIT)</td><td class="px-3 py-2 font-mono text-xs">TBD &mdash; pre-launch</td><td class="px-3 py-2"><span class="bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full text-xs">&#9633; Phase 5</span></td></tr>
+                    </tbody>
+                </table>
             </div>
         </div>
 
