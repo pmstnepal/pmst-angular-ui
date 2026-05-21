@@ -146,7 +146,9 @@ export class LoginComponent {
       },
       error: (err) => {
         this.loading.set(false);
-        this.error.set(err.message || 'Invalid email or password');
+        // Backend returns { error: "INVALID_CREDENTIALS", message: "..." } in err.error
+        const msg = err?.error?.message || err?.message || 'Invalid email or password';
+        this.error.set(msg);
       }
     });
   }
