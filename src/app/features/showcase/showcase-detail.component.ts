@@ -1,6 +1,7 @@
-import { Component, Input, signal, OnInit, HostListener, ChangeDetectionStrategy } from '@angular/core';
+import { Component, Input, signal, OnInit, HostListener, ChangeDetectionStrategy, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterLink, ActivatedRoute } from '@angular/router';
+import { Meta, Title } from '@angular/platform-browser';
 import { Gallery } from '../../core/models';
 import { GalleryService } from '../../core/services/gallery.service';
 import { ImageUrlMapperService } from '../../services/image-url-mapper.service';
@@ -338,6 +339,9 @@ export class ShowcaseDetailComponent implements OnInit {
   activeImageIndex = signal<number>(0);
   lightboxOpen = signal(false);
 
+  private meta = inject(Meta);
+  private title = inject(Title);
+
   constructor(
     private route: ActivatedRoute,
     private galleryService: GalleryService,
@@ -361,6 +365,7 @@ export class ShowcaseDetailComponent implements OnInit {
     this.galleryService.getGalleryBySlug(slug).subscribe({
       next: (gallery) => {
         this.gallery.set(gallery);
+        this.setSeoMeta(gallery);
         this.loading.set(false);
       },
       error: (err) => {
@@ -369,6 +374,44 @@ export class ShowcaseDetailComponent implements OnInit {
         this.loading.set(false);
       }
     });
+  }
+
+  private setSeoMeta(gallery: Gallery): void {
+    // Title
+    const pageTitle = gallery.seoTitle || `${gallery.title} - Gallery | PMST US-Nepal`;
+    this.title.setTitle(pageTitle);
+
+    // Meta description
+    const description = gallery.seoDescription || gallery.description || `View ${gallery.title} gallery on PMST US-Nepal`;
+    this.meta.updateTag({ name: 'description', content: this.stripHtml(description).substring(0, 160) });
+
+    // Keywords
+    if (gallery.seoFocusKeyword) {
+      this.meta.updateTag({ name: 'keywords', content: gallery.seoFocusKeyword });
+    }
+
+    // Open Graph tags
+    this.meta.updateTag({ property: 'og:title', content: pageTitle });
+    this.meta.updateTag({ property: 'og:description', content: this.stripHtml(description).substring(0, 160) });
+    this.meta.updateTag({ property: 'og:type', content: 'website' });
+    if (gallery.featuredImage) {
+      this.meta.updateTag({ property: 'og:image', content: this.imageMapper.mapUrl(gallery.featuredImage) });
+    }
+
+    // Twitter Card tags
+    this.meta.updateTag({ name: 'twitter:card', content: 'summary_large_image' });
+    this.meta.updateTag({ name: 'twitter:title', content: pageTitle });
+    this.meta.updateTag({ name: 'twitter:description', content: this.stripHtml(description).substring(0, 160) });
+    if (gallery.featuredImage) {
+      this.meta.updateTag({ name: 'twitter:image', content: this.imageMapper.mapUrl(gallery.featuredImage) });
+    }
+  }
+
+  private stripHtml(html: string): string {
+    if (!html) return '';
+    const tmp = document.createElement('DIV');
+    tmp.innerHTML = html;
+    return tmp.textContent || tmp.innerText || '';
   }
 
   openLightbox(index: number): void {

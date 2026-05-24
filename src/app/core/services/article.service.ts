@@ -4,6 +4,22 @@ import { Observable, shareReplay, timer } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import { Article, NewsArticle, ArticleDetail, PageResponse } from '../models';
 
+export interface CreateArticlePayload {
+  title: string;
+  excerpt: string;
+  content: string;
+  category: string;
+  status: 'draft' | 'pending' | 'published';
+  slug?: string;
+  featuredImage?: string;
+  youtubeLink?: string;
+  embedCode?: string;
+  galleryImages?: string;
+  seoFocusKeyword?: string;
+  seoDescription?: string;
+  seoTitle?: string;
+}
+
 /**
  * Article Service
  * Dedicated service for article API operations with request deduplication
@@ -76,6 +92,61 @@ export class ArticleService {
    */
   getLatestArticles(size = 6): Observable<PageResponse<Article>> {
     return this.getArticles(0, size, undefined, 'publishedAt,desc');
+  }
+
+  /**
+   * Create a new article (submit for review or save as draft)
+   */
+  createArticle(payload: CreateArticlePayload): Observable<Article> {
+    return this.http.post<Article>(this.baseUrl, payload);
+  }
+
+  /**
+   * Get article by ID (for edit mode)
+   */
+  getArticleById(id: string): Observable<ArticleDetail> {
+    return this.http.get<ArticleDetail>(`${this.baseUrl}/id/${id}`);
+  }
+
+  /**
+   * Update article by ID
+   */
+  updateArticle(id: string, payload: CreateArticlePayload): Observable<Article> {
+    return this.http.put<Article>(`${this.baseUrl}/${id}`, payload);
+  }
+
+  /**
+   * Update article status only (for inline dashboard status change)
+   */
+  updateArticleStatus(id: string, status: string): Observable<void> {
+    return this.http.patch<void>(`${this.baseUrl}/${id}/status`, { status });
+  }
+
+  /**
+   * Get articles for a specific user (for dashboard)
+   */
+  getMyArticles(authorId: string, page = 0, size = 20, status?: string): Observable<PageResponse<NewsArticle>> {
+    let params = new HttpParams()
+      .set('authorId', authorId)
+      .set('page', page.toString())
+      .set('size', size.toString());
+    if (status) params = params.set('status', status);
+    return this.http.get<PageResponse<NewsArticle>>(`${this.baseUrl}/my`, { params });
+  }
+
+  /**
+   * Get all articles with pending+published status (for admin dashboard)
+   */
+  getAllArticles(page = 0, size = 20, status?: string): Observable<PageResponse<NewsArticle>> {
+    let params = new HttpParams()
+      .set('page', page.toString())
+      .set('size', size.toString());
+    if (status) params = params.set('status', status);
+    return this.http.get<PageResponse<NewsArticle>>(`${this.baseUrl}/all`, { params });
+  }
+
+  deleteArticle(id: string): Observable<void> {
+    return this.http.delete<void>(`${this.baseUrl}/${id}`);
   }
 
   /**

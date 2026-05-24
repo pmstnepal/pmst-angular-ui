@@ -8,37 +8,39 @@ import { AuthService } from '../../services/auth.service';
   standalone: true,
   imports: [CommonModule, RouterLink, RouterLinkActive],
   template: `
-    <header class="pmst-header sticky top-0 z-50 shadow-lg transition-all duration-300" 
-            [class]="isScrolled() ? 'pmst-header-scrolled' : 'pmst-header-normal'">
+    <header class="pmst-header sticky top-0 z-50 shadow-lg"
+            [class.pmst-header-scrolled]="isScrolled()"
+            [class.pmst-header-normal]="!isScrolled()">
       <div class="container mx-auto px-4 h-full">
         <nav class="flex items-center justify-between h-full">
           <!-- Logo -->
           <a routerLink="/" class="flex items-center">
-            <img src="/assets/images/logo/pmst-logo.png" 
-                 alt="PMST US-Nepal" 
-                 [class]="isScrolled() ? 'pmst-logo-scrolled' : 'pmst-logo-normal'">
+            <img src="/assets/images/logo/pmst-logo.png"
+                 alt="PMST US-Nepal"
+                 class="pmst-logo"
+                 [class.pmst-logo-scrolled]="isScrolled()"
+                 [class.pmst-logo-normal]="!isScrolled()">
           </a>
 
           <!-- Desktop Navigation -->
           <div class="hidden md:flex items-center space-x-1">
             <a routerLink="/" routerLinkActive="pmst-nav-active" [routerLinkActiveOptions]="{exact: true}"
-               [class]="isScrolled() ? 'pmst-nav-link-scrolled' : 'pmst-nav-link-normal'">Home</a>
-
+               class="pmst-nav-link" [class.pmst-nav-link-scrolled]="isScrolled()">Home</a>
             <a routerLink="/spotlight" routerLinkActive="pmst-nav-active"
-               [class]="isScrolled() ? 'pmst-nav-link-scrolled' : 'pmst-nav-link-normal'">Spotlight</a>
+               class="pmst-nav-link" [class.pmst-nav-link-scrolled]="isScrolled()">Spotlight</a>
             <a routerLink="/showcase" routerLinkActive="pmst-nav-active"
-               [class]="isScrolled() ? 'pmst-nav-link-scrolled' : 'pmst-nav-link-normal'">Gallery</a>
+               class="pmst-nav-link" [class.pmst-nav-link-scrolled]="isScrolled()">Gallery</a>
             <a routerLink="/events" routerLinkActive="pmst-nav-active"
-               [class]="isScrolled() ? 'pmst-nav-link-scrolled' : 'pmst-nav-link-normal'">Events</a>
+               class="pmst-nav-link" [class.pmst-nav-link-scrolled]="isScrolled()">Events</a>
           </div>
 
           <!-- Auth Buttons -->
           <div class="hidden md:flex items-center space-x-3">
             @if (!authenticated()) {
               <a routerLink="/login"
-                 [class]="isScrolled() ? 'pmst-auth-link-scrolled' : 'pmst-auth-link-normal'">Sign In</a>
+                 class="pmst-auth-link" [class.pmst-auth-link-scrolled]="isScrolled()">Sign In</a>
               <a routerLink="/register"
-                 [class]="isScrolled() ? 'pmst-btn-scrolled' : 'pmst-btn-normal'">Join Now</a>
+                 class="pmst-btn" [class.pmst-btn-scrolled]="isScrolled()">Join Now</a>
             } @else {
               <div class="flex items-center space-x-3">
                 <a routerLink="/dashboard" class="pmst-user-link">
@@ -49,7 +51,7 @@ import { AuthService } from '../../services/auth.service';
                       {{ (currentUser()?.displayName || currentUser()?.username || 'U').charAt(0).toUpperCase() }}
                     </div>
                   }
-                  <span [class]="isScrolled() ? 'pmst-username-scrolled' : 'pmst-username-normal'">
+                  <span class="pmst-username" [class.pmst-username-scrolled]="isScrolled()">
                     {{ currentUser()?.displayName || currentUser()?.username }}
                   </span>
                 </a>
@@ -78,19 +80,19 @@ import { AuthService } from '../../services/auth.service';
         @if (isMobileMenuOpen()) {
           <div class="md:hidden py-4 border-t border-white/10">
             <div class="flex flex-col space-y-1">
-              <a routerLink="/" (click)="closeMobileMenu()" class="pmst-mobile-nav-link">Home</a>
-              <a routerLink="/spotlight" (click)="closeMobileMenu()" class="pmst-mobile-nav-link">Spotlight</a>
-              <a routerLink="/showcase" (click)="closeMobileMenu()" class="pmst-mobile-nav-link">Gallery</a>
-              <a routerLink="/events" (click)="closeMobileMenu()" class="pmst-mobile-nav-link">Events</a>
+              <a routerLink="/" (click)="closeMobileMenu()" class="pmst-mobile-link pmst-mobile-nav-link">Home</a>
+              <a routerLink="/spotlight" (click)="closeMobileMenu()" class="pmst-mobile-link pmst-mobile-nav-link">Spotlight</a>
+              <a routerLink="/showcase" (click)="closeMobileMenu()" class="pmst-mobile-link pmst-mobile-nav-link">Gallery</a>
+              <a routerLink="/events" (click)="closeMobileMenu()" class="pmst-mobile-link pmst-mobile-nav-link">Events</a>
               <hr class="my-2 border-white/10">
               @if (!authenticated()) {
-                <a routerLink="/login" (click)="closeMobileMenu()" class="pmst-mobile-auth-link">Sign In</a>
-                <a routerLink="/register" (click)="closeMobileMenu()" class="pmst-mobile-btn">Join Now</a>
+                <a routerLink="/login" (click)="closeMobileMenu()" class="pmst-mobile-link">Sign In</a>
+                <a routerLink="/register" (click)="closeMobileMenu()" class="pmst-mobile-link pmst-mobile-btn">Join Now</a>
               } @else {
-                <a routerLink="/dashboard" (click)="closeMobileMenu()" class="pmst-mobile-user-link">
+                <a routerLink="/dashboard" (click)="closeMobileMenu()" class="pmst-mobile-link">
                   {{ currentUser()?.displayName || currentUser()?.username }}
                 </a>
-                <button (click)="logout(); closeMobileMenu()" class="pmst-mobile-logout-btn">Logout</button>
+                <button (click)="logout(); closeMobileMenu()" class="pmst-mobile-link pmst-mobile-logout-btn">Logout</button>
               }
             </div>
           </div>
@@ -101,100 +103,71 @@ import { AuthService } from '../../services/auth.service';
   styles: [`
     .pmst-header {
       background: #1a1a2e;
+      will-change: height;
+      transition: height 0.25s ease;
     }
     .pmst-header-normal {
       height: 6.5rem;
     }
     .pmst-header-scrolled {
-      height: 3rem;
+      height: 3.5rem;
+    }
+    .pmst-logo {
+      width: auto;
+      object-fit: contain;
+      will-change: height;
+      transition: height 0.25s ease;
     }
     .pmst-logo-normal {
       height: 5rem;
-      width: auto;
-      object-fit: contain;
-      transition: all 0.3s;
     }
     .pmst-logo-scrolled {
       height: 2rem;
-      width: auto;
-      object-fit: contain;
-      transition: all 0.3s;
     }
-    .pmst-nav-link-normal {
+    .pmst-nav-link {
+      color: #d1d5db;
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      transition: color 0.2s, font-size 0.25s, padding 0.25s;
       padding: 0.75rem 0.875rem;
-      color: #d1d5db;
-      transition: color 0.3s;
-      font-weight: 500;
-      text-transform: uppercase;
       font-size: 0.875rem;
-      letter-spacing: 0.05em;
     }
-    .pmst-nav-link-normal:hover {
-      color: #fe5252;
-    }
-    .pmst-nav-link-scrolled {
+    .pmst-nav-link.pmst-nav-link-scrolled {
       padding: 0.25rem 0.5rem;
-      color: #d1d5db;
-      transition: color 0.3s;
-      font-weight: 500;
-      text-transform: uppercase;
       font-size: 0.75rem;
-      letter-spacing: 0.05em;
     }
-    .pmst-nav-link-scrolled:hover {
+    .pmst-nav-link:hover, .pmst-nav-active {
       color: #fe5252;
     }
-    .pmst-nav-active {
-      color: #fe5252;
-    }
-    .pmst-auth-link-normal {
+    .pmst-auth-link {
       color: #f3f4f6;
+      font-weight: 500;
+      transition: color 0.2s, font-size 0.25s, padding 0.25s;
       padding: 0.75rem 1rem;
-      transition: all 0.3s;
       font-size: 0.875rem;
-      font-weight: 500;
     }
-    .pmst-auth-link-normal:hover {
-      color: #ff6b6b;
-    }
-    .pmst-auth-link-scrolled {
-      color: #f3f4f6;
+    .pmst-auth-link.pmst-auth-link-scrolled {
       padding: 0.25rem 0.5rem;
-      transition: all 0.3s;
       font-size: 0.75rem;
-      font-weight: 500;
     }
-    .pmst-auth-link-scrolled:hover {
-      color: #ff6b6b;
-    }
-    .pmst-btn-normal {
+    .pmst-auth-link:hover { color: #ff6b6b; }
+    .pmst-btn {
       color: white;
+      border-radius: 0.375rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      background: #fe5252;
+      transition: background 0.2s, font-size 0.25s, padding 0.25s;
       padding: 0.625rem 1.25rem;
-      border-radius: 0.375rem;
-      font-weight: 600;
       font-size: 0.875rem;
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
-      transition: all 0.3s;
-      background: #fe5252;
     }
-    .pmst-btn-normal:hover {
-      background: #ff6b6b;
-    }
-    .pmst-btn-scrolled {
-      color: white;
+    .pmst-btn.pmst-btn-scrolled {
       padding: 0.25rem 0.75rem;
-      border-radius: 0.375rem;
-      font-weight: 600;
       font-size: 0.75rem;
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
-      transition: all 0.3s;
-      background: #fe5252;
     }
-    .pmst-btn-scrolled:hover {
-      background: #ff6b6b;
-    }
+    .pmst-btn:hover { background: #ff6b6b; }
     .pmst-user-link {
       display: flex;
       align-items: center;
@@ -224,15 +197,14 @@ import { AuthService } from '../../services/auth.service';
       font-weight: 600;
       font-size: 0.875rem;
     }
-    .pmst-username-normal {
+    .pmst-username {
       color: #d1d5db;
+      font-weight: 500;
       font-size: 0.875rem;
-      font-weight: 500;
+      transition: font-size 0.25s;
     }
-    .pmst-username-scrolled {
-      color: #d1d5db;
+    .pmst-username.pmst-username-scrolled {
       font-size: 0.75rem;
-      font-weight: 500;
     }
     .pmst-logout-btn {
       color: #d1d5db;
@@ -250,55 +222,21 @@ import { AuthService } from '../../services/auth.service';
     .pmst-menu-btn:hover {
       color: #fe5252;
     }
-    .pmst-mobile-nav-link {
-      padding: 0.5rem 0.75rem;
-      color: #d1d5db;
-      border-radius: 0.375rem;
-      font-weight: 500;
-      text-transform: uppercase;
-      font-size: 0.875rem;
-    }
-    .pmst-mobile-nav-link:hover {
-      color: #fe5252;
-    }
-    .pmst-mobile-auth-link {
+    .pmst-mobile-link {
       padding: 0.5rem 0.75rem;
       color: #d1d5db;
       border-radius: 0.375rem;
       font-size: 0.875rem;
     }
-    .pmst-mobile-auth-link:hover {
-      color: #fe5252;
-    }
+    .pmst-mobile-link:hover { color: #fe5252; }
+    .pmst-mobile-nav-link { font-weight: 500; text-transform: uppercase; }
     .pmst-mobile-btn {
-      padding: 0.5rem 0.75rem;
       color: white;
-      border-radius: 0.375rem;
       font-weight: 600;
-      font-size: 0.875rem;
       text-transform: uppercase;
       background: #fe5252;
     }
-    .pmst-mobile-user-link {
-      padding: 0.5rem 0.75rem;
-      color: #d1d5db;
-      border-radius: 0.375rem;
-      font-size: 0.875rem;
-      font-weight: 500;
-    }
-    .pmst-mobile-user-link:hover {
-      color: #fe5252;
-    }
-    .pmst-mobile-logout-btn {
-      padding: 0.5rem 0.75rem;
-      color: #d1d5db;
-      border-radius: 0.375rem;
-      font-size: 0.875rem;
-      text-align: left;
-    }
-    .pmst-mobile-logout-btn:hover {
-      color: #fe5252;
-    }
+    .pmst-mobile-logout-btn { text-align: left; }
   `]
 })
 export class HeaderComponent implements OnInit {
@@ -323,7 +261,12 @@ export class HeaderComponent implements OnInit {
   onWindowScroll(): void {
     if (isPlatformBrowser(this.platformId)) {
       const scrollY = window.scrollY;
-      this.isScrolled.set(scrollY > 150);
+      const current = this.isScrolled();
+      if (!current && scrollY > 80) {
+        this.isScrolled.set(true);
+      } else if (current && scrollY < 60) {
+        this.isScrolled.set(false);
+      }
     }
   }
 

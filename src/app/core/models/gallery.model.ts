@@ -22,6 +22,9 @@ export interface Gallery {
   authorId?: string;
   authorName?: string;
   categoryId?: string;
+  seoFocusKeyword?: string;
+  seoDescription?: string;
+  seoTitle?: string;
 }
 
 export interface GallerySummary {

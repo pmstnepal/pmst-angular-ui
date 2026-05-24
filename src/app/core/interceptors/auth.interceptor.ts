@@ -27,6 +27,8 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
 
   return next(authReq).pipe(
     catchError((error: HttpErrorResponse) => {
+      // Only attempt refresh+logout when this request actually had a token attached.
+      // A 401 on a token-free request just means the resource requires auth — don't log out.
       if (error.status === 401 && token) {
         // Try refreshing the token once, then retry the original request
         return authService.refreshAccessToken().pipe(

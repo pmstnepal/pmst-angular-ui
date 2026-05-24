@@ -43,7 +43,17 @@ export const routes: Routes = [
     canActivate: [authGuard]
   },
   {
+    path: 'submit/article/edit/:id',
+    loadComponent: () => import('./features/user/submit-content.component').then(m => m.SubmitContentComponent),
+    canActivate: [authGuard]
+  },
+  {
     path: 'submit/gallery',
+    loadComponent: () => import('./features/user/submit-gallery.component').then(m => m.SubmitGalleryComponent),
+    canActivate: [authGuard]
+  },
+  {
+    path: 'submit/gallery/edit/:id',
     loadComponent: () => import('./features/user/submit-gallery.component').then(m => m.SubmitGalleryComponent),
     canActivate: [authGuard]
   },

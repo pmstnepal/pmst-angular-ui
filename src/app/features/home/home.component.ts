@@ -1,5 +1,5 @@
-import { Component, OnInit, signal, ChangeDetectionStrategy, inject, PLATFORM_ID, HostListener } from '@angular/core';
-import { CommonModule, isPlatformBrowser } from '@angular/common';
+import { Component, OnInit, signal, ChangeDetectionStrategy, inject } from '@angular/core';
+import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { Article, GallerySummary } from '../../core/models';
 import { ArticleService } from '../../core/services/article.service';
@@ -18,7 +18,7 @@ import { GalleryCarouselComponent } from '../../shared/components/gallery-carous
     <div class="home-page">
 
       <!-- ① HERO BANNER (pmst-hero-lite) -->
-      <section class="pmst-hero-lite" [style.top.px]="heroTopPosition()">
+      <section class="pmst-hero-lite pmst-hero-static">
         <h1 class="title">Creation and Creativity</h1>
         <div class="sub">Audio and Video</div>
       </section>
@@ -69,7 +69,7 @@ import { GalleryCarouselComponent } from '../../shared/components/gallery-carous
       </section>
 
       <!-- ⑤ LATEST NEWS (pmst-hero-lite + post-carousel) -->
-      <section class="pmst-hero-lite pmst-hero-no-overlap" [style.top.px]="heroTopPosition()">
+      <section class="pmst-hero-lite pmst-hero-no-overlap pmst-hero-static">
         <h1 class="title">Latest News</h1>
         <div class="sub">Gossip and Entertainment</div>
       </section>
@@ -122,7 +122,7 @@ import { GalleryCarouselComponent } from '../../shared/components/gallery-carous
       </section>
 
       <!-- ⑦ MODEL & GALLERY (pmst-hero-lite + gallery-carousel) -->
-      <section class="pmst-hero-lite pmst-hero-no-overlap" [style.top.px]="heroTopPosition()">
+      <section class="pmst-hero-lite pmst-hero-no-overlap pmst-hero-static">
         <h1 class="title">Model and Gallery</h1>
         <div class="sub">Featuring</div>
       </section>
@@ -181,18 +181,12 @@ export class HomeComponent implements OnInit {
   featuredGalleries = signal<GallerySummary[]>([]);
   newsLoading = signal(true);
   galleriesLoading = signal(true);
-  isScrolled = signal(false);
-
   // YouTube playlists loaded from backend (proxies YouTube Data API v3)
   youtubePlaylists = signal<Array<{ id: string; title: string; videos: Array<{ id: string; title: string; thumbnailUrl: string; videoId: string; duration: string }> }>>([]);
   youtubeLoading = signal(true);
   youtubeConfig = signal<YoutubeConfig | null>(null);
 
-  private platformId = inject(PLATFORM_ID);
   private youtubeService = inject(YoutubeService);
-
-  // Dynamic hero top position based on header scroll state
-  heroTopPosition = () => this.isScrolled() ? 48 : 80;
 
   // Transform API data for post-carousel component
   carouselNews = () => this.latestNews().map(article => ({
@@ -221,11 +215,6 @@ export class HomeComponent implements OnInit {
   ) {}
 
   ngOnInit(): void {
-    if (isPlatformBrowser(this.platformId)) {
-      // Check initial scroll position
-      this.isScrolled.set(window.scrollY > 150);
-    }
-
     // Load 12 Entertainment articles for carousel (with caching via ArticleService)
     this.articleService.getArticles(0, 12, 'Entertainment', 'publishedAt,desc').subscribe({
       next: res => { this.latestNews.set(res.content); this.newsLoading.set(false); },
@@ -271,11 +260,4 @@ export class HomeComponent implements OnInit {
     });
   }
 
-  @HostListener('window:scroll', [])
-  onWindowScroll(): void {
-    if (isPlatformBrowser(this.platformId)) {
-      const scrollY = window.scrollY;
-      this.isScrolled.set(scrollY > 150);
-    }
-  }
 }

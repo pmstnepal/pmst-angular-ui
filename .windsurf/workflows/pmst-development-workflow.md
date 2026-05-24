@@ -336,15 +336,19 @@ CREATE TABLE pmst_follows (
 
 ### Hero Sections (.pmst-hero-lite)
 
-- **Background:** `#d1d5db` (--pmst-bg-darker), sticky `top: 70px`, `z-index: 100`
+- **Background:** `#d1d5db` (--pmst-bg-darker), sticky `top: 3.5rem` (56px = scrolled header height), `z-index: 100`
 - **Overlap:** `margin-bottom: -3rem` by default — overlaps content section below
 - **`.pmst-hero-no-overlap`** modifier: sets `margin-bottom: 0`
 - **Title:** `2rem`, weight 800, uppercase, color `#4a4a6a`
 - **Subtitle:** `1.25rem`, weight 700, italic, color `#fe5252` (hover: `#ff6b6b`)
 - **Transparent variant:** `.pmst-hero-transparent` — background transparent, title & sub both `#4a4a6a`
 - **CTA hero:** bold `#6b7280` text, links are text hyperlinks (no underline), color `#ff6b6b`, hover `#fe5252`
-- **Scroll threshold:** Header compact state triggers at **150px** scroll (prevents flickering)
+- **Scroll hysteresis:** Header compacts at `scrollY > 80px`, expands back at `scrollY < 60px` (20px dead zone prevents oscillation)
 - **Header normal height:** `6.5rem`, logo `5rem`; Sign In button: no background, text `#f3f4f6`, hover `#ff6b6b`
+- **Header scrolled height:** `3.5rem`, logo `2rem`; nav links/buttons shrink via `-scrolled` modifier classes
+- **`.pmst-hero-static`** modifier: overrides sticky to `position: relative` — used on home page heroes to prevent scroll-reflow flicker
+- **CSS bindings:** Header uses additive `[class.name]` bindings (not `[class]` replacement) to preserve base Tailwind classes
+- **`will-change: transform` + `transform: translateZ(0)`** on `.pmst-hero-lite` for GPU compositing on other pages
 
 ### Component Patterns
 
@@ -435,11 +439,34 @@ frontend/src/app/
 | pmst-custom-single-post-template | NewsDetailComponent (WP replica) | ✅ Built |
 | mage-eventpress | EventsListComponent | ✅ Created |
 | wpDiscuz | CommentSectionComponent | ✅ Created |
-| contributor-dashboard-v3 | DashboardComponent | ✅ Created |
+| contributor-dashboard-v3 | DashboardComponent | ✅ Built — approve/delete/pagination |
 | N/A | SubmitContentComponent | ✅ Created |
 | N/A | SubmitGalleryComponent | ✅ Created |
 | N/A | AdminDashboardComponent | ✅ Created |
 | N/A | SpotlightComponent | ✅ Created |
+
+### Dashboard Features (DashboardComponent — May 2026)
+
+**Role-based actions:**
+- **Admin only:** Orange "Approve" button on `pending` items → calls `PATCH /articles/{id}/status` or `PATCH /galleries/{id}/status` with `published`
+- **All users:** Delete icon on all items → calls `DELETE /articles/{id}` or `DELETE /galleries/{id}`
+- Status dropdown removed — status changes via edit page or approve button only
+
+**Client-side pagination:**
+- Signals: `currentPage`, `pageSize` (10/20/50 per page selector)
+- Computed: `filteredItems`, `pagedItems`, `totalPages`, `pageNumbers` (ellipsis logic)
+- `effect()` resets `currentPage` to 0 when filters/sort/pageSize change (uses `untracked` to avoid infinite loop)
+
+**Backend delete endpoints:**
+- `DELETE /articles/{id}` — admin or own content (Spring Security)
+- `DELETE /galleries/{id}` — admin or own content (Spring Security)
+- Frontend: `ArticleService.deleteArticle(id)`, `GalleryService.deleteGallery(id)`
+
+**SEO fields added (May 2026):**
+- `V4__add_seo_fields_to_articles.sql` — adds `seo_focus_keyword`, `seo_description` to articles
+- `V5__add_gallery_seo_fields_and_indexes.sql` — adds same fields + indexes to galleries
+- `ArticleResponse` and `GalleryResponse` DTOs updated to include SEO fields
+- `ArticleDetail` Angular model updated with `seoFocusKeyword`, `seoDescription`
 
 ---
 
@@ -1693,3 +1720,295 @@ aws cloudfront create-invalidation --distribution-id <ID> --paths "/*"
 ```
 
 **After deploy — repeat Step 2 & Step 3 checklist on `https://dev.pmstusnepal.com`**
+
+---
+
+## Part 5: Prod Readiness Checklist
+
+> All 4 critical gaps below have been fixed in code. This section documents **what was done, why, and how to verify** before any production `terraform apply`.
+
+---
+
+### Critical Fixes Applied (Must Be Green Before Prod Deploy)
+
+#### ✅ Fix 1 — JWT Validation Re-enabled (`SecurityConfig.java`)
+
+**What was broken:** `if (false && issuerUri != null ...)` hardcoded JWT validation OFF permanently — even in prod.
+
+**Fix:** Removed `false &&`. JWT validation now activates automatically when `COGNITO_ISSUER_URI` is set:
+- **Local dev** (no `COGNITO_ISSUER_URI` in `application-local.properties`) → JWT disabled, dev works as before
+- **Prod Lambda** (`COGNITO_ISSUER_URI` set via env) → JWT validated against Cognito JWKS ✅
+
+Also added `GET /users/username/**` and `GET /users/*/profile` to `.permitAll()` so the profile page loads without a token.
+
+**Verify locally:**
+```
+# Start backend — should log: "JWT validation DISABLED — COGNITO_ISSUER_URI not set"
+mvn spring-boot:run
+```
+**Verify prod intent:** `application-local.properties` sets `pmst.cognito.issuer-uri=http://localhost:9229/...` → backend logs "JWT validation enabled"
+
+---
+
+#### ✅ Fix 2 — CORS Origins Env-Driven (`CorsConfig.java` + `application.properties`)
+
+**What was broken:** `CorsConfig.java` hardcoded only `localhost:4200` and `localhost:4201`. In prod, `pmstusnepal.com` was blocked — Angular could not call the API.
+
+**Fix:** `pmst.cors.allowed-origins` property (comma-separated list). Defaults to localhost for local dev. Lambda env var `PMST_CORS_ALLOWED_ORIGINS` injects prod origins.
+
+| Environment | Value |
+|---|---|
+| Local (default) | `http://localhost:4200,http://localhost:4201` |
+| Prod (Lambda env) | `https://pmstusnepal.com,https://www.pmstusnepal.com` |
+
+Terraform (`modules/lambda/main.tf`) sets `PMST_CORS_ALLOWED_ORIGINS = "https://${var.domain_name},https://www.${var.domain_name}"` automatically.
+
+**Verify:** In browser DevTools → Network tab → any API call from `pmstusnepal.com` should show `Access-Control-Allow-Origin: https://pmstusnepal.com` in response headers (no CORS error).
+
+---
+
+#### ✅ Fix 3 — DB Secrets Manager Reader (`DatabaseConfig.java` — new file)
+
+**What was broken:** Lambda env had `DB_SECRET_ARN` (from Terraform) but `application.properties` hardcoded `localhost:5432`. Nothing read the secret → DB connection failed on Lambda cold start.
+
+**Fix:** New `DatabaseConfig.java` checks `DB_SECRET_ARN` (bound to `pmst.db.secret-arn`) at startup:
+- **Local** (env absent) → no-op, uses `localhost:5432` from `application.properties`
+- **Lambda prod** (env present) → calls AWS Secrets Manager, reads `{host, port, dbname, username, password}`, overrides `spring.datasource.*`
+
+AWS Secrets Manager SDK (`software.amazon.awssdk:secretsmanager:2.25.30`) added to `pom.xml`.
+
+**Verify locally:** Backend starts without `DB_SECRET_ARN` → logs "DB_SECRET_ARN not set — using local datasource configuration."
+**Verify prod intent:** Lambda cold start logs "Database credentials resolved from Secrets Manager: host=..., db=..."
+
+---
+
+#### ✅ Fix 4 — API Gateway: Native Cognito Authorizer (Terraform)
+
+**What was broken:** Terraform provisioned an `authorizer` Lambda with handler `com.pmst.auth.CognitoAuthorizer::handleRequest` — a class that **does not exist** anywhere in the codebase. Cold start → `ClassNotFoundException` → every API call returned 500.
+
+**Fix:** Replaced with native `COGNITO_USER_POOLS` API Gateway authorizer (zero code, built into AWS):
+
+```hcl
+resource "aws_api_gateway_authorizer" "cognito" {
+  type          = "COGNITO_USER_POOLS"
+  provider_arns = [var.cognito_user_pool_arn]
+}
+```
+
+**Auth architecture (defense in depth):**
+```
+Request
+  → API Gateway: validates Cognito JWT (COGNITO_USER_POOLS authorizer)
+      → Public GET routes: authorization = "NONE" (articles, galleries, youtube, profiles)
+      → Protected routes:  authorization = "COGNITO_USER_POOLS" (writes, /auth/me, /users/*)
+          → Lambda: Spring Security second layer (permitAll / authenticated rules)
+```
+
+**Terraform files changed:**
+- `modules/api-gateway/main.tf` — authorizer type changed, split GET (NONE) vs write (COGNITO_USER_POOLS) methods
+- `modules/api-gateway/variables.tf` — `authorizer_invoke_arn` → `cognito_user_pool_arn`
+- `modules/lambda/main.tf` — removed `authorizer` Lambda entry, added `PMST_CORS_ALLOWED_ORIGINS` env
+- `modules/lambda/variables.tf` — added `domain_name` variable
+- `modules/lambda/outputs.tf` — removed `authorizer_invoke_arn` output
+- `environments/prod/main.tf` — updated module args
+
+**Verify:** `terraform plan` on prod environment should show 0 errors and the authorizer resource recreating (expected — type change).
+
+---
+
+### Pre-Prod Deployment Gate
+
+Run this checklist before every `terraform apply -chdir=environments/prod`:
+
+- [ ] `mvn package -DskipTests` completes → `target/pmst-api-service-lambda.jar` produced
+- [ ] Backend logs "JWT validation enabled" when `COGNITO_ISSUER_URI` is set locally
+- [ ] `GET http://localhost:8080/users/username/testuser` returns 200 without `Authorization` header
+- [ ] CORS: Angular dev server (`localhost:4201`) can call backend without CORS errors in DevTools
+- [ ] `terraform validate -chdir=environments/prod` passes
+- [ ] `terraform plan -chdir=environments/prod` — review and confirm no unintended destroys
+- [ ] `DB_SECRET_ARN` is set in Lambda env (Terraform sets this automatically from RDS module output)
+- [ ] `PMST_CORS_ALLOWED_ORIGINS` is set in Lambda env (Terraform sets automatically from `domain_name`)
+- [ ] `COGNITO_ISSUER_URI` is set in Lambda env (Terraform sets automatically: `https://cognito-idp.{region}.amazonaws.com/{user_pool_id}`)
+
+---
+
+### Remaining Items (Important, Not Critical)
+
+These will not break prod immediately but should be resolved before public launch:
+
+| # | Item | Status |
+|---|---|---|
+| 5 | `environment.prod.ts` missing `ticketingUrl` | ⬜ Pending |
+| 6 | No CI/CD pipeline for `pmst-api-service` backend Lambda | ⬜ Pending |
+| 7 | `user_profiles` schema drift — new columns not in `init.sql` | ⬜ Pending |
+| 8 | `init.sql` never runs on prod RDS — no migration mechanism | ⬜ Pending |
+
+---
+
+## Part 11: Article Submission Form
+
+### Overview
+
+The article submission form at `/submit/article` mirrors the WordPress field structure used on the original `pmstusnepal.com` site. It stores data to the `articles` table via `POST /articles`.
+
+**Frontend component:** `D:\pmstmigrate\src\app\features\user\submit-content.component.ts`  
+**Backend controller:** `D:\pmst-services\pmst-api-service\src\main\java\com\pmst\api\controller\ArticleController.java`  
+**API endpoint:** `POST /articles` (authenticated, status: `pending` on submit, `draft` on Save Draft)
+
+---
+
+### WP Field → DB Column Mapping
+
+| Form Label | WP Source | WP Meta Key | DB Column | Java Field | Notes |
+|---|---|---|---|---|---|
+| Post Title | `wp_posts` | `post_title` | `articles.title` | `title` | Required |
+| Post Excerpt | `wp_posts` | `post_excerpt` | `articles.excerpt` | `excerpt` | Max 150 chars |
+| Post Content | `wp_posts` | `post_content` | `articles.content` | `content` | Gutenberg stripped on migrate |
+| Category | `wp_term_taxonomy` | category taxonomy | `articles.category` | `category` | See values below |
+| YouTube Link | `wp_postmeta` | `youtube_link` | `articles.youtube_link` | `youtubeLink` | Optional URL |
+| Embed Code | `wp_postmeta` | `embed_code` | `articles.embed_code` | `embedCode` | FB/IG/X/TikTok raw HTML |
+| Featured Image | `wp_postmeta` | `_thumbnail_id` | `articles.featured_image` | `featuredImage` | URL (S3 rewrite on migrate) |
+| Image Upload | `wp_postmeta` | `image_upload` | `articles.gallery_images` | `galleryImages` | JSONB array, up to 6 URLs |
+| Focus Keyword | `wp_postmeta` | `rank_math_focus_keyword` | `articles.seo_focus_keyword` | `seoFocusKeyword` | SEO — Future Scope |
+| Meta Description | `wp_postmeta` | `rank_math_description` | `articles.seo_description` | `seoDescription` | SEO — Future Scope |
+| SEO Title | `wp_postmeta` | `rank_math_title` | `articles.seo_title` | `seoTitle` | SEO — Future Scope, not on form |
+
+---
+
+### Category Values (Scoped)
+
+| Display Label | DB Value | WP Slug |
+|---|---|---|
+| Nepali News | `nepali-news` | `nepalnews` |
+| Entertainment | `entertainment` | `nepal-entertainment` |
+| Sports | `sports` | `sports` |
+
+Other WP categories (`housing-rental`) and future categories (`spotlight`, `fashion`, `events`, `interviews`) are deferred.
+
+---
+
+### Database Migration
+
+New SEO columns added via Flyway:  
+`D:\pmst-services\pmst-api-service\src\main\resources\db\migration\V4__add_seo_fields_to_articles.sql`
+
+```sql
+ALTER TABLE articles ADD COLUMN IF NOT EXISTS seo_focus_keyword VARCHAR(255);
+ALTER TABLE articles ADD COLUMN IF NOT EXISTS seo_description TEXT;
+ALTER TABLE articles ADD COLUMN IF NOT EXISTS seo_title VARCHAR(500);
+```
+
+---
+
+### Migration Script Update
+
+`D:\pmst-migration\scripts\10_migrate_article_meta.py` updated to extract:
+- `rank_math_focus_keyword` → `seo_focus_keyword`
+- `rank_math_description` → `seo_description`
+- `rank_math_title` → `seo_title`
+
+---
+
+### SEO Live Preview (Angular)
+
+The SEO section is collapsible (labeled "Future Scope"). Preview box HTML reference:
+
+```html
+<!-- Google Preview — dark card, inline styles for portability -->
+<div style="background:#1e1e1e; padding:20px; border-radius:12px;">
+  <h4 style="color:#00e676; font-size:14px; margin-bottom:12px;">Google Preview</h4>
+  <!-- Title: {post_title} - {CATEGORY} | PMST US-Nepal -->
+  <div style="color:#1a73e8; font-size:16px; margin-bottom:4px;">
+    {{ title }} - {{ category | uppercase }} | PMST US-Nepal
+  </div>
+  <!-- URL: pmstusnepal.com/{slug} -->
+  <div style="color:#006621; font-size:14px; margin-bottom:4px;">
+    pmstusnepal.com/{{ slug }}
+  </div>
+  <!-- Description: rank_math_description or fallback -->
+  <div style="color:#9e9e9e; font-size:12px;">
+    {{ seoDescription || 'Example description here...' }}
+  </div>
+</div>
+```
+
+Preview title format: `{post_title} - {CATEGORY LABEL UPPERCASE} | PMST US-Nepal`  
+Slug: auto-generated from title (lowercase, hyphens, alphanumeric only).
+
+---
+
+### Future Scope
+
+| Item | Notes |
+|---|---|
+| S3 image upload | Replace base64 previews with direct upload to S3 presigned URL |
+| SEO score indicator | Rank Math-style keyword density check against content |
+| Admin review workflow | Admin dashboard view for `status = 'pending'` articles |
+
+---
+
+## Part 12: Inline Editable Article Submission Form
+
+**Component:** `src/app/features/user/submit-content.component.ts`  
+**Status:** ✅ Implemented (May 2026)
+
+WYSIWYG article editor that visually mirrors the published `news-detail` page.
+
+### Layout
+
+```
+[ Sticky Top Bar — back link | label | badge ]
+[ Banner: success / error ]
+
+┌─ pmst-post-container ─────────────────────────────────────────┐
+│                                                               │
+│  ┌──────────────────────┬──────────────────────┐             │
+│  │ Featured Image *     │ YouTube Link          │             │
+│  │ (upload zone /       │ (URL input + iframe   │             │
+│  │  live preview)       │  preview + hint text) │             │
+│  └──────────────────────┴──────────────────────┘             │
+│                                                               │
+│  [Reactions placeholder]                                      │
+│  [H1 contenteditable — title]                                 │
+│  [/news/slug badge]                                           │
+│  [By PMST US-Nepal | date]                                    │
+│  [Quill rich-text editor — .pmst-content styled]              │
+│  [📱 Social Embed — collapsible]                              │
+│  [Gallery grid — + tiles to upload, up to 6]                  │
+└───────────────────────────────────────────────────────────────┘
+
+[ Sticky Bottom Bar ]
+  Category | Excerpt | 🔍 SEO ▼ | Save Draft | Submit/Publish
+  └─ SEO panel expands above: Focus Keyword | Meta Desc | Google preview
+```
+
+### Hero — Featured Image vs YouTube (side-by-side)
+
+| Panel | Behavior |
+|---|---|
+| **Left — Featured Image (required)** | Dashed upload zone; live blurred-bg preview after upload; ✏️ swap + ✕ clear buttons; red border + shake + `⚠ Required` badge on failed submit |
+| **Right — YouTube (optional)** | URL input with YouTube icon; live iframe preview on valid URL; hint text always visible; green confirmation message when valid URL set |
+
+Featured image is **always required** — submit/publish blocked without it. YouTube link is independent and optional.
+
+### Role-based submission
+
+| Role | Button | API status |
+|---|---|---|
+| Regular user | Submit for Review (indigo) | `pending` |
+| Admin | ✓ Publish (green) | `published` |
+| Both | Save Draft (outline) | `draft` |
+
+### Key signals / state
+
+| Signal | Purpose |
+|---|---|
+| `featuredImagePreview` | Base64 data URL after upload |
+| `submitAttempted` | Triggers red-border validation state |
+| `safeYoutubeUrl` | `SafeResourceUrl` for iframe, computed from `youtubeLink` |
+| `generatedSlug` | Auto-generated from title (lowercase, hyphens) |
+| `embedOpen` / `seoOpen` | Collapsible panel toggles |
+
+### Payload (no backend changes needed)
+
+Uses existing `ArticleService.createArticle()` with `CreateArticlePayload` (status: `'draft' | 'pending' | 'published'`).

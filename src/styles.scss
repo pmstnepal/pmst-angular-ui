@@ -104,8 +104,19 @@ a {
   text-align: center;
   margin-bottom: -3rem;
   position: sticky;
-  top: 70px;
+  top: 3.5rem;
   z-index: 100;
+  will-change: transform;
+  transform: translateZ(0);
+}
+
+.pmst-hero-lite.pmst-hero-static {
+  position: relative;
+  top: auto;
+  margin-bottom: 0;
+  will-change: auto;
+  transform: none;
+  z-index: 1;
 }
 
 .pmst-hero-lite .title {

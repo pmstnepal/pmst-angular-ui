@@ -103,6 +103,9 @@
                 <button onclick="showTab('ui-design')" class="tab-btn px-4 py-2 rounded-lg text-sm font-medium transition-colors hover:bg-gray-100 text-gray-600" data-tab="ui-design">
                     <i data-lucide="palette" class="w-4 h-4 inline mr-1"></i>UI Design
                 </button>
+                <button onclick="showTab('prod-readiness')" class="tab-btn px-4 py-2 rounded-lg text-sm font-medium transition-colors hover:bg-gray-100 text-gray-600" data-tab="prod-readiness">
+                    <i data-lucide="shield-check" class="w-4 h-4 inline mr-1"></i>Prod Readiness
+                </button>
             </div>
         </div>
     </nav>
@@ -324,7 +327,7 @@
                     </div>
                     <div class="bg-white/20 px-4 py-2 rounded-lg text-right">
                         <div class="text-sm text-green-100">Last Updated</div>
-                        <div class="font-semibold">May 17, 2026</div>
+                        <div class="font-semibold">May 24, 2026</div>
                     </div>
                 </div>
             </div>
@@ -1538,6 +1541,15 @@ mvn test</code></pre>
                                     <span class="text-xs bg-indigo-100 text-indigo-700 px-1.5 rounded">user-profile</span>
                                 </div>
                             </div>
+                            <div class="kanban-card bg-white p-3 rounded-lg shadow cursor-pointer" data-component="dashboard" data-status="done" onclick="moveCard(this)">
+                                <div class="font-medium text-sm">DashboardComponent</div>
+                                <div class="text-xs text-gray-500">features/user/</div>
+                                <div class="mt-2 flex gap-1 flex-wrap">
+                                    <span class="text-xs bg-orange-100 text-orange-700 px-1.5 rounded">approve-btn</span>
+                                    <span class="text-xs bg-red-100 text-red-700 px-1.5 rounded">delete-icon</span>
+                                    <span class="text-xs bg-blue-100 text-blue-700 px-1.5 rounded">pagination</span>
+                                </div>
+                            </div>
                             <div class="kanban-card bg-white p-3 rounded-lg shadow cursor-pointer" data-component="profile" data-status="done" onclick="moveCard(this)">
                                 <div class="font-medium text-sm">ProfileComponent</div>
                                 <div class="text-xs text-gray-500">features/user/</div>
@@ -1588,6 +1600,18 @@ mvn test</code></pre>
                                 <div class="text-xs text-gray-500">pmst-data-migration</div>
                                 <div class="mt-1 flex gap-1 flex-wrap"><span class="text-xs bg-orange-100 text-orange-700 px-1.5 rounded">1,446 articles</span><span class="text-xs bg-orange-100 text-orange-700 px-1.5 rounded">5,471 tags</span><span class="text-xs bg-orange-100 text-orange-700 px-1.5 rounded">377 comments</span></div>
                                 <div class="mt-1 text-xs text-green-600">✓ Completed — all 10 scripts run successfully</div>
+                            </div>
+                            <div class="kanban-card bg-white p-3 rounded-lg shadow opacity-75" data-component="header-fix" data-status="done">
+                                <div class="font-medium text-sm line-through">HeaderComponent Scroll Fix</div>
+                                <div class="text-xs text-gray-500">core/components/header/</div>
+                                <div class="mt-1 flex gap-1 flex-wrap"><span class="text-xs bg-purple-100 text-purple-700 px-1.5 rounded">hysteresis</span><span class="text-xs bg-purple-100 text-purple-700 px-1.5 rounded">no-flicker</span></div>
+                                <div class="mt-1 text-xs text-green-600">✓ 80px compact / 60px expand, additive class bindings, GPU compositing</div>
+                            </div>
+                            <div class="kanban-card bg-white p-3 rounded-lg shadow opacity-75" data-component="seo-migrations" data-status="done">
+                                <div class="font-medium text-sm line-through">SEO DB Migrations (V4, V5)</div>
+                                <div class="text-xs text-gray-500">pmst-api-service/db/migration/</div>
+                                <div class="mt-1 flex gap-1 flex-wrap"><span class="text-xs bg-green-100 text-green-700 px-1.5 rounded">articles</span><span class="text-xs bg-green-100 text-green-700 px-1.5 rounded">galleries</span></div>
+                                <div class="mt-1 text-xs text-green-600">✓ seo_focus_keyword + seo_description + indexes</div>
                             </div>
                         </div>
                     </div>
@@ -2972,6 +2996,99 @@ mvn test</code></pre>
                 </div>
             </div>
         </div><!-- closes tab-ui-design -->
+
+        <!-- Tab: Prod Readiness -->
+        <div id="tab-prod-readiness" class="tab-content">
+            <h2 class="text-2xl font-bold text-gray-800 mb-2">Production Readiness</h2>
+            <p class="text-gray-600 mb-6">Critical gaps identified and fixed before first prod deployment. 4 critical items resolved. Items 5–8 are pre-launch pending work.</p>
+
+            <h3 class="text-lg font-semibold text-gray-700 mb-4">Critical Fixes — All Resolved ✅</h3>
+            <div class="space-y-4 mb-10">
+
+                <div class="bg-green-50 rounded-lg p-5 border border-green-200">
+                    <div class="flex items-start gap-3">
+                        <span class="text-green-600 font-bold text-lg">✅</span>
+                        <div>
+                            <h4 class="font-bold text-green-800">Fix 1 — JWT Validation Re-enabled</h4>
+                            <p class="text-sm text-green-700"><strong>File:</strong> <code>SecurityConfig.java</code></p>
+                            <p class="text-sm text-gray-600 mt-1">Removed hardcoded <code>false &amp;&amp;</code> that disabled JWT validation even in prod. JWT now validates automatically when <code>COGNITO_ISSUER_URI</code> is set (Terraform injects it). Local dev without the env var remains unprotected for convenience.</p>
+                            <p class="text-sm text-gray-600 mt-1">Also added <code>GET /users/username/**</code> and <code>GET /users/*/profile</code> to <code>permitAll()</code> for public profile page access.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-green-50 rounded-lg p-5 border border-green-200">
+                    <div class="flex items-start gap-3">
+                        <span class="text-green-600 font-bold text-lg">✅</span>
+                        <div>
+                            <h4 class="font-bold text-green-800">Fix 2 — CORS Origins Env-Driven</h4>
+                            <p class="text-sm text-green-700"><strong>Files:</strong> <code>CorsConfig.java</code>, <code>application.properties</code>, <code>modules/lambda/main.tf</code></p>
+                            <p class="text-sm text-gray-600 mt-1">CORS was hardcoded to <code>localhost</code> only — <code>pmstusnepal.com</code> was blocked in prod. Now reads from <code>pmst.cors.allowed-origins</code> property. Terraform injects <code>PMST_CORS_ALLOWED_ORIGINS</code> into Lambda env automatically.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-green-50 rounded-lg p-5 border border-green-200">
+                    <div class="flex items-start gap-3">
+                        <span class="text-green-600 font-bold text-lg">✅</span>
+                        <div>
+                            <h4 class="font-bold text-green-800">Fix 3 — DB Secrets Manager Reader</h4>
+                            <p class="text-sm text-green-700"><strong>Files:</strong> <code>DatabaseConfig.java</code> (new), <code>pom.xml</code></p>
+                            <p class="text-sm text-gray-600 mt-1">Lambda had <code>DB_SECRET_ARN</code> set by Terraform but nothing read it — DB connection failed on cold start. New <code>DatabaseConfig</code> reads the secret at startup if the ARN is present, overriding <code>spring.datasource.*</code>. Locally (no ARN set) — no-op.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-green-50 rounded-lg p-5 border border-green-200">
+                    <div class="flex items-start gap-3">
+                        <span class="text-green-600 font-bold text-lg">✅</span>
+                        <div>
+                            <h4 class="font-bold text-green-800">Fix 4 — API Gateway: Native Cognito Authorizer</h4>
+                            <p class="text-sm text-green-700"><strong>Files:</strong> <code>modules/api-gateway/main.tf</code>, <code>modules/lambda/main.tf</code>, outputs, variables, <code>environments/prod/main.tf</code></p>
+                            <p class="text-sm text-gray-600 mt-1">Terraform provisioned a <code>CognitoAuthorizer</code> Lambda (type <code>TOKEN</code>) whose handler class didn't exist — every API call would 500 on prod cold start. Replaced with native <code>COGNITO_USER_POOLS</code> authorizer. Public GET routes use <code>NONE</code> auth; protected routes use <code>COGNITO_USER_POOLS</code>. Spring Security is the second defense layer inside Lambda.</p>
+                            <div class="mt-2 bg-gray-100 rounded p-3 text-xs font-mono whitespace-pre">Request → API GW (COGNITO_USER_POOLS) → Lambda (Spring Security)
+Public GET (articles/galleries/youtube/profiles): NONE auth
+Protected (writes, /auth/me, /users/**): COGNITO_USER_POOLS</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <h3 class="text-lg font-semibold text-gray-700 mb-4">Pre-Prod Deployment Gate</h3>
+            <div class="bg-blue-50 rounded-lg p-5 border border-blue-200 mb-8">
+                <p class="text-sm text-blue-800 font-medium mb-3">All items must be verified before <code>terraform apply -chdir=environments/prod</code>:</p>
+                <ul class="space-y-2 text-sm text-gray-700 list-none">
+                    <li>☐ <code>mvn package -DskipTests</code> → <code>target/pmst-api-service-lambda.jar</code> produced</li>
+                    <li>☐ Backend logs "JWT validation enabled" when <code>COGNITO_ISSUER_URI</code> is set locally</li>
+                    <li>☐ <code>GET /users/username/testuser</code> returns 200 without Authorization header</li>
+                    <li>☐ Angular dev server calls backend without CORS errors in DevTools</li>
+                    <li>☐ <code>terraform validate -chdir=environments/prod</code> passes</li>
+                    <li>☐ <code>terraform plan</code> reviewed — no unintended destroys</li>
+                    <li>✅ <code>DB_SECRET_ARN</code> auto-injected by Terraform (RDS module output)</li>
+                    <li>✅ <code>PMST_CORS_ALLOWED_ORIGINS</code> auto-injected by Terraform (<code>domain_name</code>)</li>
+                    <li>✅ <code>COGNITO_ISSUER_URI</code> auto-injected by Terraform (user pool ID + region)</li>
+                </ul>
+            </div>
+
+            <h3 class="text-lg font-semibold text-gray-700 mb-4">Remaining Items (Pre-Launch)</h3>
+            <div class="overflow-x-auto">
+                <table class="min-w-full text-sm border border-gray-200 rounded-lg">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-4 py-2 text-left text-gray-600 font-semibold">#</th>
+                            <th class="px-4 py-2 text-left text-gray-600 font-semibold">Item</th>
+                            <th class="px-4 py-2 text-left text-gray-600 font-semibold">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-100">
+                        <tr><td class="px-4 py-2 text-gray-500">5</td><td class="px-4 py-2"><code>environment.prod.ts</code> missing <code>ticketingUrl</code></td><td class="px-4 py-2"><span class="bg-amber-100 text-amber-700 px-2 py-0.5 rounded text-xs font-medium">Pending</span></td></tr>
+                        <tr><td class="px-4 py-2 text-gray-500">6</td><td class="px-4 py-2">No CI/CD pipeline for <code>pmst-api-service</code> Lambda</td><td class="px-4 py-2"><span class="bg-amber-100 text-amber-700 px-2 py-0.5 rounded text-xs font-medium">Pending</span></td></tr>
+                        <tr><td class="px-4 py-2 text-gray-500">7</td><td class="px-4 py-2"><code>user_profiles</code> schema drift — new columns not in <code>init.sql</code></td><td class="px-4 py-2"><span class="bg-amber-100 text-amber-700 px-2 py-0.5 rounded text-xs font-medium">Pending</span></td></tr>
+                        <tr><td class="px-4 py-2 text-gray-500">8</td><td class="px-4 py-2"><code>init.sql</code> never runs on prod RDS — no DB migration mechanism</td><td class="px-4 py-2"><span class="bg-amber-100 text-amber-700 px-2 py-0.5 rounded text-xs font-medium">Pending</span></td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div><!-- closes tab-prod-readiness -->
 
     </main>
 

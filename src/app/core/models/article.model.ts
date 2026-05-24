@@ -49,6 +49,8 @@ export interface ArticleDetail {
   publishedAt: string;
   createdAt?: string;
   authorId?: string;
+  seoFocusKeyword?: string;
+  seoDescription?: string;
   author?: {
     id: string;
     username: string;

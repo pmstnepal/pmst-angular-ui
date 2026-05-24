@@ -202,8 +202,15 @@ export class ProfileComponent implements OnInit {
 
   ngOnInit(): void {
     const usernameParam = this.route.snapshot.paramMap.get('username') || this.username;
-    
-    if (usernameParam) {
+
+    if (usernameParam === 'me') {
+      const currentUser = this.authService.user();
+      if (currentUser?.username) {
+        this.loadUserProfile(currentUser.username);
+      } else {
+        this.loading.set(false);
+      }
+    } else if (usernameParam) {
       this.loadUserProfile(usernameParam);
     }
   }
