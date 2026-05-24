@@ -24,13 +24,17 @@ export class GalleryService {
    * Get paginated galleries
    * Uses shareReplay(1) to deduplicate concurrent requests
    */
-  getGalleries(page = 0, size = 12, sort = 'createdAt,desc'): Observable<PageResponse<GallerySummary>> {
-    const params = new HttpParams()
+  getGalleries(page = 0, size = 12, sort = 'createdAt,desc', search?: string): Observable<PageResponse<GallerySummary>> {
+    let params = new HttpParams()
       .set('page', page.toString())
       .set('size', size.toString())
       .set('sort', sort);
 
-    const cacheKey = `galleries-${page}-${size}-${sort}`;
+    if (search) {
+      params = params.set('search', search);
+    }
+
+    const cacheKey = `galleries-${page}-${size}-${sort}-${search || ''}`;
     
     if (!this.cache.has(cacheKey)) {
       const request$ = this.http.get<PageResponse<GallerySummary>>(this.baseUrl, { params })

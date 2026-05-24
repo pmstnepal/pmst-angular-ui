@@ -22,7 +22,6 @@ import { CommonModule } from '@angular/common';
             <ul class="space-y-2">
               <li><a routerLink="/" class="hover:text-white transition-colors">Home</a></li>
               <li><a routerLink="/spotlight" class="hover:text-white transition-colors">Spotlight</a></li>
-              <li><a routerLink="/news" class="hover:text-white transition-colors">News</a></li>
               <li><a routerLink="/showcase" class="hover:text-white transition-colors">Showcase</a></li>
             </ul>
           </div>

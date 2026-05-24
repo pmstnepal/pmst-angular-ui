@@ -1,21 +1,13 @@
-import { Component, OnInit, signal, ChangeDetectionStrategy, inject } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { Component, OnInit, signal, ChangeDetectionStrategy, inject, PLATFORM_ID, HostListener } from '@angular/core';
+import { CommonModule, isPlatformBrowser } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { Article, GallerySummary } from '../../core/models';
 import { ArticleService } from '../../core/services/article.service';
 import { GalleryService } from '../../core/services/gallery.service';
-import { YoutubeService } from '../../core/services/youtube.service';
+import { YoutubeService, YoutubeConfig } from '../../core/services/youtube.service';
 import { YoutubePlaylistComponent } from '../../shared/components/youtube-playlist/youtube-playlist.component';
 import { PostCarouselComponent } from '../../shared/components/post-carousel/post-carousel.component';
 import { GalleryCarouselComponent } from '../../shared/components/gallery-carousel/gallery-carousel.component';
-
-// Live site playlist IDs (from WP shortcode [pmst_yt_playlists ids="..."])
-const YOUTUBE_PLAYLIST_IDS = [
-  'PL706KEgmVFK9d0swdjzjVCau3fSZBLcjH',
-  'PL706KEgmVFK9HIMBXBUpdRJlovKTzCmhe',
-  'PL706KEgmVFK-lbYXEVF7HnS6A5zdo0wK7'
-];
-const YOUTUBE_PLAYLIST_TITLES = ['NEW TRAILERS', 'TRENDING SONGS', 'PMST VIDEOS'];
 
 @Component({
   selector: 'pmst-home',
@@ -26,32 +18,32 @@ const YOUTUBE_PLAYLIST_TITLES = ['NEW TRAILERS', 'TRENDING SONGS', 'PMST VIDEOS'
     <div class="home-page">
 
       <!-- ① HERO BANNER (pmst-hero-lite) -->
-      <section class="pmst-hero-lite">
+      <section class="pmst-hero-lite" [style.top.px]="heroTopPosition()">
         <h1 class="title">Creation and Creativity</h1>
         <div class="sub">Audio and Video</div>
       </section>
 
       <!-- ② YOUTUBE SUBSCRIBE -->
-      <section class="py-6 bg-gray-900 text-center">
+      <section class="py-6 text-center pmst-bg-light">
         <div class="container mx-auto px-4">
           <div class="g-ytsubscribe" data-channelid="UCtSOZtP4CpKooRCt9Hbzucw" data-layout="full" data-count="default"></div>
         </div>
       </section>
 
       <!-- ③ YOUTUBE PLAYLISTS (Tabbed) -->
-      <section class="py-10 bg-gray-900">
+      <section class="py-6 pmst-bg-light">
         <div class="container mx-auto px-4">
           @if (youtubeLoading()) {
             <div class="animate-pulse">
-              <div class="flex gap-2 mb-6 border-b border-gray-700">
-                <div class="h-10 w-32 bg-gray-700 rounded-t"></div>
-                <div class="h-10 w-32 bg-gray-800 rounded-t"></div>
-                <div class="h-10 w-32 bg-gray-800 rounded-t"></div>
+              <div class="flex gap-2 mb-6 border-b border-gray-300">
+                <div class="h-10 w-32 bg-gray-200 rounded-t"></div>
+                <div class="h-10 w-32 bg-gray-300 rounded-t"></div>
+                <div class="h-10 w-32 bg-gray-300 rounded-t"></div>
               </div>
-              <div class="aspect-video bg-gray-800 rounded-xl mb-4"></div>
+              <div class="aspect-video bg-gray-200 rounded-xl mb-4"></div>
               <div class="flex gap-3 overflow-hidden">
                 @for (i of [1,2,3,4,5,6]; track i) {
-                  <div class="w-40 h-24 bg-gray-800 rounded flex-shrink-0"></div>
+                  <div class="w-40 h-24 bg-gray-200 rounded flex-shrink-0"></div>
                 }
               </div>
             </div>
@@ -77,12 +69,12 @@ const YOUTUBE_PLAYLIST_TITLES = ['NEW TRAILERS', 'TRENDING SONGS', 'PMST VIDEOS'
       </section>
 
       <!-- ⑤ LATEST NEWS (pmst-hero-lite + post-carousel) -->
-      <section class="pmst-hero-lite">
+      <section class="pmst-hero-lite pmst-hero-no-overlap" [style.top.px]="heroTopPosition()">
         <h1 class="title">Latest News</h1>
         <div class="sub">Gossip and Entertainment</div>
       </section>
 
-      <section class="py-10 bg-gray-50">
+      <section class="py-10 pmst-bg-light">
         <div class="container mx-auto px-4">
           @if (newsLoading()) {
             <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -99,13 +91,13 @@ const YOUTUBE_PLAYLIST_TITLES = ['NEW TRAILERS', 'TRENDING SONGS', 'PMST VIDEOS'
           } @else {
             <pmst-post-carousel
               title=""
-              [visibleCount]="3"
+              [visibleCount]="10"
               [items]="carouselNews()">
             </pmst-post-carousel>
           }
 
           <div class="mt-8 text-center">
-            <a routerLink="/news" class="pmst-btn-primary">VIEW ALL</a>
+            <a routerLink="/spotlight" class="pmst-btn-primary">VIEW ALL</a>
           </div>
         </div>
       </section>
@@ -115,32 +107,32 @@ const YOUTUBE_PLAYLIST_TITLES = ['NEW TRAILERS', 'TRENDING SONGS', 'PMST VIDEOS'
         <div class="container mx-auto px-4">
           <div class="grid md:grid-cols-2 gap-8 items-center">
             <!-- Left: Hero Text -->
-            <div class="pmst-hero-lite !bg-transparent">
-              <h1 class="title !text-gray-900">Become a Voice in</h1>
-              <div class="sub !text-xl md:!text-2xl !text-gray-700">Nepali News, Entertainment &amp; Gossip</div>
+            <div class="pmst-hero-cta pmst-hero-align-right">
+              <h1 class="title">Become a Voice in</h1>
+              <div class="sub">Nepali News, Entertainment &amp; Gossip</div>
             </div>
             <!-- Right: Description + CTA -->
-            <div class="text-center">
-              <p class="text-gray-600 mb-4">Love writing about Nepali movies, music, celebrities? Join our content team!</p>
-              <p class="text-sm text-gray-500 mb-6">Share exclusive updates, gossip, and industry insights with our growing audience.</p>
-              <a routerLink="/submit/article" class="pmst-btn-primary">Submit Your Article/News Here</a>
+            <div class="text-left">
+              <p class="text-gray-600 mb-4">Love writing about <b>Nepali movies, music, celebrities</b>? Join our content team!</p>
+              <p class="text-sm text-gray-500 mb-6">Share <b>exclusive updates, gossip, and industry insights</b> with our growing audience.</p>
+              <a routerLink="/submit/article" class="text-[#ff6b6b] hover:text-[#fe5252] font-semibold">Submit Your Article/News Here</a>
             </div>
           </div>
         </div>
       </section>
 
       <!-- ⑦ MODEL & GALLERY (pmst-hero-lite + gallery-carousel) -->
-      <section class="pmst-hero-lite">
+      <section class="pmst-hero-lite pmst-hero-no-overlap" [style.top.px]="heroTopPosition()">
         <h1 class="title">Model and Gallery</h1>
         <div class="sub">Featuring</div>
       </section>
 
-      <section class="py-10" style="background:#1a1a2e;">
+      <section class="pmst-gallery-section">
         <div class="container mx-auto px-4">
           @if (galleriesLoading()) {
             <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
               @for (i of [1,2,3,4]; track i) {
-                <div class="animate-pulse rounded-lg overflow-hidden aspect-[4/3] bg-gray-700"></div>
+                <div class="animate-pulse rounded-lg overflow-hidden aspect-[4/3] bg-gray-200"></div>
               }
             </div>
           } @else {
@@ -162,19 +154,19 @@ const YOUTUBE_PLAYLIST_TITLES = ['NEW TRAILERS', 'TRENDING SONGS', 'PMST VIDEOS'
         <div class="container mx-auto px-4">
           <div class="grid md:grid-cols-2 gap-8 items-center">
             <!-- Left: Description + CTA -->
-            <div class="text-center">
+            <div class="text-right">
               <p class="text-gray-600 mb-4">Showcase your talent with PMST US-Nepal!</p>
               <ul class="text-sm text-gray-500 mb-6 space-y-1">
                 <li>Get featured on our platform</li>
                 <li>Gain recognition in the community</li>
                 <li>Connect with fellow creatives</li>
               </ul>
-              <a routerLink="/submit/gallery" class="pmst-btn-primary">Submit Your Gallery</a>
+              <a routerLink="/submit/gallery" class="text-[#ff6b6b] hover:text-[#fe5252] font-semibold">Submit Your Gallery</a>
             </div>
             <!-- Right: Hero Text -->
-            <div class="pmst-hero-lite !bg-transparent">
-              <h1 class="title !text-gray-900">Showcase Your Talent</h1>
-              <div class="sub !text-xl md:!text-2xl !text-gray-700">Model, Event, Gallery or Photography</div>
+            <div class="pmst-hero-cta pmst-hero-align-left">
+              <h1 class="title">Showcase Your Talent</h1>
+              <div class="sub">Model, Event, Gallery or Photography</div>
             </div>
           </div>
         </div>
@@ -182,19 +174,25 @@ const YOUTUBE_PLAYLIST_TITLES = ['NEW TRAILERS', 'TRENDING SONGS', 'PMST VIDEOS'
 
     </div>
   `,
-  styles: [``]
+  styles: []
 })
 export class HomeComponent implements OnInit {
   latestNews = signal<Article[]>([]);
   featuredGalleries = signal<GallerySummary[]>([]);
   newsLoading = signal(true);
   galleriesLoading = signal(true);
+  isScrolled = signal(false);
 
   // YouTube playlists loaded from backend (proxies YouTube Data API v3)
   youtubePlaylists = signal<Array<{ id: string; title: string; videos: Array<{ id: string; title: string; thumbnailUrl: string; videoId: string; duration: string }> }>>([]);
   youtubeLoading = signal(true);
+  youtubeConfig = signal<YoutubeConfig | null>(null);
 
+  private platformId = inject(PLATFORM_ID);
   private youtubeService = inject(YoutubeService);
+
+  // Dynamic hero top position based on header scroll state
+  heroTopPosition = () => this.isScrolled() ? 48 : 80;
 
   // Transform API data for post-carousel component
   carouselNews = () => this.latestNews().map(article => ({
@@ -204,7 +202,8 @@ export class HomeComponent implements OnInit {
     imageUrl: article.featuredImage || '',
     category: article.category,
     slug: article.slug,
-    date: article.publishedAt
+    date: article.publishedAt,
+    authorName: article.authorName
   }));
 
   // Transform API data for gallery-carousel component
@@ -212,7 +211,8 @@ export class HomeComponent implements OnInit {
     id: gallery.id,
     title: gallery.title,
     slug: gallery.slug,
-    featuredImage: gallery.featuredImage || ''
+    featuredImage: gallery.featuredImage || '',
+    authorName: gallery.authorName
   }));
 
   constructor(
@@ -221,8 +221,13 @@ export class HomeComponent implements OnInit {
   ) {}
 
   ngOnInit(): void {
-    // Load 6 articles for carousel (with caching via ArticleService)
-    this.articleService.getLatestArticles(6).subscribe({
+    if (isPlatformBrowser(this.platformId)) {
+      // Check initial scroll position
+      this.isScrolled.set(window.scrollY > 150);
+    }
+
+    // Load 12 Entertainment articles for carousel (with caching via ArticleService)
+    this.articleService.getArticles(0, 12, 'Entertainment', 'publishedAt,desc').subscribe({
       next: res => { this.latestNews.set(res.content); this.newsLoading.set(false); },
       error: () => this.newsLoading.set(false)
     });
@@ -233,26 +238,44 @@ export class HomeComponent implements OnInit {
       error: () => this.galleriesLoading.set(false)
     });
 
-    // Load YouTube playlists from backend (cached 1h server-side)
-    this.youtubeService.getPlaylists(YOUTUBE_PLAYLIST_IDS, YOUTUBE_PLAYLIST_TITLES, 30).subscribe({
-      next: playlists => {
-        this.youtubePlaylists.set(playlists.map(pl => ({
-          id: pl.playlistId,
-          title: pl.title,
-          videos: pl.items.map(v => ({
-            id: v.videoId,
-            title: v.title,
-            thumbnailUrl: v.thumbUrl,
-            videoId: v.videoId,
-            duration: ''
-          }))
-        })));
-        this.youtubeLoading.set(false);
+    // Load YouTube config from backend, then load playlists
+    this.youtubeService.getConfig().subscribe({
+      next: config => {
+        this.youtubeConfig.set(config);
+        // Load YouTube playlists from backend (cached 1h server-side)
+        this.youtubeService.getPlaylists(config.playlistIds, config.playlistTitles, 30).subscribe({
+          next: playlists => {
+            this.youtubePlaylists.set(playlists.map(pl => ({
+              id: pl.playlistId,
+              title: pl.title,
+              videos: pl.items.map(v => ({
+                id: v.videoId,
+                title: v.title,
+                thumbnailUrl: v.thumbUrl,
+                videoId: v.videoId,
+                duration: ''
+              }))
+            })));
+            this.youtubeLoading.set(false);
+          },
+          error: err => {
+            console.error('Failed to load YouTube playlists:', err);
+            this.youtubeLoading.set(false);
+          }
+        });
       },
       error: err => {
-        console.error('Failed to load YouTube playlists:', err);
+        console.error('Failed to load YouTube config:', err);
         this.youtubeLoading.set(false);
       }
     });
+  }
+
+  @HostListener('window:scroll', [])
+  onWindowScroll(): void {
+    if (isPlatformBrowser(this.platformId)) {
+      const scrollY = window.scrollY;
+      this.isScrolled.set(scrollY > 150);
+    }
   }
 }

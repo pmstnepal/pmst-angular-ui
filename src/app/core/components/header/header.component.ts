@@ -1,65 +1,67 @@
-import { Component, signal, OnInit, inject, PLATFORM_ID, HostListener } from '@angular/core';
-import { RouterLink, RouterLinkActive } from '@angular/router';
+import { Component, signal, OnInit, inject, PLATFORM_ID, HostListener, computed } from '@angular/core';
+import { RouterLink, RouterLinkActive, Router } from '@angular/router';
 import { CommonModule, isPlatformBrowser } from '@angular/common';
+import { AuthService } from '../../services/auth.service';
 
 @Component({
   selector: 'pmst-header',
   standalone: true,
   imports: [CommonModule, RouterLink, RouterLinkActive],
   template: `
-    <header class="sticky top-0 z-50 shadow-lg transition-all duration-300" 
-            [class]="isScrolled() ? 'h-12' : 'h-20'"
-            style="background:#1a1a2e;">
+    <header class="pmst-header sticky top-0 z-50 shadow-lg transition-all duration-300" 
+            [class]="isScrolled() ? 'pmst-header-scrolled' : 'pmst-header-normal'">
       <div class="container mx-auto px-4 h-full">
         <nav class="flex items-center justify-between h-full">
           <!-- Logo -->
           <a routerLink="/" class="flex items-center">
             <img src="/assets/images/logo/pmst-logo.png" 
                  alt="PMST US-Nepal" 
-                 [class]="isScrolled() ? 'h-8 w-auto object-contain transition-all duration-300' : 'h-14 w-auto object-contain transition-all duration-300'">
+                 [class]="isScrolled() ? 'pmst-logo-scrolled' : 'pmst-logo-normal'">
           </a>
 
           <!-- Desktop Navigation -->
           <div class="hidden md:flex items-center space-x-1">
-            <a routerLink="/" routerLinkActive="text-red-400" [routerLinkActiveOptions]="{exact: true}"
-               [class]="isScrolled() ? 'px-2 py-1 text-gray-200 hover:text-red-400 transition-colors font-medium uppercase text-xs tracking-wide' : 'px-3 py-2 text-gray-200 hover:text-red-400 transition-colors font-medium uppercase text-sm tracking-wide'">Home</a>
+            <a routerLink="/" routerLinkActive="pmst-nav-active" [routerLinkActiveOptions]="{exact: true}"
+               [class]="isScrolled() ? 'pmst-nav-link-scrolled' : 'pmst-nav-link-normal'">Home</a>
 
-            <!-- Spotlight dropdown -->
-            <div class="relative group">
-              <button 
-                [class]="isScrolled() ? 'px-2 py-1 text-gray-200 hover:text-red-400 transition-colors font-medium uppercase text-xs tracking-wide flex items-center' : 'px-3 py-2 text-gray-200 hover:text-red-400 transition-colors font-medium uppercase text-sm tracking-wide flex items-center'">
-                Spotlight
-                <svg class="w-3 h-3 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
-                </svg>
-              </button>
-              <div class="absolute top-full left-0 mt-0 w-48 rounded-b-lg shadow-xl border-t-2 border-red-500 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50" style="background:#1a1a2e;">
-                <a routerLink="/spotlight" class="block px-4 py-3 text-gray-300 hover:text-red-400 hover:bg-white/5 text-sm">Entertainments</a>
-                <a routerLink="/news" class="block px-4 py-3 text-gray-300 hover:text-red-400 hover:bg-white/5 text-sm rounded-b-lg">News</a>
-              </div>
-            </div>
-
-            <a routerLink="/news" routerLinkActive="text-red-400"
-               [class]="isScrolled() ? 'px-2 py-1 text-gray-200 hover:text-red-400 transition-colors font-medium uppercase text-xs tracking-wide' : 'px-3 py-2 text-gray-200 hover:text-red-400 transition-colors font-medium uppercase text-sm tracking-wide'">News</a>
-            <a routerLink="/showcase" routerLinkActive="text-red-400"
-               [class]="isScrolled() ? 'px-2 py-1 text-gray-200 hover:text-red-400 transition-colors font-medium uppercase text-xs tracking-wide' : 'px-3 py-2 text-gray-200 hover:text-red-400 transition-colors font-medium uppercase text-sm tracking-wide'">Gallery</a>
-            <a routerLink="/events" routerLinkActive="text-red-400"
-               [class]="isScrolled() ? 'px-2 py-1 text-gray-200 hover:text-red-400 transition-colors font-medium uppercase text-xs tracking-wide' : 'px-3 py-2 text-gray-200 hover:text-red-400 transition-colors font-medium uppercase text-sm tracking-wide'">Events</a>
+            <a routerLink="/spotlight" routerLinkActive="pmst-nav-active"
+               [class]="isScrolled() ? 'pmst-nav-link-scrolled' : 'pmst-nav-link-normal'">Spotlight</a>
+            <a routerLink="/showcase" routerLinkActive="pmst-nav-active"
+               [class]="isScrolled() ? 'pmst-nav-link-scrolled' : 'pmst-nav-link-normal'">Gallery</a>
+            <a routerLink="/events" routerLinkActive="pmst-nav-active"
+               [class]="isScrolled() ? 'pmst-nav-link-scrolled' : 'pmst-nav-link-normal'">Events</a>
           </div>
 
           <!-- Auth Buttons -->
           <div class="hidden md:flex items-center space-x-3">
-            <a routerLink="/login" 
-               [class]="isScrolled() ? 'text-gray-300 hover:text-red-400 px-2 py-1 transition-colors text-xs font-medium' : 'text-gray-300 hover:text-red-400 px-3 py-2 transition-colors text-sm font-medium'">Sign In</a>
-            <a routerLink="/register" 
-               [class]="isScrolled() ? 'text-white px-3 py-1 rounded font-semibold text-xs uppercase tracking-wide transition-colors' : 'text-white px-5 py-2 rounded font-semibold text-sm uppercase tracking-wide transition-colors'" 
-               style="background:#c0392b;" onmouseover="this.style.background='#a93226'" onmouseout="this.style.background='#c0392b'">Join Now</a>
+            @if (!authenticated()) {
+              <a routerLink="/login"
+                 [class]="isScrolled() ? 'pmst-auth-link-scrolled' : 'pmst-auth-link-normal'">Sign In</a>
+              <a routerLink="/register"
+                 [class]="isScrolled() ? 'pmst-btn-scrolled' : 'pmst-btn-normal'">Join Now</a>
+            } @else {
+              <div class="flex items-center space-x-3">
+                <a routerLink="/dashboard" class="pmst-user-link">
+                  @if (currentUser()?.avatarUrl) {
+                    <img [src]="currentUser()?.avatarUrl" [alt]="currentUser()?.displayName || currentUser()?.username" class="pmst-avatar">
+                  } @else {
+                    <div class="pmst-avatar-placeholder">
+                      {{ (currentUser()?.displayName || currentUser()?.username || 'U').charAt(0).toUpperCase() }}
+                    </div>
+                  }
+                  <span [class]="isScrolled() ? 'pmst-username-scrolled' : 'pmst-username-normal'">
+                    {{ currentUser()?.displayName || currentUser()?.username }}
+                  </span>
+                </a>
+                <button (click)="logout()" class="pmst-logout-btn">Logout</button>
+              </div>
+            }
           </div>
 
           <!-- Mobile Menu Button -->
           <button
             (click)="toggleMobileMenu()"
-            class="md:hidden p-2 text-gray-300 hover:text-red-400"
+            class="md:hidden p-2 pmst-menu-btn"
             aria-label="Toggle menu"
           >
             <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -76,32 +78,244 @@ import { CommonModule, isPlatformBrowser } from '@angular/common';
         @if (isMobileMenuOpen()) {
           <div class="md:hidden py-4 border-t border-white/10">
             <div class="flex flex-col space-y-1">
-              <a routerLink="/" (click)="closeMobileMenu()" class="px-3 py-2 text-gray-200 hover:text-red-400 rounded font-medium uppercase text-sm">Home</a>
-              <a routerLink="/spotlight" (click)="closeMobileMenu()" class="px-3 py-2 text-gray-200 hover:text-red-400 rounded text-sm">Spotlight — Entertainments</a>
-              <a routerLink="/news" (click)="closeMobileMenu()" class="px-3 py-2 text-gray-200 hover:text-red-400 rounded font-medium uppercase text-sm">News</a>
-              <a routerLink="/showcase" (click)="closeMobileMenu()" class="px-3 py-2 text-gray-200 hover:text-red-400 rounded font-medium uppercase text-sm">Gallery</a>
-              <a routerLink="/events" (click)="closeMobileMenu()" class="px-3 py-2 text-gray-200 hover:text-red-400 rounded font-medium uppercase text-sm">Events</a>
+              <a routerLink="/" (click)="closeMobileMenu()" class="pmst-mobile-nav-link">Home</a>
+              <a routerLink="/spotlight" (click)="closeMobileMenu()" class="pmst-mobile-nav-link">Spotlight</a>
+              <a routerLink="/showcase" (click)="closeMobileMenu()" class="pmst-mobile-nav-link">Gallery</a>
+              <a routerLink="/events" (click)="closeMobileMenu()" class="pmst-mobile-nav-link">Events</a>
               <hr class="my-2 border-white/10">
-              <a routerLink="/login" (click)="closeMobileMenu()" class="px-3 py-2 text-gray-300 hover:text-red-400 rounded text-sm">Sign In</a>
-              <a routerLink="/register" (click)="closeMobileMenu()" class="px-3 py-2 text-white rounded font-semibold text-sm uppercase" style="background:#c0392b;">Join Now</a>
+              @if (!authenticated()) {
+                <a routerLink="/login" (click)="closeMobileMenu()" class="pmst-mobile-auth-link">Sign In</a>
+                <a routerLink="/register" (click)="closeMobileMenu()" class="pmst-mobile-btn">Join Now</a>
+              } @else {
+                <a routerLink="/dashboard" (click)="closeMobileMenu()" class="pmst-mobile-user-link">
+                  {{ currentUser()?.displayName || currentUser()?.username }}
+                </a>
+                <button (click)="logout(); closeMobileMenu()" class="pmst-mobile-logout-btn">Logout</button>
+              }
             </div>
           </div>
         }
       </div>
     </header>
   `,
-  styles: [``]
+  styles: [`
+    .pmst-header {
+      background: #1a1a2e;
+    }
+    .pmst-header-normal {
+      height: 6.5rem;
+    }
+    .pmst-header-scrolled {
+      height: 3rem;
+    }
+    .pmst-logo-normal {
+      height: 5rem;
+      width: auto;
+      object-fit: contain;
+      transition: all 0.3s;
+    }
+    .pmst-logo-scrolled {
+      height: 2rem;
+      width: auto;
+      object-fit: contain;
+      transition: all 0.3s;
+    }
+    .pmst-nav-link-normal {
+      padding: 0.75rem 0.875rem;
+      color: #d1d5db;
+      transition: color 0.3s;
+      font-weight: 500;
+      text-transform: uppercase;
+      font-size: 0.875rem;
+      letter-spacing: 0.05em;
+    }
+    .pmst-nav-link-normal:hover {
+      color: #fe5252;
+    }
+    .pmst-nav-link-scrolled {
+      padding: 0.25rem 0.5rem;
+      color: #d1d5db;
+      transition: color 0.3s;
+      font-weight: 500;
+      text-transform: uppercase;
+      font-size: 0.75rem;
+      letter-spacing: 0.05em;
+    }
+    .pmst-nav-link-scrolled:hover {
+      color: #fe5252;
+    }
+    .pmst-nav-active {
+      color: #fe5252;
+    }
+    .pmst-auth-link-normal {
+      color: #f3f4f6;
+      padding: 0.75rem 1rem;
+      transition: all 0.3s;
+      font-size: 0.875rem;
+      font-weight: 500;
+    }
+    .pmst-auth-link-normal:hover {
+      color: #ff6b6b;
+    }
+    .pmst-auth-link-scrolled {
+      color: #f3f4f6;
+      padding: 0.25rem 0.5rem;
+      transition: all 0.3s;
+      font-size: 0.75rem;
+      font-weight: 500;
+    }
+    .pmst-auth-link-scrolled:hover {
+      color: #ff6b6b;
+    }
+    .pmst-btn-normal {
+      color: white;
+      padding: 0.625rem 1.25rem;
+      border-radius: 0.375rem;
+      font-weight: 600;
+      font-size: 0.875rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      transition: all 0.3s;
+      background: #fe5252;
+    }
+    .pmst-btn-normal:hover {
+      background: #ff6b6b;
+    }
+    .pmst-btn-scrolled {
+      color: white;
+      padding: 0.25rem 0.75rem;
+      border-radius: 0.375rem;
+      font-weight: 600;
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      transition: all 0.3s;
+      background: #fe5252;
+    }
+    .pmst-btn-scrolled:hover {
+      background: #ff6b6b;
+    }
+    .pmst-user-link {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.5rem 0.75rem;
+      border-radius: 0.5rem;
+      transition: background 0.3s;
+    }
+    .pmst-user-link:hover {
+      background: rgba(255, 255, 255, 0.1);
+    }
+    .pmst-avatar {
+      width: 2rem;
+      height: 2rem;
+      border-radius: 50%;
+      object-fit: cover;
+    }
+    .pmst-avatar-placeholder {
+      width: 2rem;
+      height: 2rem;
+      border-radius: 50%;
+      background: linear-gradient(to bottom right, #ef4444, #b91c1c);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-weight: 600;
+      font-size: 0.875rem;
+    }
+    .pmst-username-normal {
+      color: #d1d5db;
+      font-size: 0.875rem;
+      font-weight: 500;
+    }
+    .pmst-username-scrolled {
+      color: #d1d5db;
+      font-size: 0.75rem;
+      font-weight: 500;
+    }
+    .pmst-logout-btn {
+      color: #d1d5db;
+      padding: 0.25rem 0.5rem;
+      transition: color 0.3s;
+      font-size: 0.875rem;
+      font-weight: 500;
+    }
+    .pmst-logout-btn:hover {
+      color: #fe5252;
+    }
+    .pmst-menu-btn {
+      color: #d1d5db;
+    }
+    .pmst-menu-btn:hover {
+      color: #fe5252;
+    }
+    .pmst-mobile-nav-link {
+      padding: 0.5rem 0.75rem;
+      color: #d1d5db;
+      border-radius: 0.375rem;
+      font-weight: 500;
+      text-transform: uppercase;
+      font-size: 0.875rem;
+    }
+    .pmst-mobile-nav-link:hover {
+      color: #fe5252;
+    }
+    .pmst-mobile-auth-link {
+      padding: 0.5rem 0.75rem;
+      color: #d1d5db;
+      border-radius: 0.375rem;
+      font-size: 0.875rem;
+    }
+    .pmst-mobile-auth-link:hover {
+      color: #fe5252;
+    }
+    .pmst-mobile-btn {
+      padding: 0.5rem 0.75rem;
+      color: white;
+      border-radius: 0.375rem;
+      font-weight: 600;
+      font-size: 0.875rem;
+      text-transform: uppercase;
+      background: #fe5252;
+    }
+    .pmst-mobile-user-link {
+      padding: 0.5rem 0.75rem;
+      color: #d1d5db;
+      border-radius: 0.375rem;
+      font-size: 0.875rem;
+      font-weight: 500;
+    }
+    .pmst-mobile-user-link:hover {
+      color: #fe5252;
+    }
+    .pmst-mobile-logout-btn {
+      padding: 0.5rem 0.75rem;
+      color: #d1d5db;
+      border-radius: 0.375rem;
+      font-size: 0.875rem;
+      text-align: left;
+    }
+    .pmst-mobile-logout-btn:hover {
+      color: #fe5252;
+    }
+  `]
 })
 export class HeaderComponent implements OnInit {
   isMobileMenuOpen = signal(false);
   isScrolled = signal(false);
   
   private platformId = inject(PLATFORM_ID);
+  private authService = inject(AuthService);
+  private router = inject(Router);
+
+  readonly authenticated = computed(() => this.authService.authenticated());
+  readonly currentUser = computed(() => this.authService.user());
 
   ngOnInit(): void {
     if (isPlatformBrowser(this.platformId)) {
       // Check initial scroll position
-      this.isScrolled.set(window.scrollY > 50);
+      this.isScrolled.set(window.scrollY > 150);
     }
   }
 
@@ -109,8 +323,7 @@ export class HeaderComponent implements OnInit {
   onWindowScroll(): void {
     if (isPlatformBrowser(this.platformId)) {
       const scrollY = window.scrollY;
-      console.log('Scroll Y:', scrollY, 'isScrolled:', scrollY > 50);
-      this.isScrolled.set(scrollY > 50);
+      this.isScrolled.set(scrollY > 150);
     }
   }
 
@@ -120,5 +333,9 @@ export class HeaderComponent implements OnInit {
 
   closeMobileMenu(): void {
     this.isMobileMenuOpen.set(false);
+  }
+
+  logout(): void {
+    this.authService.logout();
   }
 }

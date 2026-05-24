@@ -15,6 +15,11 @@ export interface YoutubePlaylistResponse {
   items: YoutubeVideo[];
 }
 
+export interface YoutubeConfig {
+  playlistIds: string[];
+  playlistTitles: string[];
+}
+
 /**
  * YouTube Service
  * Calls backend /youtube/playlists endpoint, which proxies YouTube Data API v3.
@@ -57,5 +62,13 @@ export class YoutubeService {
     }
 
     return this.cache.get(cacheKey)!;
+  }
+
+  /**
+   * Fetch YouTube configuration (playlist IDs and titles) from backend.
+   * This allows updating playlists without code changes.
+   */
+  getConfig(): Observable<YoutubeConfig> {
+    return this.http.get<YoutubeConfig>(`${this.baseUrl}/config`);
   }
 }

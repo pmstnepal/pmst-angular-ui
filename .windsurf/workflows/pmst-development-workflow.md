@@ -221,6 +221,22 @@ User → Cognito Hosted UI / Amplify → Cognito User Pool → JWT Tokens
   4. No password hash migration needed (simpler, more secure)
 - **Alternative:** Seamless migration with Lambda trigger (validates old WP hash on first login)
 
+**User Profile Architecture:**
+- **Two-table approach** (matches WordPress pattern):
+  - `users` table: Auth data (id, cognito_id, email, username, role, status)
+  - `user_profiles` table: Profile data (user_id FK, display_name, bio, avatar_url, cover_photo_url)
+- **Why separate tables:**
+  - Clean separation of concerns (Cognito handles auth, PostgreSQL handles profile)
+  - Flexible schema (add profile fields without touching users table)
+  - Matches WordPress `wp_users` + `wp_usermeta` pattern
+  - Easier to cache profile data separately
+- **Backend merges them:** JPA `@OneToOne` relationship loads profile with user, `UserDto` returns merged data to frontend
+- **Frontend sees single object:** Angular receives complete user with displayName, avatarUrl, etc.
+- **Migration mapping:**
+  - `wp_users` → `users` (basic auth fields)
+  - `wp_usermeta` + `wp_pmst_author_profiles` → `user_profiles` (display_name, bio, avatar_url, cover_photo_url)
+  - Script `11_link_user_profiles_to_cognito.py` links migrated users to Cognito via email matching (JIT migration)
+
 **What Happens to jwt-token-api:**
 - **Retire it** — Archive the repo, migrate to Cognito
 - Cognito replaces all functionality with better security and features
@@ -304,7 +320,80 @@ CREATE TABLE pmst_follows (
 
 ---
 
-## Part 4: UI Component Architecture
+## Part 4: UI Design System
+
+### Color Palette (styles.scss CSS Variables)
+
+| Token | Value | Usage |
+|-------|-------|-------|
+| `--pmst-brand-color` | `#fe5252` | Accent, CTA buttons, icon highlights, tab text |
+| `--pmst-brand-hover` | `#ff6b6b` | Hover state for brand-color elements, card glow |
+| `--pmst-bg-light` | `#e5e7eb` | Section backgrounds, button backgrounds, card borders |
+| `--pmst-bg-darker` | `#d1d5db` | Active tab background, hero section background |
+| Primary text | `#4a4a6a` | All body text, titles, links — replaced `#1a1a2e` globally |
+
+> **Deprecated:** `#1a1a2e` — fully replaced with `#4a4a6a` throughout `styles.scss` and all component inline styles.
+
+### Hero Sections (.pmst-hero-lite)
+
+- **Background:** `#d1d5db` (--pmst-bg-darker), sticky `top: 70px`, `z-index: 100`
+- **Overlap:** `margin-bottom: -3rem` by default — overlaps content section below
+- **`.pmst-hero-no-overlap`** modifier: sets `margin-bottom: 0`
+- **Title:** `2rem`, weight 800, uppercase, color `#4a4a6a`
+- **Subtitle:** `1.25rem`, weight 700, italic, color `#fe5252` (hover: `#ff6b6b`)
+- **Transparent variant:** `.pmst-hero-transparent` — background transparent, title & sub both `#4a4a6a`
+- **CTA hero:** bold `#6b7280` text, links are text hyperlinks (no underline), color `#ff6b6b`, hover `#fe5252`
+- **Scroll threshold:** Header compact state triggers at **150px** scroll (prevents flickering)
+- **Header normal height:** `6.5rem`, logo `5rem`; Sign In button: no background, text `#f3f4f6`, hover `#ff6b6b`
+
+### Component Patterns
+
+**Buttons (`.pmst-btn-primary`):**
+- Background `#e5e7eb`, label `#ff6b6b`, border `1px solid #d1d5db`
+- Exception: "Join Now" CTA retains brand styling
+- On card hover: button color changes to `#fe5252`
+
+**Cards (`.pmst-card`, `.pmst-grid-item`):**
+- Text color `#4a4a6a`; hover: glow box-shadow `#ff6b6b`
+- Entire card is clickable (anchor wraps card)
+
+**Tabs (`.pmst-tab-btn`, `.pmst-tab`):**
+- Background `#e5e7eb`, text `#ff6b6b`, border `#d1d5db`
+- Active: background `#d1d5db`, text `#ff6b6b`
+- Used by: YouTube playlist, spotlight category tabs, search buttons
+
+**Search (`.pmst-gallery-search-form`):**
+- Input text `#4a4a6a`, border `#e5e7eb`
+- Button: background `#e5e7eb`, color `#ff6b6b`
+- Focus glow: `#ff6b6b` box-shadow
+- Backend gallery search supports: title, slug, description, author
+
+**Carousels (`.pmst-carousel-post`):** text `#4a4a6a`, scroll snap, hidden scrollbar, arrow nav matching tab style
+
+**Pagination (`.pmst-pagination`):** color `#4a4a6a`, background `var(--pmst-bg-light)`
+
+### Section Backgrounds
+
+| Section | Background |
+|---------|-----------|
+| Hero (all pages) | `#d1d5db` |
+| YouTube playlist | `#e5e7eb` |
+| Latest news | `#e5e7eb` |
+| Model & Gallery | `#e5e7eb` |
+| Showcase detail | `#e5e7eb` (5-column grid) |
+| Single post gallery | `#e5e7eb` (replaces blur) |
+| Featured image area | `#e5e7eb` (solid, replaces blur) |
+
+### CSS Architecture Rules
+
+- All shared styles in `src/styles.scss` — no duplicate classes in components
+- Component `styles: [...]` arrays only for component-specific layout, never for shared tokens
+- **Do NOT** use `@import` inside component styles arrays — causes Sass deprecation errors
+- Global classes from `styles.scss` are available in all components without import
+
+---
+
+## Part 4.5: UI Component Architecture
 
 ### Project Structure
 
@@ -340,7 +429,7 @@ frontend/src/app/
 | pmst-lightweight-youtube-playlists | VideoSectionComponent / YoutubePlaylistComponent | ✅ Created |
 | pmst-user-profile-header | ProfileHeaderComponent | ✅ Created |
 | pmst-follow-plugin | FollowButtonComponent | ✅ Created |
-| pmst-author-profile-card | AuthorProfileCardComponent | ⏳ In Progress |
+| pmst-author-profile-card | ProfileComponent, ProfileEditComponent | ✅ Completed |
 | pmst-post-carousel | PostCarouselComponent | ✅ Created |
 | pmst-social-embed-allow | Built into NewsDetailComponent | ✅ Built |
 | pmst-custom-single-post-template | NewsDetailComponent (WP replica) | ✅ Built |
@@ -1220,7 +1309,15 @@ All scripts read from `D:\pmst-migration\exports\` and write to RDS.
 8. migrate_comments.py           # wp_comments → comments
 9. migrate_follows.py            # wp_pmst_follows → follows (if table exists)
 10. migrate_article_meta.py      # wp_postmeta (youtube_link, image_upload, embed_code) → articles
+11. link_user_profiles_to_cognito.py  # Link migrated users to Cognito via email matching (JIT migration)
+12. seed_user_profiles.py        # Seed test user profiles for local development
 ```
+
+### Utility Scripts (optional)
+
+- `download_missing_gallery_images.py` - Download gallery images from WordPress attachment IDs
+- `check_users.py` - Verify users in database
+- `check_profiles.py` - Verify user profiles in database
 
 ### Key Transform Rules
 

@@ -142,7 +142,7 @@ export class LoginComponent {
 
     this.authService.login(this.credentials).subscribe({
       next: () => {
-        this.router.navigate(['/']);
+        this.router.navigate(['/dashboard']);
       },
       error: (err) => {
         this.loading.set(false);

@@ -1,11 +1,12 @@
-import { Component, Input, OnInit, signal, inject, PLATFORM_ID, ChangeDetectionStrategy, HostListener } from '@angular/core';
+import { Component, OnInit, signal, inject, PLATFORM_ID, ChangeDetectionStrategy, HostListener } from '@angular/core';
 import { isPlatformBrowser, DatePipe } from '@angular/common';
-import { RouterLink } from '@angular/router';
+import { RouterLink, ActivatedRoute } from '@angular/router';
 import { DomSanitizer, SafeHtml, SafeResourceUrl } from '@angular/platform-browser';
 import { CommentSectionComponent } from '../../shared/components/comments/comment-section.component';
 import { ArticleDetail, RelatedArticle } from '../../core/models';
 import { ArticleService } from '../../core/services/article.service';
 import { ImageUrlMapperService } from '../../services/image-url-mapper.service';
+import { UserInterestService } from '../../services/user-interest.service';
 
 @Component({
   selector: 'pmst-news-detail',
@@ -18,14 +19,14 @@ import { ImageUrlMapperService } from '../../services/image-url-mapper.service';
         <div class="pmst-skeleton-hero"></div>
         <div class="pmst-skeleton-title"></div>
         <div class="pmst-skeleton-line"></div>
-        <div class="pmst-skeleton-line" style="width:75%"></div>
+        <div class="pmst-skeleton-line pmst-skeleton-75"></div>
         <div class="pmst-skeleton-line"></div>
-        <div class="pmst-skeleton-line" style="width:85%"></div>
+        <div class="pmst-skeleton-line pmst-skeleton-85"></div>
       </div>
     } @else if (notFound()) {
-      <div class="pmst-post-container" style="text-align:center;padding:80px 40px;">
-        <h2 style="color:#FE5252;font-size:24px;">Article not found</h2>
-        <a routerLink="/news" style="color:#aaa;margin-top:20px;display:inline-block;">← Back to News</a>
+      <div class="pmst-post-container pmst-not-found">
+        <h2 class="pmst-not-found-title">Article not found</h2>
+        <a routerLink="/spotlight" class="pmst-back-link">← Back to Spotlight</a>
       </div>
     } @else {
       <div class="pmst-post-container">
@@ -49,9 +50,7 @@ import { ImageUrlMapperService } from '../../services/image-url-mapper.service';
               </iframe>
             </div>
           } @else if (article().featuredImage) {
-            <div class="pmst-featured-blur"
-                 [style.background-image]="'url(' + imageMapper.mapUrl(article().featuredImage) + ')'">
-            </div>
+            <div class="pmst-featured-blur"></div>
             <div class="pmst-featured-center">
               <img [src]="imageMapper.mapUrl(article().featuredImage)" [alt]="article().title" />
             </div>
@@ -74,8 +73,8 @@ import { ImageUrlMapperService } from '../../services/image-url-mapper.service';
 
         <!-- Social Media Embed -->
         @if (article().embedCode) {
-          <div style="margin:40px 0;">
-            <h3 style="color:#FE5252;font-size:20px;margin-bottom:15px;">📱 Social Media Highlight</h3>
+          <div class="pmst-social-section">
+            <h3 class="pmst-social-title">📱 Social Media Highlight</h3>
             <div class="pmst-social-embed-container">
               <div class="pmst-social-embed-wrapper" [innerHTML]="safeEmbedCode()"></div>
             </div>
@@ -85,7 +84,7 @@ import { ImageUrlMapperService } from '../../services/image-url-mapper.service';
         <!-- Gallery Grid with Lightbox -->
         @if (galleryUrls().length > 0) {
           <div class="pmst-gallery-section">
-            <h3 class="pmst-gallery-title">📸 Photo Gallery ({{ galleryUrls().length }} images)</h3>
+            <h3 class="pmst-gallery-title">Gallery ({{ galleryUrls().length }} images)</h3>
             
             <!-- Thumbnail Grid - Dynamic based on image count -->
             <div class="pmst-gallery-grid" [class]="'pmst-gallery-count-' + galleryUrls().length">
@@ -137,11 +136,11 @@ import { ImageUrlMapperService } from '../../services/image-url-mapper.service';
         <!-- Related Posts -->
         @if (relatedArticles().length > 0) {
           <div class="pmst-related-posts">
-            <h3>Related Posts</h3>
+            <h3>You might like it</h3>
             <ul>
               @for (rel of relatedArticles(); track rel.id) {
                 <li>
-                  <a [routerLink]="['/news', rel.slug]">{{ rel.title }}</a>
+                  <a routerLink="/news/{{ rel.slug }}">{{ rel.title }}</a>
                 </li>
               }
             </ul>
@@ -149,38 +148,82 @@ import { ImageUrlMapperService } from '../../services/image-url-mapper.service';
         }
 
         <!-- Back link -->
-        <div style="margin-top:30px;">
-          <a routerLink="/news" style="color:#FE5252;text-decoration:none;font-weight:600;">← Back to News</a>
+        <div class="pmst-back-section">
+          <a routerLink="/spotlight" class="pmst-back-link-primary">← Back to Spotlight</a>
         </div>
       </div>
 
       <!-- Comments -->
-      <div style="background:#1e1e1e;padding:0 40px 40px;">
+      <div class="pmst-comments-section">
         <pmst-comment-section [contentType]="'article'" [contentId]="article().id"></pmst-comment-section>
       </div>
     }
   `,
   styles: [`
     .pmst-post-container {
-      background: #1e1e1e;
-      color: #fff;
+      background: #ffffff;
+      color: #4a4a6a;
       padding: 40px;
       max-width: 1200px;
       margin: auto;
       border-radius: 10px;
     }
+    .pmst-not-found {
+      text-align: center;
+      padding: 80px 40px;
+    }
+    .pmst-not-found-title {
+      color: #fe5252;
+      font-size: 24px;
+    }
+    .pmst-back-link {
+      color: #6b7280;
+      margin-top: 20px;
+      display: inline-block;
+    }
+    .pmst-back-section {
+      margin-top: 30px;
+    }
+    .pmst-back-link-primary {
+      color: #fe5252;
+      text-decoration: none;
+      font-weight: 600;
+    }
+    .pmst-comments-section {
+      background: #f3f4f6;
+      padding: 0 40px 40px;
+    }
+    .pmst-social-section {
+      margin: 40px 0;
+    }
+    .pmst-social-title {
+      color: #fe5252;
+      font-size: 20px;
+      margin-bottom: 15px;
+    }
+    .pmst-ad {
+      display: block;
+    }
+    .pmst-skeleton-75 {
+      width: 75%;
+    }
+    .pmst-skeleton-85 {
+      width: 85%;
+    }
     .pmst-title {
       font-size: 32px;
       font-weight: bold;
       margin-bottom: 10px;
+      color: #4a4a6a;
     }
     .pmst-meta {
-      color: #aaa;
+      color: #6b7280;
       margin-bottom: 20px;
     }
     .pmst-content {
       line-height: 1.8;
       margin-bottom: 30px;
+      color: #4a4a6a;
     }
     .pmst-featured-wrapper {
       position: relative;
@@ -193,8 +236,7 @@ import { ImageUrlMapperService } from '../../services/image-url-mapper.service';
       position: absolute;
       top: 0; left: 0;
       width: 100%; height: 100%;
-      background-size: cover;
-      background-position: center;
+      background: #e5e7eb;
       filter: blur(20px);
       transform: scale(1.1);
     }
@@ -279,7 +321,7 @@ import { ImageUrlMapperService } from '../../services/image-url-mapper.service';
     /* Gallery Grid with Lightbox Styles */
     .pmst-gallery-section {
       margin: 40px 0;
-      background: #1a1a2e;
+      background: #e5e7eb;
       padding: 24px;
       border-radius: 16px;
     }
@@ -290,32 +332,29 @@ import { ImageUrlMapperService } from '../../services/image-url-mapper.service';
       text-align: center;
     }
     .pmst-gallery-grid {
-      display: grid;
+      display: flex;
       gap: 12px;
+      width: 100%;
     }
-    /* Dynamic grid layouts based on image count */
+    /* Dynamic sizing based on image count - all in one row */
     .pmst-gallery-grid.pmst-gallery-count-1 {
-      grid-template-columns: 1fr;
       max-width: 600px;
       margin: 0 auto;
     }
-    .pmst-gallery-grid.pmst-gallery-count-2 {
-      grid-template-columns: repeat(2, 1fr);
+    .pmst-gallery-grid.pmst-gallery-count-1 .pmst-gallery-item {
+      flex: 1;
     }
-    .pmst-gallery-grid.pmst-gallery-count-3 {
-      grid-template-columns: repeat(3, 1fr);
+    .pmst-gallery-grid.pmst-gallery-count-2 .pmst-gallery-item {
+      flex: 1;
     }
-    .pmst-gallery-grid.pmst-gallery-count-4 {
-      grid-template-columns: repeat(2, 1fr);
-    }
-    .pmst-gallery-grid.pmst-gallery-count-5,
-    .pmst-gallery-grid.pmst-gallery-count-6 {
-      grid-template-columns: repeat(3, 1fr);
-    }
-    .pmst-gallery-grid.pmst-gallery-count-7,
-    .pmst-gallery-grid.pmst-gallery-count-8,
-    .pmst-gallery-grid.pmst-gallery-count-9 {
-      grid-template-columns: repeat(3, 1fr);
+    .pmst-gallery-grid.pmst-gallery-count-3 .pmst-gallery-item,
+    .pmst-gallery-grid.pmst-gallery-count-4 .pmst-gallery-item,
+    .pmst-gallery-grid.pmst-gallery-count-5 .pmst-gallery-item,
+    .pmst-gallery-grid.pmst-gallery-count-6 .pmst-gallery-item,
+    .pmst-gallery-grid.pmst-gallery-count-7 .pmst-gallery-item,
+    .pmst-gallery-grid.pmst-gallery-count-8 .pmst-gallery-item,
+    .pmst-gallery-grid.pmst-gallery-count-9 .pmst-gallery-item {
+      flex: 1;
     }
     .pmst-gallery-item {
       position: relative;
@@ -426,26 +465,37 @@ import { ImageUrlMapperService } from '../../services/image-url-mapper.service';
       .pmst-featured-blur { display: none !important; }
       .pmst-featured-center img { max-width: 100%; max-height: 400px; }
       .pmst-title { font-size: 22px; }
-      .pmst-gallery-grid.pmst-gallery-count-1 { grid-template-columns: 1fr; }
-      .pmst-gallery-grid.pmst-gallery-count-2 { grid-template-columns: repeat(2, 1fr); }
-      .pmst-gallery-grid.pmst-gallery-count-3,
-      .pmst-gallery-grid.pmst-gallery-count-4,
-      .pmst-gallery-grid.pmst-gallery-count-5,
-      .pmst-gallery-grid.pmst-gallery-count-6 { grid-template-columns: repeat(2, 1fr); }
-      .pmst-gallery-grid.pmst-gallery-count-7,
-      .pmst-gallery-grid.pmst-gallery-count-8,
-      .pmst-gallery-grid.pmst-gallery-count-9 { grid-template-columns: repeat(3, 1fr); }
+      .pmst-gallery-grid {
+        flex-wrap: wrap;
+      }
+      .pmst-gallery-grid.pmst-gallery-count-1 .pmst-gallery-item {
+        flex: 1;
+      }
+      .pmst-gallery-grid.pmst-gallery-count-2 .pmst-gallery-item {
+        flex: 1;
+      }
+      .pmst-gallery-grid.pmst-gallery-count-3 .pmst-gallery-item,
+      .pmst-gallery-grid.pmst-gallery-count-4 .pmst-gallery-item,
+      .pmst-gallery-grid.pmst-gallery-count-5 .pmst-gallery-item,
+      .pmst-gallery-grid.pmst-gallery-count-6 .pmst-gallery-item {
+        flex: 1 1 calc(50% - 6px);
+      }
+      .pmst-gallery-grid.pmst-gallery-count-7 .pmst-gallery-item,
+      .pmst-gallery-grid.pmst-gallery-count-8 .pmst-gallery-item,
+      .pmst-gallery-grid.pmst-gallery-count-9 .pmst-gallery-item {
+        flex: 1 1 calc(33.333% - 8px);
+      }
       .pmst-gallery-section { padding: 16px; }
     }
   `]
 })
 export class NewsDetailComponent implements OnInit {
-  @Input() slug!: string;
-
+  private route = inject(ActivatedRoute);
   private articleService = inject(ArticleService);
   private sanitizer = inject(DomSanitizer);
   private platformId = inject(PLATFORM_ID);
   imageMapper = inject(ImageUrlMapperService);
+  private userInterestService = inject(UserInterestService);
 
   loading = signal(true);
   notFound = signal(false);
@@ -464,23 +514,28 @@ export class NewsDetailComponent implements OnInit {
   constructor() {
     this.googleAd = this.sanitizer.bypassSecurityTrustHtml(`
       <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-8768534328781288" crossorigin="anonymous"></script>
-      <ins class="adsbygoogle" style="display:block" data-ad-client="ca-pub-8768534328781288"
+      <ins class="adsbygoogle pmst-ad" data-ad-client="ca-pub-8768534328781288"
            data-ad-slot="6811674647" data-ad-format="auto" data-full-width-responsive="true"></ins>
       <script>(adsbygoogle = window.adsbygoogle || []).push({});</script>
     `);
   }
 
   ngOnInit(): void {
-    if (!this.slug) return;
-    this.loadArticle();
+    this.route.paramMap.subscribe(params => {
+      const slug = params.get('slug');
+      if (slug) {
+        this.loadArticle(slug);
+      }
+    });
   }
 
-  private loadArticle(): void {
+  private loadArticle(slug: string): void {
     this.loading.set(true);
-    this.articleService.getArticleBySlug(this.slug).subscribe({
+    this.articleService.getArticleBySlug(slug).subscribe({
       next: data => {
         this.article.set(data);
         this.loading.set(false);
+        this.userInterestService.trackArticleView(data.id, data.category);
         this.loadRelated(data.category);
         if (isPlatformBrowser(this.platformId)) {
           this.injectJsonLd(data);
@@ -494,15 +549,26 @@ export class NewsDetailComponent implements OnInit {
   }
 
   private loadRelated(category: string): void {
-    // Related articles - for now, fetch latest articles as fallback
-    this.articleService.getArticles(0, 4).subscribe({
-      next: res => this.relatedArticles.set(res.content.map(a => ({
-        id: a.id,
-        slug: a.slug,
-        title: a.title,
-        featuredImage: a.featuredImage,
-        publishedAt: a.publishedAt
-      }))),
+    const mostViewedCategory = this.userInterestService.getMostViewedCategory();
+    const currentArticleId = this.article().id;
+
+    // Use most-viewed category if available, otherwise use current article's category
+    const targetCategory = mostViewedCategory || category;
+
+    this.articleService.getArticles(0, 5, targetCategory).subscribe({
+      next: res => {
+        const related = res.content
+          .filter(a => a.id !== currentArticleId) // Exclude current article
+          .slice(0, 5) // Limit to 5
+          .map(a => ({
+            id: a.id,
+            slug: a.slug,
+            title: a.title,
+            featuredImage: a.featuredImage,
+            publishedAt: a.publishedAt
+          }));
+        this.relatedArticles.set(related);
+      },
       error: () => {}
     });
   }

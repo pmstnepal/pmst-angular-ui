@@ -1,6 +1,8 @@
-import { Component, Input, signal, ChangeDetectionStrategy } from '@angular/core';
+import { Component, Input, signal, ChangeDetectionStrategy, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { RouterLink } from '@angular/router';
+import { RouterLink, ActivatedRoute } from '@angular/router';
+import { UserService, UserDto } from '../../services/user.service';
+import { AuthService } from '../../core/services/auth.service';
 
 @Component({
   selector: 'pmst-profile',
@@ -20,8 +22,8 @@ import { RouterLink } from '@angular/router';
       } @else {
         <!-- Cover Photo -->
         <div class="relative h-48 md:h-72 bg-gradient-to-br from-purple-600 to-indigo-700">
-          @if (user().coverPhoto) {
-            <img [src]="user().coverPhoto" alt="Cover" class="w-full h-full object-cover">
+          @if (user().coverPhotoUrl) {
+            <img [src]="user().coverPhotoUrl" alt="Cover" class="w-full h-full object-cover">
           }
           <div class="absolute inset-0 bg-black/30"></div>
         </div>
@@ -32,22 +34,27 @@ import { RouterLink } from '@angular/router';
             <div class="flex flex-col md:flex-row items-center md:items-end gap-6">
               <!-- Avatar -->
               <div class="w-32 h-32 md:w-40 md:h-40 rounded-full border-4 border-white bg-gradient-to-br from-indigo-400 to-purple-500 flex items-center justify-center shadow-lg">
-                @if (user().avatar) {
-                  <img [src]="user().avatar" [alt]="user().displayName" class="w-full h-full rounded-full object-cover">
+                @if (user().avatarUrl) {
+                  <img [src]="user().avatarUrl" [alt]="user().displayName" class="w-full h-full rounded-full object-cover">
                 } @else {
-                  <span class="text-5xl md:text-6xl font-bold text-white">{{ user().displayName[0] }}</span>
+                  <span class="text-5xl md:text-6xl font-bold text-white">{{ user().displayName?.[0] || user().username?.[0] || '?' }}</span>
                 }
               </div>
 
               <!-- Info -->
               <div class="text-center md:text-left flex-1 mb-2">
-                <h1 class="text-2xl md:text-3xl font-bold text-gray-900">{{ user().displayName }}</h1>
+                <h1 class="text-2xl md:text-3xl font-bold text-gray-900">{{ user().displayName || user().username }}</h1>
                 <p class="text-gray-500">&#64;{{ user().username }}</p>
                 <p class="text-gray-600 mt-2">{{ user().bio }}</p>
                 <div class="flex flex-wrap justify-center md:justify-start gap-2 mt-3">
-                  @for (role of user().roles; track role) {
+                  @if (user().title) {
                     <span class="px-3 py-1 bg-indigo-100 text-indigo-700 rounded-full text-sm font-medium">
-                      {{ role }}
+                      {{ user().title }}
+                    </span>
+                  }
+                  @if (user().organization) {
+                    <span class="px-3 py-1 bg-purple-100 text-purple-700 rounded-full text-sm font-medium">
+                      {{ user().organization }}
                     </span>
                   }
                 </div>
@@ -74,30 +81,18 @@ import { RouterLink } from '@angular/router';
           <!-- Stats -->
           <div class="flex justify-center md:justify-start gap-8 py-6 border-y border-gray-200 mb-8">
             <div class="text-center">
-              <div class="text-2xl font-bold text-gray-900">{{ user().stats.followers | number }}</div>
+              <div class="text-2xl font-bold text-gray-900">0</div>
               <div class="text-sm text-gray-500">Followers</div>
             </div>
             <div class="text-center">
-              <div class="text-2xl font-bold text-gray-900">{{ user().stats.following | number }}</div>
+              <div class="text-2xl font-bold text-gray-900">0</div>
               <div class="text-sm text-gray-500">Following</div>
-            </div>
-            <div class="text-center">
-              <div class="text-2xl font-bold text-gray-900">{{ user().stats.photos }}</div>
-              <div class="text-sm text-gray-500">Photos</div>
             </div>
           </div>
 
           <!-- Content Tabs -->
           <div class="mb-8">
             <div class="flex border-b border-gray-200">
-              <button 
-                (click)="setTab('photos')"
-                [class.border-indigo-600]="activeTab() === 'photos'"
-                [class.text-indigo-600]="activeTab() === 'photos'"
-                class="px-6 py-3 font-medium border-b-2 border-transparent hover:text-indigo-600 transition-colors"
-              >
-                Photos
-              </button>
               <button 
                 (click)="setTab('about')"
                 [class.border-indigo-600]="activeTab() === 'about'"
@@ -118,48 +113,46 @@ import { RouterLink } from '@angular/router';
 
             <div class="py-8">
               @switch (activeTab()) {
-                @case ('photos') {
-                  <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                    @for (photo of photos(); track photo.id) {
-                      <div class="relative aspect-square rounded-lg overflow-hidden group cursor-pointer bg-gray-100">
-                        <div class="w-full h-full bg-gradient-to-br from-gray-200 to-gray-300"></div>
-                        <div class="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                          <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7"/>
-                          </svg>
-                        </div>
-                      </div>
-                    }
-                  </div>
-                }
                 @case ('about') {
                   <div class="max-w-2xl">
                     <h3 class="text-lg font-bold text-gray-900 mb-4">About</h3>
-                    <p class="text-gray-700 leading-relaxed mb-6">{{ user().bio }}</p>
+                    <p class="text-gray-700 leading-relaxed mb-6">{{ user().bio || 'No bio provided' }}</p>
                     
                     <h3 class="text-lg font-bold text-gray-900 mb-4">Contact Information</h3>
                     <div class="space-y-2 text-gray-700">
-                      <p><strong>Location:</strong> {{ user().location }}</p>
-                      <p><strong>Website:</strong> <a href="#" class="text-indigo-600 hover:text-indigo-700">{{ user().website }}</a></p>
-                      <p><strong>Email:</strong> <a href="mailto:{{ user().email }}" class="text-indigo-600 hover:text-indigo-700">{{ user().email }}</a></p>
+                      @if (user().title) {
+                        <p><strong>Title:</strong> {{ user().title }}</p>
+                      }
+                      @if (user().organization) {
+                        <p><strong>Organization:</strong> {{ user().organization }}</p>
+                      }
+                      @if (isOwnProfile() && user().email) {
+                        <p><strong>Email:</strong> <a href="mailto:{{ user().email }}" class="text-indigo-600 hover:text-indigo-700">{{ user().email }}</a></p>
+                      }
+                      @if (isOwnProfile() && user().phones) {
+                        <p><strong>Phone(s):</strong> {{ user().phones }}</p>
+                      }
+                      @if (user().addressStreet || user().addressCity || user().addressState || user().addressCountry) {
+                        <p><strong>Address:</strong> 
+                          @if (isOwnProfile()) {
+                            {{ [user().addressStreet, user().addressCity, user().addressState, user().addressCountry, user().addressPostal].filter(filterTruthy).join(', ') }}
+                          } @else {
+                            {{ [user().addressState, user().addressCountry].filter(filterTruthy).join(', ') }}
+                          }
+                        </p>
+                      }
+                      @if (user().websites) {
+                        <p><strong>Website(s):</strong> <a href="#" class="text-indigo-600 hover:text-indigo-700">{{ user().websites }}</a></p>
+                      }
+                      @if (user().socials) {
+                        <p><strong>Socials:</strong> <a href="#" class="text-indigo-600 hover:text-indigo-700">{{ user().socials }}</a></p>
+                      }
                     </div>
                   </div>
                 }
                 @case ('activity') {
-                  <div class="max-w-2xl space-y-4">
-                    @for (activity of activities(); track activity.id) {
-                      <div class="flex gap-4 p-4 bg-gray-50 rounded-lg">
-                        <div class="w-10 h-10 rounded-full bg-indigo-100 flex items-center justify-center flex-shrink-0">
-                          <svg class="w-5 h-5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
-                          </svg>
-                        </div>
-                        <div>
-                          <p class="text-gray-900">{{ activity.description }}</p>
-                          <p class="text-sm text-gray-500">{{ activity.time }}</p>
-                        </div>
-                      </div>
-                    }
+                  <div class="max-w-2xl">
+                    <p class="text-gray-500">Activities section - user's posts will appear here</p>
                   </div>
                 }
               }
@@ -171,70 +164,74 @@ import { RouterLink } from '@angular/router';
   `,
   styles: [``]
 })
-export class ProfileComponent {
+export class ProfileComponent implements OnInit {
   @Input() username!: string;
 
   loading = signal(true);
-  activeTab = signal<'photos' | 'about' | 'activity'>('photos');
+  activeTab = signal<'about' | 'activity'>('about');
   isOwnProfile = signal(false);
 
-  user = signal({
+  user = signal<UserDto>({
+    id: '',
+    cognitoId: '',
+    email: '',
     username: '',
     displayName: '',
     bio: '',
-    avatar: '',
-    coverPhoto: '',
-    location: '',
-    website: '',
-    email: '',
-    roles: [] as string[],
-    stats: {
-      followers: 0,
-      following: 0,
-      photos: 0
-    }
+    avatarUrl: '',
+    coverPhotoUrl: '',
+    title: '',
+    organization: '',
+    phones: '',
+    websites: '',
+    socials: '',
+    addressCountry: '',
+    addressState: '',
+    addressCity: '',
+    addressStreet: '',
+    addressPostal: '',
+    role: '',
+    status: ''
   });
 
-  photos = signal<{ id: string }[]>([]);
-  activities = signal<{ id: string; description: string; time: string }[]>([]);
+  constructor(
+    private route: ActivatedRoute,
+    private userService: UserService,
+    private authService: AuthService
+  ) {}
 
-  constructor() {
-    // Simulate loading user data
-    setTimeout(() => {
-      this.user.set({
-        username: 'priyasharma',
-        displayName: 'Priya Sharma',
-        bio: 'Professional model based in Kathmandu. Passionate about fashion, photography, and promoting Nepali talent globally. Available for bookings and collaborations.',
-        avatar: '',
-        coverPhoto: '',
-        location: 'Kathmandu, Nepal',
-        website: 'www.priyasharma.com',
-        email: 'contact@priyasharma.com',
-        roles: ['Model', 'Influencer'],
-        stats: {
-          followers: 12547,
-          following: 342,
-          photos: 48
-        }
-      });
-
-      this.photos.set([
-        { id: '1' }, { id: '2' }, { id: '3' }, { id: '4' },
-        { id: '5' }, { id: '6' }, { id: '7' }, { id: '8' }
-      ]);
-
-      this.activities.set([
-        { id: '1', description: 'Uploaded 3 new photos to portfolio', time: '2 hours ago' },
-        { id: '2', description: 'Commented on Anika\'s photo', time: '5 hours ago' },
-        { id: '3', description: 'Updated profile information', time: '1 day ago' },
-        { id: '4', description: 'Liked 12 photos', time: '2 days ago' }
-      ]);
-
-      this.loading.set(false);
-    }, 600);
+  ngOnInit(): void {
+    const usernameParam = this.route.snapshot.paramMap.get('username') || this.username;
+    
+    if (usernameParam) {
+      this.loadUserProfile(usernameParam);
+    }
   }
 
-  setTab(tab: 'photos' | 'about' | 'activity'): void {
+  private loadUserProfile(username: string): void {
+    this.userService.getUserByUsername(username).subscribe({
+      next: (userData) => {
+        this.user.set(userData);
+        this.checkIsOwnProfile();
+        this.loading.set(false);
+      },
+      error: (err) => {
+        console.error('Failed to load user profile:', err);
+        this.loading.set(false);
+      }
+    });
+  }
+
+  private checkIsOwnProfile(): void {
+    const currentUser = this.authService.user();
+    this.isOwnProfile.set(currentUser?.username === this.user().username);
+  }
+
+  setTab(tab: 'about' | 'activity'): void {
     this.activeTab.set(tab);
+  }
+
+  filterTruthy(value: string | undefined | null): boolean {
+    return !!value;
   }
 }

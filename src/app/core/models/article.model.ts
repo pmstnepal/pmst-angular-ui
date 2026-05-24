@@ -16,6 +16,7 @@ export interface Article {
   category: string;
   publishedAt: string;
   authorId?: string;
+  authorName?: string;
   status?: string;
 }
 
@@ -30,6 +31,7 @@ export interface NewsArticle {
   galleryImages?: string[];
   category: string;
   publishedAt: string;
+  authorName?: string;
 }
 
 export interface ArticleDetail {

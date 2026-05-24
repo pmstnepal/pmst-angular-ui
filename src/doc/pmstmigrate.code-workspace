@@ -1,0 +1,20 @@
+{
+	"folders": [
+		{
+			"path": "../.."
+		},
+		{
+			"path": "../../../pmst-services/pmst-api-service"
+		},
+		{
+			"path": "../../../pmstmigrateinfra"
+		},
+		{
+			"path": "../../../pmst-migration"
+		},
+		{
+			"path": "../../../wordpress/pmstusnepal-plugins"
+		}
+	],
+	"settings": {}
+}

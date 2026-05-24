@@ -24,28 +24,32 @@ export class ArticleService {
    * Get paginated articles with optional filtering
    * Uses shareReplay(1) to deduplicate concurrent requests
    */
-  getArticles(page = 0, size = 9, category?: string, sort = 'publishedAt,desc'): Observable<PageResponse<NewsArticle>> {
+  getArticles(page = 0, size = 9, category?: string, sort = 'publishedAt,desc', search?: string): Observable<PageResponse<NewsArticle>> {
     let params = new HttpParams()
       .set('page', page.toString())
       .set('size', size.toString())
       .set('sort', sort);
-    
+
     if (category && category !== 'All') {
       params = params.set('category', category.toLowerCase().replace(' ', '-'));
     }
 
-    const cacheKey = `articles-${page}-${size}-${category || 'all'}-${sort}`;
-    
+    if (search) {
+      params = params.set('search', search);
+    }
+
+    const cacheKey = `articles-${page}-${size}-${category || 'all'}-${sort}-${search || ''}`;
+
     if (!this.cache.has(cacheKey)) {
       const request$ = this.http.get<PageResponse<NewsArticle>>(this.baseUrl, { params })
         .pipe(shareReplay(1));
-      
+
       this.cache.set(cacheKey, request$);
-      
+
       // Auto-expire cache entry after TTL
       timer(this.CACHE_TTL).subscribe(() => this.cache.delete(cacheKey));
     }
-    
+
     return this.cache.get(cacheKey)!;
   }
 

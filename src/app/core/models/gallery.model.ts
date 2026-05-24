@@ -29,4 +29,5 @@ export interface GallerySummary {
   title: string;
   slug: string;
   featuredImage?: string;
+  authorName?: string;
 }

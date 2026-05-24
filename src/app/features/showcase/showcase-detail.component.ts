@@ -68,7 +68,7 @@ import { ImageUrlMapperService } from '../../services/image-url-mapper.service';
         </div>
 
         <!-- Gallery Grid -->
-        <div class="container mx-auto px-4 py-8">
+        <div class="container mx-auto px-4 py-12 gallery-grid-container">
           @if (gallery()!.images && gallery()!.images.length > 0) {
             <div class="gallery-grid">
               @for (image of gallery()!.images; track image.id; let i = $index) {
@@ -131,7 +131,7 @@ import { ImageUrlMapperService } from '../../services/image-url-mapper.service';
   styles: [`
     /* pmst_model_single_details - Plugin Styles */
     .pmst-model-single-wrapper {
-      background: #222;
+      background: #e5e7eb;
       padding: 40px 0;
     }
     .pmst-model-single-top {
@@ -172,16 +172,16 @@ import { ImageUrlMapperService } from '../../services/image-url-mapper.service';
       text-transform: uppercase;
       font-weight: 800;
       margin-bottom: 10px;
-      color: #fff;
+      color: #4a4a6a;
       line-height: 1.2;
     }
     .pmst-posted-by {
-      color: #aaa;
+      color: #4a4a6a;
       font-size: 14px;
       margin-bottom: 20px;
     }
     .pmst-posted-by strong {
-      color: #fff;
+      color: #4a4a6a;
       font-weight: 600;
     }
     .pmst-posted-by em {
@@ -190,12 +190,12 @@ import { ImageUrlMapperService } from '../../services/image-url-mapper.service';
     .pmst-gallery-info-heading {
       font-size: 18px;
       margin-bottom: 8px;
-      color: #fff;
+      color: #4a4a6a;
       font-weight: 600;
     }
     .pmst-model-description {
       font-size: 16px;
-      color: #ccc;
+      color: #4a4a6a;
       margin-bottom: 25px;
       line-height: 1.6;
     }
@@ -229,6 +229,15 @@ import { ImageUrlMapperService } from '../../services/image-url-mapper.service';
       .gallery-grid {
         grid-template-columns: repeat(3, 1fr);
       }
+    }
+    @media (min-width: 1024px) {
+      .gallery-grid {
+        grid-template-columns: repeat(5, 1fr);
+      }
+    }
+    .gallery-grid-container {
+      margin-top: 2rem;
+      margin-bottom: 2rem;
     }
     .gallery-item {
       aspect-ratio: 1;
