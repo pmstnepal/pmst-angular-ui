@@ -1,0 +1,22 @@
+# ═══════════════════════════════════════════════════════════════════════════
+#  Frontend deployment config for ALL environments (single source of truth).
+#  CI picks the block matching the branch: test → test, main → prod.
+#  apiUrl/cfDomain are injected into the Angular environment file at build time.
+# ═══════════════════════════════════════════════════════════════════════════
+test:
+  bucket: pmst-test-frontend
+  buildConfiguration: test
+  envFile: src/environments/environment.test.ts
+  production: false
+  apiUrl: "https://REPLACE_WITH_TEST_API.execute-api.us-east-1.amazonaws.com"
+  cfDomain: "https://REPLACE_WITH_TEST_CF.cloudfront.net"
+  region: us-east-1
+
+prod:
+  bucket: pmst-prod-frontend
+  buildConfiguration: production
+  envFile: src/environments/environment.prod.ts
+  production: true
+  apiUrl: "https://api.pmstusnepal.com/v1"
+  cfDomain: "https://pmstusnepal.com"
+  region: us-east-1

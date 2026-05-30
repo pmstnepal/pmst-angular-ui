@@ -109,6 +109,9 @@
                 <button onclick="showTab('deploy')" class="tab-btn px-4 py-2 rounded-lg text-sm font-medium transition-colors hover:bg-gray-100 text-gray-600" data-tab="deploy">
                     <i data-lucide="rocket" class="w-4 h-4 inline mr-1"></i>Deploy
                 </button>
+                <button onclick="showTab('cicd')" class="tab-btn px-4 py-2 rounded-lg text-sm font-medium transition-colors hover:bg-gray-100 text-gray-600" data-tab="cicd">
+                    <i data-lucide="git-merge" class="w-4 h-4 inline mr-1"></i>CICD Strategy
+                </button>
             </div>
         </div>
     </nav>
@@ -3173,8 +3176,494 @@ Protected (writes, /auth/me, /users/**): COGNITO_USER_POOLS</div>
 
         <!-- Tab: Deploy -->
         <div id="tab-deploy" class="tab-content">
-            <h2 class="text-2xl font-bold text-gray-800 mb-2">Production Deployment — Before / During / After</h2>
-            <p class="text-gray-600 mb-6">Full deployment safety checklist covering Flyway DB migrations, deployment order, live monitoring, and rollback procedures.</p>
+            <h2 class="text-2xl font-bold text-gray-800 mb-2">AWS Deployment Guide</h2>
+            <p class="text-gray-600 mb-6">First-time AWS setup → Branch-driven test/prod deploys. See the <button onclick="showTab('cicd')" class="text-indigo-600 hover:text-indigo-800 font-medium underline">CICD Strategy</button> tab for the branch model.</p>
+
+            <!-- Branch-driven model banner -->
+            <div class="bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-xl shadow-lg p-6 mb-8">
+                <div class="flex items-start gap-4">
+                    <i data-lucide="git-merge" class="w-8 h-8 flex-shrink-0"></i>
+                    <div>
+                        <h3 class="text-lg font-bold mb-1">Branch-Driven Deployment</h3>
+                        <p class="text-sm text-indigo-100 mb-3">One <code class="bg-white/20 px-1 rounded">deploy/</code> folder per repo holds all env config. The branch you merge into picks the environment automatically.</p>
+                        <div class="flex flex-wrap gap-3 text-sm">
+                            <span class="bg-white/20 px-3 py-1 rounded-full">Merge → <b>test</b> = TEST env (<code>deploy/test.tfvars</code>)</span>
+                            <span class="bg-white/20 px-3 py-1 rounded-full">Merge → <b>main</b> = PROD env (<code>deploy/prod.tfvars</code>)</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TEST quick path -->
+            <div class="bg-white border border-gray-200 rounded-xl p-5 mb-8">
+                <h3 class="font-bold text-gray-800 mb-3 flex items-center gap-2">
+                    <i data-lucide="flask-conical" class="w-5 h-5 text-emerald-600"></i> TEST quick path (manual, from laptop)
+                </h3>
+                <div class="bg-gray-900 text-green-400 rounded-lg p-4 text-xs font-mono overflow-x-auto">
+                    <div class="text-gray-400"># pmst-terraform-infra</div>
+                    <div>$env:TF_VAR_db_password = "YOUR_TEST_PW"</div>
+                    <div>terraform init -backend-config=deploy/backend-test.hcl</div>
+                    <div>terraform apply -var-file=deploy/test.tfvars -auto-approve</div>
+                    <div>terraform output -raw cloudfront_domain_name   <span class="text-gray-400"># test URL</span></div>
+                    <div class="text-gray-400 mt-2"># tear down (clean in test mode)</div>
+                    <div>terraform destroy -var-file=deploy/test.tfvars -auto-approve</div>
+                </div>
+                <p class="text-xs text-gray-500 mt-2">Full step-by-step (deploy → migrate → smoke test → destroy) lives in <code>src/doc/todaydeploy.md</code>.</p>
+            </div>
+
+            <!-- FIRST TIME SETUP -->
+            <div class="mb-10">
+                <h3 class="text-xl font-bold text-indigo-700 mb-4 flex items-center gap-2">
+                    <i data-lucide="settings" class="w-5 h-5"></i> Phase 0: First-Time AWS Setup (Run Once)
+                </h3>
+                <p class="text-sm text-gray-600 mb-4">Complete these steps to bootstrap AWS infrastructure and enable CI/CD. Estimated time: 2-3 hours.</p>
+
+                <!-- Prerequisites -->
+                <div class="bg-indigo-50 border border-indigo-200 rounded-xl p-5 mb-5">
+                    <h4 class="font-bold text-indigo-800 mb-3 flex items-center gap-2">
+                        <i data-lucide="alert-circle" class="w-4 h-4"></i> Prerequisites
+                    </h4>
+                    <div class="grid md:grid-cols-2 gap-4 text-sm">
+                        <div class="space-y-2">
+                            <div class="flex items-start gap-2"><span class="text-indigo-500 mt-0.5">☐</span><span>AWS Account ID (12-digit)</span></div>
+                            <div class="flex items-start gap-2"><span class="text-indigo-500 mt-0.5">☐</span><span>AWS CLI installed and configured</span></div>
+                            <div class="flex items-start gap-2"><span class="text-indigo-500 mt-0.5">☐</span><span>GitHub access to all 3 repos</span></div>
+                        </div>
+                        <div class="space-y-2">
+                            <div class="flex items-start gap-2"><span class="text-indigo-500 mt-0.5">☐</span><span>Strong DB password ready (16+ chars)</span></div>
+                            <div class="flex items-start gap-2"><span class="text-indigo-500 mt-0.5">☐</span><span>Local builds working (npm, mvn)</span></div>
+                            <div class="flex items-start gap-2"><span class="text-indigo-500 mt-0.5">☐</span><span>Terraform installed (v1.6+)</span></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Step 1: Bootstrap -->
+                <div class="bg-white border border-gray-200 rounded-xl p-5 mb-5">
+                    <h4 class="font-bold text-gray-800 mb-3 flex items-center gap-2">
+                        <span class="bg-indigo-600 text-white w-6 h-6 rounded-full flex items-center justify-center text-sm font-bold">1</span>
+                        Bootstrap Terraform Backend + OIDC
+                    </h4>
+                    <div class="bg-gray-900 text-green-400 rounded-lg p-4 text-xs font-mono overflow-x-auto">
+                        <div class="text-gray-400 mb-2"># Step 1.1: Create S3 bucket for Terraform state</div>
+                        <div>aws s3 mb s3://pmst-terraform-state --region us-east-1</div>
+                        <div class="text-gray-400 mt-1">aws s3api put-bucket-versioning --bucket pmst-terraform-state --versioning-configuration Status=Enabled</div>
+                        <div class="text-gray-400 mt-1">aws s3api put-public-access-block --bucket pmst-terraform-state --public-access-block-configuration "BlockPublicAcls=true,IgnorePublicAcls=true,BlockPublicPolicy=true,RestrictPublicBuckets=true"</div>
+                        <div class="text-gray-400 mb-2 mt-3"># Step 1.2: Create DynamoDB lock table</div>
+                        <div>aws dynamodb create-table --table-name pmst-terraform-locks --attribute-definitions AttributeName=LockID,AttributeType=S --key-schema AttributeName=LockID,KeyType=HASH --billing-mode PAY_PER_REQUEST --region us-east-1</div>
+                        <div class="text-gray-400 mb-2 mt-3"># Step 1.3: Create OIDC provider for GitHub Actions</div>
+                        <div>aws iam create-open-id-connect-provider --url https://token.actions.githubusercontent.com --client-id-list sts.amazonaws.com --thumbprint-list 6938fd4d98bab03faadb97b34396831e3780aea1</div>
+                    </div>
+                </div>
+
+                <!-- Step 2: IAM Roles -->
+                <div class="bg-white border border-gray-200 rounded-xl p-5 mb-5">
+                    <h4 class="font-bold text-gray-800 mb-3 flex items-center gap-2">
+                        <span class="bg-indigo-600 text-white w-6 h-6 rounded-full flex items-center justify-center text-sm font-bold">2</span>
+                        Create IAM Roles for GitHub Actions (No Static Keys!)
+                    </h4>
+                    <div class="grid md:grid-cols-2 gap-4">
+                        <div class="bg-blue-50 rounded-lg p-4">
+                            <h5 class="font-semibold text-blue-800 mb-2 text-sm">Role 1: Terraform</h5>
+                            <p class="text-xs text-gray-600 mb-2">Used by: <code class="bg-white px-1 rounded">pmst-terraform-infra</code></p>
+                            <div class="bg-gray-900 text-green-400 rounded p-2 text-xs font-mono overflow-x-auto">
+                                <div class="text-gray-400"># Create role (replace YOUR_ACCOUNT_ID)</div>
+                                <div>aws iam create-role --role-name pmst-github-actions-terraform --assume-role-policy-document '{...}'</div>
+                                <div class="mt-1">aws iam attach-role-policy --role-name pmst-github-actions-terraform --policy-arn arn:aws:iam::aws:policy/AdministratorAccess</div>
+                            </div>
+                        </div>
+                        <div class="bg-green-50 rounded-lg p-4">
+                            <h5 class="font-semibold text-green-800 mb-2 text-sm">Role 2: Deploy</h5>
+                            <p class="text-xs text-gray-600 mb-2">Used by: <code class="bg-white px-1 rounded">pmst-api-service</code>, <code class="bg-white px-1 rounded">pmst-angular-ui</code></p>
+                            <div class="bg-gray-900 text-green-400 rounded p-2 text-xs font-mono overflow-x-auto">
+                                <div class="text-gray-400"># Create role with S3 + Lambda + CloudFront + ECR</div>
+                                <div>aws iam create-role --role-name pmst-github-actions-deploy --assume-role-policy-document '{...}'</div>
+                                <div class="mt-1 text-gray-400"># Attach policies: S3Full, LambdaFull, CF_Full, ECR_Full</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Step 3: GitHub Secrets -->
+                <div class="bg-white border border-gray-200 rounded-xl p-5 mb-5">
+                    <h4 class="font-bold text-gray-800 mb-3 flex items-center gap-2">
+                        <span class="bg-indigo-600 text-white w-6 h-6 rounded-full flex items-center justify-center text-sm font-bold">3</span>
+                        Configure GitHub Secrets
+                    </h4>
+                    <div class="bg-green-50 border border-green-200 rounded-lg p-3 mb-3 text-sm">
+                        <strong class="text-green-800">✅ Workflow Updated:</strong> <code class="bg-white px-1 rounded">deploy-frontend-prod.yml</code> now uses OIDC (no static AWS keys required)
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full text-sm border border-gray-200 rounded-lg">
+                            <thead class="bg-gray-50"><tr>
+                                <th class="px-3 py-2 text-left text-gray-600 font-semibold">Repository</th>
+                                <th class="px-3 py-2 text-left text-gray-600 font-semibold">Secret</th>
+                                <th class="px-3 py-2 text-left text-gray-600 font-semibold">Value</th>
+                            </tr></thead>
+                            <tbody class="divide-y divide-gray-100">
+                                <tr class="bg-blue-50"><td class="px-3 py-2 font-mono text-xs" rowspan="3">pmst-terraform-infra</td><td class="px-3 py-2 font-mono text-xs">AWS_ACCOUNT_ID</td><td class="px-3 py-2 text-xs">Your 12-digit AWS Account ID</td></tr>
+                                <tr class="bg-blue-50"><td class="px-3 py-2 font-mono text-xs">TF_VAR_DB_PASSWORD</td><td class="px-3 py-2 text-xs">Strong RDS password</td></tr>
+                                <tr class="bg-blue-50"><td class="px-3 py-2 font-mono text-xs">TF_VAR_ACM_CERT_ARN</td><td class="px-3 py-2 text-xs"><code class="bg-amber-100 px-1 rounded">PLACEHOLDER</code> (for test deploy)</td></tr>
+                                <tr class="bg-green-50"><td class="px-3 py-2 font-mono text-xs" rowspan="2">pmst-api-service</td><td class="px-3 py-2 font-mono text-xs">AWS_ACCOUNT_ID</td><td class="px-3 py-2 text-xs">Your 12-digit AWS Account ID</td></tr>
+                                <tr class="bg-green-50"><td class="px-3 py-2 font-mono text-xs">(GitHub Variables)</td><td class="px-3 py-2 text-xs"><code class="bg-gray-100 px-1 rounded">FRONTEND_BUCKET</code>, <code class="bg-gray-100 px-1 rounded">CF_DISTRIBUTION_ID</code></td></tr>
+                                <tr><td class="px-3 py-2 font-mono text-xs" rowspan="2">pmst-angular-ui</td><td class="px-3 py-2 font-mono text-xs">AWS_ACCOUNT_ID</td><td class="px-3 py-2 text-xs">Your 12-digit AWS Account ID</td></tr>
+                                <tr><td class="px-3 py-2 text-xs" colspan="2"><span class="text-green-600 font-semibold">✅ Uses OIDC - no static AWS keys needed</span></td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TEST DEPLOYMENT -->
+            <div class="mb-10">
+                <h3 class="text-xl font-bold text-amber-700 mb-4 flex items-center gap-2">
+                    <i data-lucide="test-tube" class="w-5 h-5"></i> Phase 1: Test Deployment (No Custom Domain)
+                </h3>
+                <p class="text-sm text-gray-600 mb-4">Deploy to a temporary CloudFront URL first. Verify everything works before connecting pmstusnepal.com.</p>
+
+                <div class="bg-amber-50 border border-amber-200 rounded-xl p-5 mb-5">
+                    <h4 class="font-bold text-amber-800 mb-3">Terraform Apply (Test Mode)</h4>
+                    <div class="bg-gray-900 text-green-400 rounded-lg p-4 text-xs font-mono overflow-x-auto mb-3">
+                        <div class="text-gray-400"># Run from pmst-terraform-infra directory</div>
+                        <div>cd environments/prod</div>
+                        <div class="mt-2">terraform init</div>
+                        <div class="mt-1 text-gray-400"># Plan with placeholder cert (CloudFront uses default domain)</div>
+                        <div>terraform plan -var="db_password=YOUR_PASSWORD" -var="acm_certificate_arn=arn:aws:acm:us-east-1:ACCOUNT:placeholder" -out=tfplan</div>
+                        <div class="mt-1 text-gray-400"># Apply (takes 20-30 minutes)</div>
+                        <div>terraform apply tfplan</div>
+                    </div>
+                    <div class="bg-white rounded-lg p-3 text-sm">
+                        <strong class="text-amber-800">Save these outputs:</strong>
+                        <div class="grid md:grid-cols-3 gap-2 mt-2 text-xs font-mono">
+                            <div><code class="bg-gray-100 px-1 rounded">cloudfront_domain_name</code> → <span class="text-green-600">xxxx.cloudfront.net</span></div>
+                            <div><code class="bg-gray-100 px-1 rounded">api_gateway_endpoint</code> → API URL</div>
+                            <div><code class="bg-gray-100 px-1 rounded">cognito_user_pool_id</code> → Pool ID</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="grid md:grid-cols-2 gap-4">
+                    <div class="bg-white border border-gray-200 rounded-xl p-5">
+                        <h4 class="font-bold text-gray-800 mb-3">Deploy API Service</h4>
+                        <div class="bg-gray-900 text-green-400 rounded-lg p-3 text-xs font-mono overflow-x-auto">
+                            <div>cd pmst-api-service</div>
+                            <div class="mt-1">mvn clean package -DskipTests</div>
+                            <div class="mt-1">aws s3 cp target/pmst-api-service-1.0.0-lambda.jar s3://pmst-terraform-state/deployments/</div>
+                            <div class="mt-1">aws lambda update-function-code --function-name pmst-prod-pmst-api-service --s3-bucket pmst-terraform-state --s3-key deployments/pmst-api-service-latest.jar</div>
+                            <div class="mt-1">aws lambda publish-version --function-name pmst-prod-pmst-api-service</div>
+                        </div>
+                    </div>
+                    <div class="bg-white border border-gray-200 rounded-xl p-5">
+                        <h4 class="font-bold text-gray-800 mb-3">Deploy Angular</h4>
+                        <div class="bg-gray-900 text-green-400 rounded-lg p-3 text-xs font-mono overflow-x-auto">
+                            <div>cd pmst-angular-ui</div>
+                            <div class="mt-1">npm ci && npm run build:prod</div>
+                            <div class="mt-1 text-gray-400"># Sync to S3 (cached assets)</div>
+                            <div>aws s3 sync dist/browser/ s3://BUCKET --delete --cache-control "public, max-age=31536000" --exclude "*.html"</div>
+                            <div class="mt-1 text-gray-400"># Sync HTML files (no cache)</div>
+                            <div>aws s3 sync dist/browser/ s3://BUCKET --delete --cache-control "no-cache" --include "*.html"</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- PROD CUTOVER -->
+            <div class="mb-10">
+                <h3 class="text-xl font-bold text-green-700 mb-4 flex items-center gap-2">
+                    <i data-lucide="globe" class="w-5 h-5"></i> Phase 2: Production Domain Cutover
+                </h3>
+                
+                <div class="bg-green-50 border border-green-200 rounded-xl p-5 mb-5">
+                    <h4 class="font-bold text-green-800 mb-3">Step 2.1: Request SSL Certificate</h4>
+                    <div class="bg-gray-900 text-green-400 rounded-lg p-3 text-xs font-mono overflow-x-auto mb-3">
+                        <div>aws acm request-certificate --domain-name pmstusnepal.com --subject-alternative-names "www.pmstusnepal.com" --validation-method DNS --region us-east-1</div>
+                    </div>
+                    <p class="text-sm text-gray-700">Get CNAME validation records and add to Hostinger DNS. Wait for certificate status: <code class="bg-white px-1 rounded">ISSUED</code></p>
+                </div>
+
+                <div class="bg-white border border-gray-200 rounded-xl p-5 mb-5">
+                    <h4 class="font-bold text-gray-800 mb-3">Step 2.2: Re-run Terraform with Real Certificate</h4>
+                    <div class="bg-gray-900 text-green-400 rounded-lg p-3 text-xs font-mono overflow-x-auto">
+                        <div>terraform apply -var="db_password=PASSWORD" -var="acm_certificate_arn=arn:aws:acm:us-east-1:ACCOUNT:certificate/REAL_ARN"</div>
+                    </div>
+                </div>
+
+                <div class="bg-red-50 border border-red-200 rounded-xl p-5">
+                    <h4 class="font-bold text-red-800 mb-3 flex items-center gap-2">
+                        <i data-lucide="alert-triangle" class="w-4 h-4"></i> Step 2.3: DNS Cutover (Rollback Ready!)
+                    </h4>
+                    <div class="overflow-x-auto mb-3">
+                        <table class="min-w-full text-sm border border-red-200 rounded-lg">
+                            <thead class="bg-red-100"><tr>
+                                <th class="px-3 py-2 text-left text-red-800 font-semibold">Record</th>
+                                <th class="px-3 py-2 text-left text-red-800 font-semibold">Old Value (Hostinger)</th>
+                                <th class="px-3 py-2 text-left text-red-800 font-semibold">New Value (CloudFront)</th>
+                            </tr></thead>
+                            <tbody class="divide-y divide-red-100 bg-white">
+                                <tr><td class="px-3 py-2 font-mono text-xs">A (pmstusnepal.com)</td><td class="px-3 py-2 text-xs">46.202.182.16</td><td class="px-3 py-2 text-xs font-bold text-green-600">xxxx.cloudfront.net</td></tr>
+                                <tr><td class="px-3 py-2 font-mono text-xs">AAAA (pmstusnepal.com)</td><td class="px-3 py-2 text-xs">2a02:4780:2b:1870:0:1137:670d:d</td><td class="px-3 py-2 text-xs font-bold text-green-600">CloudFront IPv6</td></tr>
+                                <tr><td class="px-3 py-2 font-mono text-xs">CNAME (www)</td><td class="px-3 py-2 text-xs">pmstusnepal.com</td><td class="px-3 py-2 text-xs font-bold text-green-600">xxxx.cloudfront.net</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <p class="text-sm text-red-700 font-medium">⚠️ Lower TTL to 300 seconds 24 hours before cutover. Rollback time: 5 minutes by switching back to Hostinger IP.</p>
+                </div>
+            </div>
+
+            <!-- DEPLOYMENT LIFECYCLE -->
+            <div class="mb-10">
+                <h3 class="text-xl font-bold text-indigo-700 mb-4 flex items-center gap-2">
+                    <i data-lucide="repeat" class="w-5 h-5"></i> Deployment Lifecycle (Create / Destroy / Recreate)
+                </h3>
+
+                <!-- Data Source Info -->
+                <div class="bg-indigo-50 border border-indigo-200 rounded-xl p-5 mb-5">
+                    <h4 class="font-bold text-indigo-800 mb-3 flex items-center gap-2">
+                        <i data-lucide="database" class="w-4 h-4"></i> Data Source (Local - No Live WordPress Connection)
+                    </h4>
+                    <div class="grid md:grid-cols-2 gap-4 text-sm">
+                        <div class="bg-white rounded-lg p-3">
+                            <h5 class="font-semibold text-gray-800 mb-2">CSV Exports</h5>
+                            <p class="text-gray-600 mb-2">Location: <code class="bg-gray-100 px-1 rounded">d:\pmst-migration\exports\</code></p>
+                            <ul class="text-xs text-gray-500 space-y-1">
+                                <li>• wp_users.csv (18 users)</li>
+                                <li>• wp_posts.csv (all articles)</li>
+                                <li>• wp_comments.csv (comments)</li>
+                                <li>• wp_terms.csv (tags)</li>
+                                <li>• Plus 8 more CSV files</li>
+                            </ul>
+                        </div>
+                        <div class="bg-white rounded-lg p-3">
+                            <h5 class="font-semibold text-gray-800 mb-2">Images</h5>
+                            <p class="text-gray-600 mb-2">Location: <code class="bg-gray-100 px-1 rounded">uploads-extracted\</code></p>
+                            <ul class="text-xs text-gray-500 space-y-1">
+                                <li>• ~3,337 images</li>
+                                <li>• ~5.5GB total size</li>
+                                <li>• From uploads.zip</li>
+                                <li>• Ready for S3 upload</li>
+                            </ul>
+                        </div>
+                    </div>
+                    <p class="text-sm text-indigo-700 mt-3"><strong>✅ Key Point:</strong> No connection to live WordPress needed. All data already exported locally.</p>
+                </div>
+
+                <!-- Visual Flow -->
+                <div class="grid md:grid-cols-3 gap-4 mb-5">
+                    <!-- DEPLOY -->
+                    <div class="bg-green-50 border border-green-200 rounded-xl p-4">
+                        <h4 class="font-bold text-green-800 mb-3 flex items-center gap-2">
+                            <span class="bg-green-600 text-white w-6 h-6 rounded-full flex items-center justify-center text-sm">1</span>
+                            DEPLOY (Create)
+                        </h4>
+                        <div class="space-y-2 text-xs">
+                            <div class="flex items-center gap-2">
+                                <span class="text-green-500">✓</span>
+                                <span>Terraform creates infrastructure</span>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <span class="text-green-500">✓</span>
+                                <span><code class="bg-white px-1 rounded">run_all_migrations.py</code></span>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <span class="text-green-500">✓</span>
+                                <span>CSV → RDS (all tables)</span>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <span class="text-green-500">✓</span>
+                                <span>Images → S3 (with tiers)</span>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <span class="text-green-500">✓</span>
+                                <span>Deploy apps (Lambda + S3)</span>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <span class="text-green-500">✓</span>
+                                <span>Test on CloudFront URL</span>
+                            </div>
+                        </div>
+                        <div class="mt-3 pt-3 border-t border-green-200 text-xs">
+                            <strong>Time:</strong> 2-3 hours<br>
+                            <strong>Cost:</strong> $50-100 first month
+                        </div>
+                    </div>
+
+                    <!-- DESTROY -->
+                    <div class="bg-red-50 border border-red-200 rounded-xl p-4">
+                        <h4 class="font-bold text-red-800 mb-3 flex items-center gap-2">
+                            <span class="bg-red-600 text-white w-6 h-6 rounded-full flex items-center justify-center text-sm">2</span>
+                            DESTROY (Delete)
+                        </h4>
+                        <div class="space-y-2 text-xs">
+                            <div class="flex items-center gap-2">
+                                <span class="text-red-500">⚠️</span>
+                                <span>Create RDS snapshot (optional)</span>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <span class="text-red-500">⚠️</span>
+                                <span>Empty S3 buckets (required)</span>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <span class="text-red-500">⚠️</span>
+                                <span>Delete ECR images (required)</span>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <span class="text-red-500">⚠️</span>
+                                <span><code class="bg-white px-1 rounded">terraform destroy</code></span>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <span class="text-red-500">⚠️</span>
+                                <span>Verify all resources deleted</span>
+                            </div>
+                        </div>
+                        <div class="mt-3 pt-3 border-t border-red-200 text-xs">
+                            <strong>Time:</strong> 15-30 minutes<br>
+                            <strong>Cost:</strong> $0
+                        </div>
+                    </div>
+
+                    <!-- RECREATE -->
+                    <div class="bg-amber-50 border border-amber-200 rounded-xl p-4">
+                        <h4 class="font-bold text-amber-800 mb-3 flex items-center gap-2">
+                            <span class="bg-amber-600 text-white w-6 h-6 rounded-full flex items-center justify-center text-sm">3</span>
+                            RECREATE
+                        </h4>
+                        <div class="space-y-2 text-xs">
+                            <div class="flex items-center gap-2">
+                                <span class="text-amber-500">🔄</span>
+                                <span>Run DESTROY steps</span>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <span class="text-amber-500">🔄</span>
+                                <span>Run DEPLOY steps</span>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <span class="text-amber-500">🔄</span>
+                                <span>Fresh data from CSV</span>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <span class="text-amber-500">🔄</span>
+                                <span>Fresh images to S3</span>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <span class="text-amber-500">🔄</span>
+                                <span>Clean start, same config</span>
+                            </div>
+                        </div>
+                        <div class="mt-3 pt-3 border-t border-amber-200 text-xs">
+                            <strong>Time:</strong> 2-3 hours<br>
+                            <strong>Cost:</strong> Same as deploy
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Quick Commands -->
+                <div class="bg-gray-900 text-green-400 rounded-xl p-4 mb-5 font-mono text-xs overflow-x-auto">
+                    <div class="flex gap-4 border-b border-gray-700 pb-2 mb-3">
+                        <button onclick="showDeployCmd()" class="text-green-400 hover:text-white font-bold">DEPLOY</button>
+                        <button onclick="showDestroyCmd()" class="text-red-400 hover:text-white">DESTROY</button>
+                        <button onclick="showRecreateCmd()" class="text-amber-400 hover:text-white">RECREATE</button>
+                    </div>
+                    <div id="deploy-cmd">
+                        <div class="text-gray-500 mb-1"># Deploy: Infrastructure + Data + Apps</div>
+                        <div>cd d:\pmstmigrateinfra\environments\prod && terraform init && terraform apply</div>
+                        <div>cd d:\pmst-migration && python run_all_migrations.py</div>
+                        <div>python scripts/14_process_and_upload_images.py --apply</div>
+                        <div># Then deploy apps via CI/CD or manually</div>
+                    </div>
+                    <div id="destroy-cmd" style="display:none">
+                        <div class="text-gray-500 mb-1"># Destroy: Delete everything (WARNING: Permanent!)</div>
+                        <div>aws rds create-db-snapshot --db-instance-identifier pmst-prod-db --db-snapshot-identifier "pre-destroy-$(date +%s)"</div>
+                        <div>aws s3 rm s3://$(terraform output -raw frontend_bucket_name) --recursive</div>
+                        <div>aws s3 rm s3://$(terraform output -raw media_bucket_name) --recursive</div>
+                        <div>aws ecr batch-delete-image --repository-name pmst-image-processor --image-ids "imageTag=latest"</div>
+                        <div>terraform destroy -auto-approve</div>
+                    </div>
+                    <div id="recreate-cmd" style="display:none">
+                        <div class="text-gray-500 mb-1"># Recreate: Destroy then Deploy (fresh start)</div>
+                        <div># 1. Run DESTROY commands above</div>
+                        <div># 2. Run DEPLOY commands above</div>
+                        <div># Or use: .\recreate.ps1 (see workflow doc)</div>
+                    </div>
+                </div>
+
+                <!-- Master Migration Script -->
+                <div class="bg-blue-50 border border-blue-200 rounded-xl p-5 mb-5">
+                    <h4 class="font-bold text-blue-800 mb-3 flex items-center gap-2">
+                        <i data-lucide="terminal" class="w-4 h-4"></i> Master Migration Script
+                    </h4>
+                    <p class="text-sm text-gray-700 mb-3">Run all data migrations in one command:</p>
+                    <div class="bg-gray-900 text-green-400 rounded-lg p-3 font-mono text-xs mb-3">
+                        cd d:\pmst-migration<br>
+                        python run_all_migrations.py
+                    </div>
+                    <div class="grid md:grid-cols-3 gap-2 text-xs">
+                        <div class="bg-white rounded p-2"><strong>--dry-run</strong><br>Show what would run</div>
+                        <div class="bg-white rounded p-2"><strong>--from 05</strong><br>Start from script 05</div>
+                        <div class="bg-white rounded p-2"><strong>--verify</strong><br>Check results</div>
+                    </div>
+                </div>
+
+                <!-- Image Migration -->
+                <div class="bg-purple-50 border border-purple-200 rounded-xl p-5 mb-5">
+                    <h4 class="font-bold text-purple-800 mb-3 flex items-center gap-2">
+                        <i data-lucide="image" class="w-4 h-4"></i> Image Migration (~3,337 images)
+                    </h4>
+                    <div class="bg-gray-900 text-green-400 rounded-lg p-3 font-mono text-xs mb-3">
+                        cd d:\pmst-migration<br>
+                        python scripts/14_process_and_upload_images.py --apply [--workers 4]
+                    </div>
+                    <div class="text-xs text-gray-600">
+                        <p class="mb-1"><strong>What it does:</strong></p>
+                        <ul class="list-disc list-inside space-y-1 ml-2">
+                            <li>Reads from <code class="bg-white px-1 rounded">uploads-extracted\</code></li>
+                            <li>Creates 4 tiers: thumb (150px), card (480px), hero (1200px), master (2400px)</li>
+                            <li>Generates WebP + JPEG for each tier</li>
+                            <li>Uploads to <code class="bg-white px-1 rounded">s3://pmst-prod-media/media/YYYY/MM/</code></li>
+                        </ul>
+                        <p class="mt-2"><strong>Time:</strong> 2-4 hours (use --workers 4 for parallel)</p>
+                    </div>
+                </div>
+
+                <!-- CI/CD After First Deploy -->
+                <div class="bg-green-50 border border-green-200 rounded-xl p-5">
+                    <h4 class="font-bold text-green-800 mb-3 flex items-center gap-2">
+                        <i data-lucide="git-commit" class="w-4 h-4"></i> After First Deploy: CI/CD Automation
+                    </h4>
+                    <p class="text-sm text-gray-700 mb-3">Once initial deploy is complete, all future code deployments are automatic:</p>
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full text-xs border border-green-200 rounded-lg">
+                            <thead class="bg-green-100"><tr>
+                                <th class="px-2 py-2 text-left text-green-800 font-semibold">Repository</th>
+                                <th class="px-2 py-2 text-left text-green-800 font-semibold">Trigger</th>
+                                <th class="px-2 py-2 text-left text-green-800 font-semibold">Action</th>
+                            </tr></thead>
+                            <tbody class="divide-y divide-green-100 bg-white">
+                                <tr><td class="px-2 py-2 font-mono">pmst-terraform-infra</td><td class="px-2 py-2">Push to <code>main</code></td><td class="px-2 py-2">Terraform apply</td></tr>
+                                <tr><td class="px-2 py-2 font-mono">pmst-api-service</td><td class="px-2 py-2">Push to <code>main</code></td><td class="px-2 py-2">Build JAR → S3 → Lambda</td></tr>
+                                <tr><td class="px-2 py-2 font-mono">pmst-angular-ui</td><td class="px-2 py-2">Push to <code>main</code></td><td class="px-2 py-2">Build → S3 → CloudFront</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <p class="text-sm text-green-700 mt-3 font-medium">✅ No manual steps needed for code deployments after initial setup!</p>
+                </div>
+
+                <script>
+                    function showDeployCmd() {
+                        document.getElementById('deploy-cmd').style.display = 'block';
+                        document.getElementById('destroy-cmd').style.display = 'none';
+                        document.getElementById('recreate-cmd').style.display = 'none';
+                    }
+                    function showDestroyCmd() {
+                        document.getElementById('deploy-cmd').style.display = 'none';
+                        document.getElementById('destroy-cmd').style.display = 'block';
+                        document.getElementById('recreate-cmd').style.display = 'none';
+                    }
+                    function showRecreateCmd() {
+                        document.getElementById('deploy-cmd').style.display = 'none';
+                        document.getElementById('destroy-cmd').style.display = 'none';
+                        document.getElementById('recreate-cmd').style.display = 'block';
+                    }
+                </script>
+            </div>
 
             <!-- BEFORE -->
             <div class="mb-10">
@@ -3324,6 +3813,109 @@ Protected (writes, /auth/me, /users/**): COGNITO_USER_POOLS</div>
             </div>
         </div><!-- closes tab-deploy -->
 
+        <!-- Tab: CICD Strategy -->
+        <div id="tab-cicd" class="tab-content">
+            <h2 class="text-2xl font-bold text-gray-800 mb-2">CI/CD Strategy</h2>
+            <p class="text-gray-600 mb-6">Branch-driven deployment for a solo developer: develop on feature branches, merge into <code>test</code> or <code>main</code> to deploy the matching environment automatically.</p>
+
+            <!-- Branch flow diagram -->
+            <div class="bg-white border border-gray-200 rounded-xl shadow-sm p-6 mb-8">
+                <h3 class="font-bold text-gray-800 mb-4 flex items-center gap-2"><i data-lucide="git-branch" class="w-5 h-5 text-indigo-600"></i> Branch → Environment Flow</h3>
+                <div class="flex flex-col md:flex-row items-stretch gap-4">
+                    <div class="flex-1 bg-gray-50 border border-gray-200 rounded-lg p-4 text-center">
+                        <div class="inline-flex items-center gap-2 bg-gray-700 text-white px-3 py-1 rounded-full text-sm font-mono mb-2"><i data-lucide="git-commit" class="w-4 h-4"></i> feature/*</div>
+                        <p class="text-xs text-gray-500">Local development &amp; PRs. No deploy.</p>
+                    </div>
+                    <div class="flex items-center justify-center text-gray-400"><i data-lucide="arrow-right" class="w-6 h-6"></i></div>
+                    <div class="flex-1 bg-emerald-50 border border-emerald-200 rounded-lg p-4 text-center">
+                        <div class="inline-flex items-center gap-2 bg-emerald-600 text-white px-3 py-1 rounded-full text-sm font-mono mb-2"><i data-lucide="flask-conical" class="w-4 h-4"></i> test</div>
+                        <p class="text-xs text-gray-600 font-medium">TEST env</p>
+                        <p class="text-xs text-gray-500 mt-1"><code>deploy/test.tfvars</code><br>*.cloudfront.net · destroyable RDS</p>
+                    </div>
+                    <div class="flex items-center justify-center text-gray-400"><i data-lucide="arrow-right" class="w-6 h-6"></i></div>
+                    <div class="flex-1 bg-purple-50 border border-purple-200 rounded-lg p-4 text-center">
+                        <div class="inline-flex items-center gap-2 bg-purple-600 text-white px-3 py-1 rounded-full text-sm font-mono mb-2"><i data-lucide="rocket" class="w-4 h-4"></i> main</div>
+                        <p class="text-xs text-gray-600 font-medium">PROD env</p>
+                        <p class="text-xs text-gray-500 mt-1"><code>deploy/prod.tfvars</code><br>custom domain · protected RDS</p>
+                    </div>
+                </div>
+                <p class="text-xs text-gray-500 mt-4 text-center">Pull requests run <b>plan-only</b>; pushes/merges run <b>apply</b>. Each env has its own Terraform state key &amp; <code>pmst-&lt;env&gt;-*</code> resources.</p>
+            </div>
+
+            <!-- Single deploy folder explainer -->
+            <div class="bg-indigo-50 border border-indigo-200 rounded-xl p-6 mb-8">
+                <h3 class="font-bold text-indigo-800 mb-3 flex items-center gap-2"><i data-lucide="folder-cog" class="w-5 h-5"></i> One <code>deploy/</code> Folder = Single Source of Truth</h3>
+                <p class="text-sm text-gray-700 mb-3">Each repo carries all environments' config in one <code>deploy/</code> folder. Add a variable once and both envs pick it up — no per-environment folders to keep in sync.</p>
+                <div class="grid md:grid-cols-2 gap-4 text-xs font-mono">
+                    <div class="bg-white rounded-lg p-3 border border-indigo-100">
+                        <div class="text-indigo-700 font-bold mb-1">pmst-terraform-infra/deploy/</div>
+                        <div class="text-gray-600">├─ test.tfvars · prod.tfvars</div>
+                        <div class="text-gray-600">└─ backend-test.hcl · backend-prod.hcl</div>
+                    </div>
+                    <div class="bg-white rounded-lg p-3 border border-indigo-100">
+                        <div class="text-indigo-700 font-bold mb-1">api / frontend /deploy/</div>
+                        <div class="text-gray-600">└─ environments.yaml (test + prod)</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Per-repo status board -->
+            <h3 class="font-bold text-gray-800 mb-4 flex items-center gap-2"><i data-lucide="layout-grid" class="w-5 h-5 text-indigo-600"></i> Pipeline Status Board</h3>
+            <div class="grid md:grid-cols-3 gap-5 mb-8">
+                <!-- Infra -->
+                <div class="bg-white border border-gray-200 rounded-xl shadow-sm p-5">
+                    <div class="flex items-center justify-between mb-3">
+                        <h4 class="font-bold text-gray-800 flex items-center gap-2"><i data-lucide="hard-drive" class="w-4 h-4 text-indigo-600"></i> Infra</h4>
+                        <span class="bg-green-100 text-green-700 px-2 py-0.5 rounded-full text-xs font-medium">Active</span>
+                    </div>
+                    <p class="text-xs text-gray-500 mb-2">pmst-terraform-infra</p>
+                    <ul class="text-xs text-gray-600 space-y-1">
+                        <li><b>Workflow:</b> <code>deploy.yml</code></li>
+                        <li><b>Trigger:</b> push <code>test</code>/<code>main</code>, PR = plan</li>
+                        <li><b>Action:</b> terraform init+apply per env</li>
+                    </ul>
+                </div>
+                <!-- API -->
+                <div class="bg-white border border-gray-200 rounded-xl shadow-sm p-5">
+                    <div class="flex items-center justify-between mb-3">
+                        <h4 class="font-bold text-gray-800 flex items-center gap-2"><i data-lucide="server" class="w-4 h-4 text-indigo-600"></i> API</h4>
+                        <span class="bg-green-100 text-green-700 px-2 py-0.5 rounded-full text-xs font-medium">Active</span>
+                    </div>
+                    <p class="text-xs text-gray-500 mb-2">pmst-api-service</p>
+                    <ul class="text-xs text-gray-600 space-y-1">
+                        <li><b>Workflow:</b> <code>deploy-api-service.yml</code></li>
+                        <li><b>Trigger:</b> push <code>test</code>/<code>main</code></li>
+                        <li><b>Action:</b> mvn → S3 → update <code>pmst-&lt;env&gt;-pmst-api-service</code></li>
+                    </ul>
+                </div>
+                <!-- Frontend -->
+                <div class="bg-white border border-gray-200 rounded-xl shadow-sm p-5">
+                    <div class="flex items-center justify-between mb-3">
+                        <h4 class="font-bold text-gray-800 flex items-center gap-2"><i data-lucide="monitor" class="w-4 h-4 text-indigo-600"></i> Frontend</h4>
+                        <span class="bg-green-100 text-green-700 px-2 py-0.5 rounded-full text-xs font-medium">Active</span>
+                    </div>
+                    <p class="text-xs text-gray-500 mb-2">pmst-angular-ui</p>
+                    <ul class="text-xs text-gray-600 space-y-1">
+                        <li><b>Workflow:</b> <code>deploy.yml</code></li>
+                        <li><b>Trigger:</b> push <code>test</code>/<code>main</code></li>
+                        <li><b>Action:</b> ng build → sync <code>pmst-&lt;env&gt;-frontend</code> → CF invalidate</li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Setup checklist -->
+            <div class="bg-white border border-gray-200 rounded-xl p-5">
+                <h3 class="font-bold text-gray-800 mb-3 flex items-center gap-2"><i data-lucide="check-square" class="w-5 h-5 text-indigo-600"></i> One-Time Setup</h3>
+                <div class="grid md:grid-cols-2 gap-3 text-sm">
+                    <div class="flex items-start gap-2"><span class="text-indigo-500 mt-0.5">☐</span><span>Create <code>test</code> branch in all 3 repos (<code>main</code> exists)</span></div>
+                    <div class="flex items-start gap-2"><span class="text-indigo-500 mt-0.5">☐</span><span>GitHub Environments: <code>test</code> + <code>prod</code></span></div>
+                    <div class="flex items-start gap-2"><span class="text-indigo-500 mt-0.5">☐</span><span>Secrets per env: <code>TF_VAR_DB_PASSWORD</code>, <code>AWS_ACCOUNT_ID</code></span></div>
+                    <div class="flex items-start gap-2"><span class="text-indigo-500 mt-0.5">☐</span><span>Prod-only secret: <code>TF_VAR_ACM_CERT_ARN</code></span></div>
+                    <div class="flex items-start gap-2"><span class="text-indigo-500 mt-0.5">☐</span><span>Branch protection: PR + plan before merge to <code>main</code></span></div>
+                </div>
+            </div>
+        </div><!-- closes tab-cicd -->
+
     </main>
 
     <!-- Footer -->
@@ -3348,7 +3940,7 @@ Protected (writes, /auth/me, /users/**): COGNITO_USER_POOLS</div>
         document.addEventListener('DOMContentLoaded', function() {
             lucide.createIcons();
             mermaid.initialize({ startOnLoad: false });
-            document.getElementById('lastUpdated').textContent = new Date().toLocaleDateString('en-US', { 
+            document.getElementById('lastUpdated').textContent = new Date('2026-05-30').toLocaleDateString('en-US', { 
                 year: 'numeric', month: 'short', day: 'numeric' 
             });
             loadProgress();

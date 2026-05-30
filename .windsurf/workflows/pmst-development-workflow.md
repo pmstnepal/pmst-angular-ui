@@ -63,6 +63,38 @@ Complete development guide for migrating from WordPress to AWS serverless archit
 
 ---
 
+## Branch-Driven CI/CD
+
+Solo-developer deployment model: develop on feature branches, merge into an environment branch to deploy automatically.
+
+| Branch | Environment | Config | Trigger |
+|--------|-------------|--------|---------|
+| `feature/*` | — | — | none (local dev + PR) |
+| `test` | TEST | `deploy/test.tfvars` (`deployment_mode=test`) | merge/push → apply |
+| `main` | PROD | `deploy/prod.tfvars` (`deployment_mode=production`) | merge/push → apply |
+
+**Flow:** `feature/* → PR into test (validate) → PR test → main (production)`. Pull requests run **plan-only**; pushes run **apply**.
+
+### Single `deploy/` folder per repo (one source of truth)
+- **pmst-terraform-infra:** `deploy/{test,prod}.tfvars` + `deploy/backend-{test,prod}.hcl`. Single root module at repo root; `terraform init -backend-config=deploy/backend-<env>.hcl` selects state, `-var-file=deploy/<env>.tfvars` selects config.
+- **pmst-api-service & pmst-angular-ui:** `deploy/environments.yaml` holds the `test` and `prod` blocks; the workflow reads the block matching the branch (`yq`).
+
+### Add a variable once, both envs use it
+1. Declare it in `variables.tf` (infra) or read it from `environments.yaml` (api/frontend).
+2. Set the value in **both** `deploy/test.tfvars` and `deploy/prod.tfvars` (or both YAML blocks).
+3. Merge to `test` to validate, then to `main` for prod. No module edits, no per-env folders.
+
+### Workflows
+| Repo | Workflow | Action |
+|------|----------|--------|
+| infra | `.github/workflows/deploy.yml` | terraform init+plan(+apply) per branch/env |
+| api | `.github/workflows/deploy-api-service.yml` | build JAR → S3 → update `pmst-<env>-pmst-api-service` |
+| frontend | `.github/workflows/deploy.yml` | `ng build --configuration <env>` → sync `pmst-<env>-frontend` → CF invalidate |
+
+> Visual version: see the **CICD Strategy** tab in `src/doc/pmst-master-plan.html`.
+
+---
+
 ## Part 1: Architecture Overview
 
 ### Executive Summary
@@ -2142,6 +2174,728 @@ All GitHub Actions authenticate to AWS via **OIDC** — no `AWS_ACCESS_KEY_ID` /
 |------|---------|-------------|
 | `pmst-github-actions-terraform` | terraform-infra repo | AdministratorAccess (scoped to repo) |
 | `pmst-github-actions-deploy` | angular-ui, api-service, image-processor | S3 + Lambda + CloudFront + ECR |
+
+---
+
+## Part 11b: Deployment Readiness Checklist (Test → Prod)
+
+> **Goal:** Deploy to a test CloudFront URL first, verify everything works, then cutover to pmstusnepal.com
+
+### Phase 0: Prerequisites (Must Have Before Starting)
+
+| # | Item | Status | Notes |
+|---|------|--------|-------|
+| 0.1 | AWS Account ID (12-digit) | ⬜ | Run: `aws sts get-caller-identity --query Account --output text` |
+| 0.2 | AWS CLI installed and configured | ⬜ | `aws configure` with admin credentials |
+| 0.3 | GitHub access to all 3 repos | ⬜ | `pmst-terraform-infra`, `pmst-api-service`, `pmst-angular-ui` |
+| 0.4 | Strong DB password ready | ⬜ | 16+ chars, upper+lower+number+symbol |
+| 0.5 | Local builds working | ⬜ | `npm run build:prod` and `mvn package -DskipTests` |
+
+### Phase 1: Bootstrap Terraform Backend + OIDC (Run Once)
+
+| # | Task | Command | Status |
+|---|------|---------|--------|
+| 1.1 | Create S3 state bucket | `aws s3 mb s3://pmst-terraform-state --region us-east-1` | ⬜ |
+| 1.2 | Enable S3 versioning | `aws s3api put-bucket-versioning --bucket pmst-terraform-state --versioning-configuration Status=Enabled` | ⬜ |
+| 1.3 | Enable S3 encryption | `aws s3api put-bucket-encryption --bucket pmst-terraform-state --server-side-encryption-configuration '{"Rules":[{"ApplyServerSideEncryptionByDefault":{"SSEAlgorithm":"AES256"}}]}'` | ⬜ |
+| 1.4 | Block S3 public access | `aws s3api put-public-access-block --bucket pmst-terraform-state --public-access-block-configuration "BlockPublicAcls=true,IgnorePublicAcls=true,BlockPublicPolicy=true,RestrictPublicBuckets=true"` | ⬜ |
+| 1.5 | Create DynamoDB lock table | `aws dynamodb create-table --table-name pmst-terraform-locks --attribute-definitions AttributeName=LockID,AttributeType=S --key-schema AttributeName=LockID,KeyType=HASH --billing-mode PAY_PER_REQUEST --region us-east-1` | ⬜ |
+| 1.6 | Create OIDC provider | `aws iam create-open-id-connect-provider --url https://token.actions.githubusercontent.com --client-id-list sts.amazonaws.com --thumbprint-list 6938fd4d98bab03faadb97b34396831e3780aea1` | ⬜ |
+
+### Phase 2: Create IAM Roles for GitHub Actions
+
+**Role 1: Terraform Role** (`pmst-github-actions-terraform`)
+```bash
+aws iam create-role --role-name pmst-github-actions-terraform --assume-role-policy-document '{
+  "Version": "2012-10-17",
+  "Statement": [{
+    "Effect": "Allow",
+    "Principal": {"Federated": "arn:aws:iam::YOUR_ACCOUNT_ID:oidc-provider/token.actions.githubusercontent.com"},
+    "Action": "sts:AssumeRoleWithWebIdentity",
+    "Condition": {
+      "StringLike": {"token.actions.githubusercontent.com:sub": "repo:pmstnepal/pmst-terraform-infra:*"},
+      "StringEquals": {"token.actions.githubusercontent.com:aud": "sts.amazonaws.com"}
+    }
+  }]
+}'
+
+aws iam attach-role-policy --role-name pmst-github-actions-terraform --policy-arn arn:aws:iam::aws:policy/AdministratorAccess
+```
+
+**Role 2: Deploy Role** (`pmst-github-actions-deploy`)
+```bash
+aws iam create-role --role-name pmst-github-actions-deploy --assume-role-policy-document '{
+  "Version": "2012-10-17",
+  "Statement": [{
+    "Effect": "Allow",
+    "Principal": {"Federated": "arn:aws:iam::YOUR_ACCOUNT_ID:oidc-provider/token.actions.githubusercontent.com"},
+    "Action": "sts:AssumeRoleWithWebIdentity",
+    "Condition": {
+      "StringLike": {"token.actions.githubusercontent.com:sub": "repo:pmstnepal/*:*"},
+      "StringEquals": {"token.actions.githubusercontent.com:aud": "sts.amazonaws.com"}
+    }
+  }]
+}'
+
+aws iam attach-role-policy --role-name pmst-github-actions-deploy --policy-arn arn:aws:iam::aws:policy/AmazonS3FullAccess
+aws iam attach-role-policy --role-name pmst-github-actions-deploy --policy-arn arn:aws:iam::aws:policy/AWSLambda_FullAccess
+aws iam attach-role-policy --role-name pmst-github-actions-deploy --policy-arn arn:aws:iam::aws:policy/CloudFrontFullAccess
+aws iam attach-role-policy --role-name pmst-github-actions-deploy --policy-arn arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryFullAccess
+```
+
+| Role | Status |
+|------|--------|
+| `pmst-github-actions-terraform` | ⬜ |
+| `pmst-github-actions-deploy` | ⬜ |
+
+### Phase 3: Configure GitHub Secrets
+
+**Repository: `pmst-terraform-infra`**
+| Secret | Value | Status |
+|--------|-------|--------|
+| `AWS_ACCOUNT_ID` | Your 12-digit AWS Account ID | ⬜ |
+| `TF_VAR_DB_PASSWORD` | Strong RDS password | ⬜ |
+| `TF_VAR_ACM_CERT_ARN` | Use `PLACEHOLDER` for initial test deploy | ⬜ |
+
+**Repository: `pmst-api-service`**
+| Secret | Value | Status |
+|--------|-------|--------|
+| `AWS_ACCOUNT_ID` | Your 12-digit AWS Account ID | ⬜ |
+
+**Repository: `pmst-angular-ui`**
+| Secret | Value | Status |
+|--------|-------|--------|
+| (None needed - OIDC only) | | |
+
+### Phase 4: First Terraform Apply (Test Deployment)
+
+```bash
+cd environments/prod
+
+# Initialize
+terraform init
+
+# Plan (with placeholder cert - CloudFront will use default domain)
+terraform plan \
+  -var="db_password=YOUR_STRONG_PASSWORD" \
+  -var="acm_certificate_arn=arn:aws:acm:us-east-1:YOUR_ACCOUNT_ID:certificate/PLACEHOLDER" \
+  -out=tfplan
+
+# Apply (20-30 minutes)
+terraform apply tfplan
+```
+
+**Save These Outputs:**
+| Output | Value | Used In |
+|--------|-------|---------|
+| `cloudfront_domain_name` | `xxxx.cloudfront.net` | Testing |
+| `api_gateway_endpoint` | `https://xxxx.execute-api.us-east-1.amazonaws.com` | Angular env |
+| `cognito_user_pool_id` | `us-east-1_xxxxx` | Angular env |
+| `frontend_bucket_name` | `pmst-prod-frontend-xxxxx` | S3 sync |
+| `media_bucket_name` | `pmst-prod-media-xxxxx` | - |
+| `cloudfront_distribution_id` | `EXXXXXXXXXXX` | GitHub Variables |
+
+### Phase 5: Deploy Applications
+
+**5.1: Build and Deploy API Service**
+```bash
+cd pmst-api-service
+mvn clean package -DskipTests
+aws s3 cp target/pmst-api-service-1.0.0-lambda.jar s3://pmst-terraform-state/deployments/pmst-api-service-latest.jar
+aws lambda update-function-code --function-name pmst-prod-pmst-api-service --s3-bucket pmst-terraform-state --s3-key deployments/pmst-api-service-latest.jar
+aws lambda wait function-updated --function-name pmst-prod-pmst-api-service
+aws lambda publish-version --function-name pmst-prod-pmst-api-service
+```
+
+**5.2: Build and Deploy Angular**
+```bash
+cd pmst-angular-ui
+
+# Update environment.prod.ts with actual values from Terraform
+# Then build and deploy
+npm ci
+npm run build:prod
+
+aws s3 sync dist/pmst-angular-ui/browser/ s3://YOUR_FRONTEND_BUCKET \
+  --delete --cache-control "public, max-age=31536000, immutable" --exclude "*.html"
+  
+aws s3 sync dist/pmst-angular-ui/browser/ s3://YOUR_FRONTEND_BUCKET \
+  --delete --cache-control "no-cache" --include "*.html"
+
+aws cloudfront create-invalidation --distribution-id YOUR_CF_DISTRIBUTION_ID --paths "/*"
+```
+
+### Phase 6: Verify Test Deployment
+
+| Test | URL/Command | Expected |
+|------|-------------|----------|
+| CloudFront loads | `https://xxxx.cloudfront.net` | Angular app renders |
+| API responds | `curl https://xxxx.execute-api.us-east-1.amazonaws.com/prod/articles` | JSON array |
+| Cognito works | Sign up via UI | User appears in Cognito console |
+
+### Phase 7: Production Domain Cutover
+
+**Step 7.1: Request ACM Certificate**
+```bash
+aws acm request-certificate \
+  --domain-name pmstusnepal.com \
+  --subject-alternative-names "www.pmstusnepal.com" \
+  --validation-method DNS \
+  --region us-east-1
+```
+
+**Step 7.2: Add DNS Validation Records to Hostinger**
+Get CNAME records from:
+```bash
+aws acm describe-certificate --certificate-arn arn:aws:acm:us-east-1:ACCOUNT:certificate/ID --query 'Certificate.DomainValidationOptions[].ResourceRecord'
+```
+
+Add to Hostinger DNS → Wait for validation (status: `ISSUED`)
+
+**Step 7.3: Re-run Terraform with Real Certificate**
+```bash
+terraform apply \
+  -var="db_password=YOUR_PASSWORD" \
+  -var="acm_certificate_arn=arn:aws:acm:us-east-1:ACCOUNT:certificate/REAL_ARN"
+```
+
+**Step 7.4: Lower DNS TTL (24 hours before cutover)**
+In Hostinger DNS: Set TTL to 300 seconds on all A/AAAA/CNAME records.
+
+**Step 7.5: DNS Cutover**
+| Record | Old Value | New Value |
+|--------|-----------|-----------|
+| A (pmstusnepal.com) | 46.202.182.16 | CloudFront domain |
+| AAAA (pmstusnepal.com) | 2a02:4780:2b:1870:0:1137:670d:d | CloudFront IPv6 |
+| CNAME (www) | pmstusnepal.com | CloudFront domain |
+
+**Rollback:** Switch back to Hostinger IP within 5 minutes if issues arise.
+
+---
+
+## Part 11c: Step-by-Step Deployment Execution Guide
+
+> **Goal:** Execute each deployment step with exact commands. Run each command, verify output, then proceed.
+
+### Pre-Flight Check (Do This First)
+
+```bash
+# Step 0.1: Get AWS Account ID
+aws sts get-caller-identity --query Account --output text
+# Record: ________________________ (12 digits)
+
+# Step 0.2: Verify AWS CLI works
+aws sts get-caller-identity
+# Expected: Account ID, User ARN
+
+# Step 0.3: Test local builds
+cd D:\pmstmigrate && npm run build:prod
+cd D:\pmst-services\pmst-api-service && mvn clean package -DskipTests
+```
+
+---
+
+### Step 1: Bootstrap Terraform Backend (10 min)
+
+```bash
+# 1.1: Create S3 bucket
+aws s3 mb s3://pmst-terraform-state --region us-east-1
+# Verify: make_bucket: pmst-terraform-state
+
+# 1.2: Enable versioning
+aws s3api put-bucket-versioning --bucket pmst-terraform-state --versioning-configuration Status=Enabled
+
+# 1.3: Block public access
+aws s3api put-public-access-block --bucket pmst-terraform-state --public-access-block-configuration "BlockPublicAcls=true,IgnorePublicAcls=true,BlockPublicPolicy=true,RestrictPublicBuckets=true"
+
+# 1.4: Create DynamoDB lock table
+aws dynamodb create-table --table-name pmst-terraform-locks --attribute-definitions AttributeName=LockID,AttributeType=S --key-schema AttributeName=LockID,KeyType=HASH --billing-mode PAY_PER_REQUEST --region us-east-1
+
+# 1.5: Verify
+aws s3 ls s3://pmst-terraform-state
+aws dynamodb describe-table --table-name pmst-terraform-locks --query 'Table.TableStatus'
+# Checkpoint: Both succeed
+```
+
+---
+
+### Step 2: Create OIDC Provider (5 min)
+
+```bash
+# 2.1: Create OIDC provider for GitHub Actions
+aws iam create-open-id-connect-provider --url https://token.actions.githubusercontent.com --client-id-list sts.amazonaws.com --thumbprint-list 6938fd4d98bab03faadb97b34396831e3780aea1
+# Save the ARN: arn:aws:iam::YOUR_ACCOUNT:oidc-provider/token.actions.githubusercontent.com
+```
+
+---
+
+### Step 3: Create IAM Roles (15 min)
+
+```bash
+# Set variable
+export AWS_ACCOUNT_ID="YOUR_12_DIGIT_ACCOUNT_ID"
+
+# 3.1: Create Terraform role
+aws iam create-role --role-name pmst-github-actions-terraform --assume-role-policy-document "{
+  \"Version\": \"2012-10-17\",
+  \"Statement\": [{
+    \"Effect\": \"Allow\",
+    \"Principal\": {\"Federated\": \"arn:aws:iam::$AWS_ACCOUNT_ID:oidc-provider/token.actions.githubusercontent.com\"},
+    \"Action\": \"sts:AssumeRoleWithWebIdentity\",
+    \"Condition\": {
+      \"StringLike\": {\"token.actions.githubusercontent.com:sub\": \"repo:pmstnepal/pmst-terraform-infra:*\"},
+      \"StringEquals\": {\"token.actions.githubusercontent.com:aud\": \"sts.amazonaws.com\"}
+    }
+  }]
+}"
+
+# 3.2: Attach admin policy
+aws iam attach-role-policy --role-name pmst-github-actions-terraform --policy-arn arn:aws:iam::aws:policy/AdministratorAccess
+
+# 3.3: Create Deploy role
+aws iam create-role --role-name pmst-github-actions-deploy --assume-role-policy-document "{
+  \"Version\": \"2012-10-17\",
+  \"Statement\": [{
+    \"Effect\": \"Allow\",
+    \"Principal\": {\"Federated\": \"arn:aws:iam::$AWS_ACCOUNT_ID:oidc-provider/token.actions.githubusercontent.com\"},
+    \"Action\": \"sts:AssumeRoleWithWebIdentity\",
+    \"Condition\": {
+      \"StringLike\": {\"token.actions.githubusercontent.com:sub\": \"repo:pmstnepal/*:*\"},
+      \"StringEquals\": {\"token.actions.githubusercontent.com:aud\": \"sts.amazonaws.com\"}
+    }
+  }]
+}"
+
+# 3.4: Attach deploy policies
+aws iam attach-role-policy --role-name pmst-github-actions-deploy --policy-arn arn:aws:iam::aws:policy/AmazonS3FullAccess
+aws iam attach-role-policy --role-name pmst-github-actions-deploy --policy-arn arn:aws:iam::aws:policy/AWSLambda_FullAccess
+aws iam attach-role-policy --role-name pmst-github-actions-deploy --policy-arn arn:aws:iam::aws:policy/CloudFrontFullAccess
+aws iam attach-role-policy --role-name pmst-github-actions-deploy --policy-arn arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryFullAccess
+
+# 3.5: Verify
+aws iam list-attached-role-policies --role-name pmst-github-actions-terraform
+aws iam list-attached-role-policies --role-name pmst-github-actions-deploy
+# Checkpoint: Terraform=AdministratorAccess, Deploy=4 policies
+```
+
+---
+
+### Step 4: Configure GitHub Secrets (10 min)
+
+**Repository 1: pmst-terraform-infra**
+| Secret | Value |
+|--------|-------|
+| `AWS_ACCOUNT_ID` | Your 12-digit Account ID |
+| `TF_VAR_DB_PASSWORD` | Strong password (16+ chars) |
+| `TF_VAR_ACM_CERT_ARN` | `arn:aws:acm:us-east-1:ACCOUNT:certificate/PLACEHOLDER` |
+
+**Repository 2: pmst-api-service**
+| Secret | Value |
+|--------|-------|
+| `AWS_ACCOUNT_ID` | Your 12-digit Account ID |
+
+**Checkpoint:** All secrets added to both repositories
+
+---
+
+### Step 5: Terraform Apply (30-45 min)
+
+```bash
+# 5.1: Navigate to prod environment
+cd D:\pmstmigrateinfra\environments\prod
+
+# 5.2: Initialize
+terraform init
+# Expected: Terraform has been successfully initialized!
+
+# 5.3: Plan (with placeholder cert for test deployment)
+terraform plan \
+  -var="db_password=YOUR_PASSWORD" \
+  -var="acm_certificate_arn=arn:aws:acm:us-east-1:ACCOUNT_ID:certificate/PLACEHOLDER" \
+  -out=tfplan
+# Review: Should show resources to create, no destroys
+
+# 5.4: Apply (takes 20-30 min)
+terraform apply tfplan
+# Wait for: Apply complete! Resources: XX added
+
+# 5.5: Save outputs
+cd D:\pmstmigrateinfra\environments\prod
+terraform output
+# Record:
+# - cloudfront_domain_name (test URL)
+# - api_gateway_endpoint
+# - cognito_user_pool_id
+# - frontend_bucket_name
+# - cloudfront_distribution_id
+```
+
+---
+
+### Step 6: Deploy API Service (5 min)
+
+```bash
+# 6.1: Build
+cd D:\pmst-services\pmst-api-service
+mvn clean package -DskipTests
+
+# 6.2: Upload to S3
+aws s3 cp target/pmst-api-service-1.0.0-lambda.jar \
+  s3://pmst-terraform-state/deployments/pmst-api-service-latest.jar
+
+# 6.3: Update Lambda
+aws lambda update-function-code \
+  --function-name pmst-prod-pmst-api-service \
+  --s3-bucket pmst-terraform-state \
+  --s3-key deployments/pmst-api-service-latest.jar
+
+# 6.4: Wait
+aws lambda wait function-updated --function-name pmst-prod-pmst-api-service
+
+# 6.5: Publish version (SnapStart)
+aws lambda publish-version --function-name pmst-prod-pmst-api-service
+```
+
+---
+
+### Step 7: Deploy Angular Frontend (10 min)
+
+```bash
+# 7.1: Update environment.prod.ts with Terraform outputs
+cd D:\pmstmigrate
+
+# 7.2: Build
+npm run build:prod
+
+# 7.3: Sync to S3 (cached assets)
+aws s3 sync dist/pmst-angular-ui/browser/ s3://YOUR_FRONTEND_BUCKET \
+  --delete --cache-control "public, max-age=31536000, immutable" --exclude "*.html"
+
+# 7.4: Sync HTML files (no cache)
+aws s3 sync dist/pmst-angular-ui/browser/ s3://YOUR_FRONTEND_BUCKET \
+  --delete --cache-control "no-cache" --include "*.html"
+
+# 7.5: Invalidate CloudFront
+aws cloudfront create-invalidation --distribution-id YOUR_CF_DISTRIBUTION_ID --paths "/*"
+```
+
+---
+
+### Step 8: Verify Test Deployment
+
+| Test | Command/URL | Expected |
+|------|-------------|----------|
+| CloudFront loads | `https://xxxx.cloudfront.net` | Angular app renders |
+| API responds | `curl https://xxxx.execute-api.us-east-1.amazonaws.com/prod/articles` | JSON array |
+| Cognito works | Sign up via UI | User appears in Cognito console |
+
+---
+
+### Step 9: Production Domain Cutover (Do Later)
+
+```bash
+# 9.1: Request ACM certificate
+aws acm request-certificate \
+  --domain-name pmstusnepal.com \
+  --subject-alternative-names "www.pmstusnepal.com" \
+  --validation-method DNS \
+  --region us-east-1
+
+# 9.2: Get DNS validation records
+aws acm describe-certificate \
+  --certificate-arn arn:aws:acm:us-east-1:ACCOUNT:certificate/ID \
+  --query 'Certificate.DomainValidationOptions[].ResourceRecord'
+
+# 9.3: Add CNAME records to Hostinger DNS
+# 9.4: Wait for certificate status: ISSUED
+
+# 9.5: Re-run Terraform with real certificate
+cd D:\pmstmigrateinfra\environments\prod
+terraform apply \
+  -var="db_password=PASSWORD" \
+  -var="acm_certificate_arn=arn:aws:acm:us-east-1:ACCOUNT:certificate/REAL_ARN"
+
+# 9.6: Lower DNS TTL to 300s (24h before cutover)
+# 9.7: DNS cutover: Update A/AAAA records to CloudFront domain
+```
+
+---
+
+## Part 11d: Complete Deployment Lifecycle (Create / Destroy / Recreate)
+
+> **Goal:** Single-command deployment, destruction, and recreation of entire AWS infrastructure with local CSV/image migration.
+
+### Data Source (Local - No Live WordPress Connection)
+
+| Data | Location | Migration Method |
+|------|----------|------------------|
+| Users, Articles, Comments | `d:\pmst-migration\exports\*.csv` | `run_all_migrations.py` |
+| Images | `d:\pmst-migration\uploads-extracted\` | `14_process_and_upload_images.py` |
+| **Total Size** | ~5.5GB images + 100MB CSV | Local processing only |
+
+**Key Point:** No connection to live WordPress needed. All data exported to local CSV files.
+
+---
+
+### DEPLOY (Create Infrastructure + Migrate Data)
+
+#### Phase 1: Bootstrap AWS (One-Time)
+```powershell
+# 1.1: Create S3 bucket for Terraform state
+aws s3 mb s3://pmst-terraform-state --region us-east-1
+aws s3api put-bucket-versioning --bucket pmst-terraform-state --versioning-configuration Status=Enabled
+aws s3api put-public-access-block --bucket pmst-terraform-state --public-access-block-configuration "BlockPublicAcls=true,IgnorePublicAcls=true,BlockPublicPolicy=true,RestrictPublicBuckets=true"
+
+# 1.2: Create DynamoDB lock table
+aws dynamodb create-table --table-name pmst-terraform-locks --attribute-definitions AttributeName=LockID,AttributeType=S --key-schema AttributeName=LockID,KeyType=HASH --billing-mode PAY_PER_REQUEST --region us-east-1
+
+# 1.3: Create OIDC provider
+aws iam create-open-id-connect-provider --url https://token.actions.githubusercontent.com --client-id-list sts.amazonaws.com --thumbprint-list 6938fd4d98bab03faadb97b34396831e3780aea1
+
+# 1.4: Create IAM roles (replace YOUR_ACCOUNT_ID)
+# See Part 11b for exact commands
+```
+
+#### Phase 2: Terraform Apply (Create Infrastructure)
+```powershell
+# 2.1: Navigate to prod environment
+cd d:\pmstmigrateinfra\environments\prod
+
+# 2.2: Initialize and apply
+terraform init
+terraform plan -var="db_password=YOUR_PASSWORD" -var="acm_certificate_arn=arn:aws:acm:us-east-1:ACCOUNT:PLACEHOLDER" -out=tfplan
+terraform apply tfplan
+
+# 2.3: Save outputs
+terraform output > deployment_outputs.txt
+```
+
+**Outputs to save:**
+- `cloudfront_domain_name` → Test URL: `https://xxxx.cloudfront.net`
+- `api_gateway_endpoint` → API URL
+- `frontend_bucket_name` → For S3 sync
+- `cloudfront_distribution_id` → For cache invalidation
+- `media_bucket_name` → For image uploads
+
+#### Phase 3: Data Migration (Local → RDS)
+```powershell
+# 3.1: Navigate to migration directory
+cd d:\pmst-migration
+
+# 3.2: Install dependencies (if not done)
+pip install -r requirements.txt
+
+# 3.3: Run master migration script (migrates all CSV data to RDS)
+python run_all_migrations.py
+
+# This runs in order:
+# - 01_migrate_users.py (18 users)
+# - 02_migrate_user_profiles.py
+# - 03_migrate_tags.py
+# - 04_migrate_articles.py (all articles)
+# - 05_migrate_article_tags.py
+# - 06_migrate_galleries.py
+# - 07_migrate_gallery_images.py
+# - 08_migrate_comments.py
+# - 09_migrate_follows.py
+# - 10_migrate_article_meta.py
+# - 11_link_user_profiles_to_cognito.py
+# - 13_migrate_gallery_seo.py
+```
+
+**Expected output:**
+```
+🚀 PMST DATA MIGRATION
+   WordPress → AWS RDS
+============================================================
+🔍 Checking prerequisites...
+✅ All prerequisites met
+
+📋 Will run 12 migration scripts:
+    1. 01_migrate_users.py                  Users
+    2. 02_migrate_user_profiles.py        User Profiles
+    ...
+
+📊 MIGRATION SUMMARY
+============================================================
+   Total scripts: 12
+   ✅ Successful: 12
+   ❌ Failed: 0
+   ⏱️  Total time: 45.2s
+
+🎉 ALL MIGRATIONS COMPLETED SUCCESSFULLY!
+```
+
+#### Phase 4: Image Migration (Local → S3)
+```powershell
+# 4.1: Process and upload images (creates WebP/JPEG tiers)
+cd d:\pmst-migration
+python scripts/14_process_and_upload_images.py --apply
+
+# This processes ~3,337 images from uploads-extracted/
+# Creates 4 tiers per image: thumb, card, hero, master
+# Uploads to S3: s3://pmst-prod-media/media/YYYY/MM/
+```
+
+**Note:** First run takes 2-4 hours. Use `--workers 4` for parallel processing.
+
+#### Phase 5: Deploy Applications
+```powershell
+# 5.1: Deploy API Service
+cd d:\pmst-services\pmst-api-service
+mvn clean package -DskipTests
+aws s3 cp target/pmst-api-service-1.0.0-lambda.jar s3://pmst-terraform-state/deployments/pmst-api-service-latest.jar
+aws lambda update-function-code --function-name pmst-prod-pmst-api-service --s3-bucket pmst-terraform-state --s3-key deployments/pmst-api-service-latest.jar
+aws lambda wait function-updated --function-name pmst-prod-pmst-api-service
+aws lambda publish-version --function-name pmst-prod-pmst-api-service
+
+# 5.2: Deploy Frontend
+cd d:\pmstmigrate
+npm run build:prod
+aws s3 sync dist/pmst-angular-ui/browser/ s3://YOUR_FRONTEND_BUCKET --delete --cache-control "public, max-age=31536000, immutable" --exclude "*.html"
+aws s3 sync dist/pmst-angular-ui/browser/ s3://YOUR_FRONTEND_BUCKET --delete --cache-control "no-cache" --include "*.html"
+aws cloudfront create-invalidation --distribution-id YOUR_CF_DISTRIBUTION_ID --paths "/*"
+```
+
+#### Phase 6: Verify Deployment
+```powershell
+# 6.1: Verify data in RDS
+aws rds describe-db-instances --query 'DBInstances[0].Endpoint.Address' --output text
+# Then connect with psql and check: SELECT COUNT(*) FROM articles;
+
+# 6.2: Verify images in S3
+aws s3 ls s3://pmst-prod-media --recursive | wc -l
+
+# 6.3: Test CloudFront URL
+curl -s https://xxxx.cloudfront.net | head
+
+# 6.4: Test API
+curl https://xxxx.execute-api.us-east-1.amazonaws.com/prod/articles | jq '. | length'
+```
+
+---
+
+### DESTROY (Delete Everything)
+
+> ⚠️ **WARNING:** This permanently deletes all AWS resources and data. Create snapshots first if you need backups.
+
+#### Pre-Destroy Checklist
+- [ ] Create RDS snapshot (optional but recommended)
+- [ ] Notify team about downtime
+- [ ] Export any new data you want to keep
+
+#### Destroy Steps
+```powershell
+# Step 1: Create RDS snapshot (optional backup)
+$timestamp = Get-Date -Format "yyyyMMdd-HHmmss"
+aws rds create-db-snapshot --db-instance-identifier pmst-prod-db --db-snapshot-identifier "pmst-pre-destroy-$timestamp"
+
+# Step 2: Empty S3 buckets (Terraform can't delete non-empty buckets)
+cd d:\pmstmigrateinfra\environments\prod
+$frontendBucket = terraform output -raw frontend_bucket_name
+$mediaBucket = terraform output -raw media_bucket_name
+
+aws s3 rm "s3://$frontendBucket" --recursive
+aws s3 rm "s3://$mediaBucket" --recursive
+
+# Step 3: Delete ECR images (Terraform can't delete repo with images)
+aws ecr batch-delete-image --repository-name pmst-image-processor --image-ids "imageTag=latest"
+
+# Step 4: Disable CloudFront distributions (speeds up destroy)
+# Note: Terraform will handle this, but manual disable is faster
+
+# Step 5: Terraform destroy
+terraform destroy -auto-approve
+
+# Step 6: Verify destruction
+aws ec2 describe-instances --filters "Name=tag:Project,Values=pmst" --query 'Reservations[*].Instances[*].InstanceId'
+aws rds describe-db-instances --db-instance-identifier pmst-prod-db
+aws s3 ls
+# All should return empty/no results
+```
+
+**Estimated destroy time:** 15-30 minutes
+
+---
+
+### RECREATE (Destroy + Deploy)
+
+Use this when you want to start fresh with the same configuration.
+
+#### Quick Recreate Script
+```powershell
+# save as recreate.ps1
+param(
+    [switch]$SkipBackup,
+    [string]$DbPassword = $env:TF_VAR_DB_PASSWORD
+)
+
+Write-Host "🔄 RECREATE: Destroy + Deploy" -ForegroundColor Cyan
+Write-Host "================================" -ForegroundColor Cyan
+
+# Step 1: Destroy (with optional backup)
+if (-not $SkipBackup) {
+    Write-Host "📸 Creating RDS snapshot..." -ForegroundColor Yellow
+    $timestamp = Get-Date -Format "yyyyMMdd-HHmmss"
+    aws rds create-db-snapshot --db-instance-identifier pmst-prod-db --db-snapshot-identifier "pmst-pre-recreate-$timestamp"
+}
+
+Write-Host "🗑️  Destroying infrastructure..." -ForegroundColor Yellow
+cd d:\pmstmigrateinfra\environments\prod
+terraform destroy -auto-approve
+
+# Step 2: Deploy
+Write-Host "🏗️  Creating infrastructure..." -ForegroundColor Yellow
+terraform init
+terraform apply -auto-approve -var="db_password=$DbPassword" -var="acm_certificate_arn=arn:aws:acm:us-east-1:$env:AWS_ACCOUNT_ID:certificate/PLACEHOLDER"
+
+# Step 3: Migrate data
+Write-Host "📊 Migrating data..." -ForegroundColor Yellow
+cd d:\pmst-migration
+python run_all_migrations.py
+
+# Step 4: Migrate images
+Write-Host "🖼️  Migrating images..." -ForegroundColor Yellow
+python scripts/14_process_and_upload_images.py --apply
+
+Write-Host "✅ Recreate complete!" -ForegroundColor Green
+```
+
+**Usage:**
+```powershell
+# Full recreate with backup
+.\recreate.ps1
+
+# Quick recreate without backup
+.\recreate.ps1 -SkipBackup
+```
+
+---
+
+### CI/CD Automation (After First Deploy)
+
+Once initial deploy is complete, future updates are automatic:
+
+| Repository | Trigger | Action |
+|------------|---------|--------|
+| `pmst-terraform-infra` | Push to `main` | Terraform apply (infrastructure changes) |
+| `pmst-api-service` | Push to `main` | Build JAR → S3 → Lambda update |
+| `pmst-angular-ui` | Push to `main` | Build → S3 sync → CloudFront invalidation |
+
+**No manual steps needed for code deployments after initial setup!**
+
+---
+
+### Cost Considerations
+
+| Phase | AWS Cost | Duration |
+|-------|----------|----------|
+| Deploy | ~$50-100 first month | 2-3 hours setup |
+| Running | ~$200-300/month | Ongoing |
+| Destroy | $0 | 15-30 min |
+| Recreate | Same as deploy | 2-3 hours |
+
+**Cost-saving tip:** Destroy when not actively developing/testing.
 
 ---
 

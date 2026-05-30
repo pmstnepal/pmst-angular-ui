@@ -1,0 +1,98 @@
+name: Deploy Frontend
+
+# Branch-driven deployment:
+#   push/merge to `test` → TEST S3 + CloudFront
+#   push/merge to `main` → PROD S3 + CloudFront
+# Per-environment config lives in deploy/environments.yaml
+
+on:
+  push:
+    branches: [test, main]
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  NODE_VERSION: "20"
+
+jobs:
+  deploy:
+    name: Build Angular & Deploy
+    runs-on: ubuntu-latest
+    environment: ${{ github.ref_name == 'main' && 'prod' || 'test' }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Resolve environment + config
+        id: cfg
+        run: |
+          if [ "${{ github.ref_name }}" = "main" ]; then ENV=prod; else ENV=test; fi
+          echo "env=$ENV" >> "$GITHUB_OUTPUT"
+          echo "bucket=$(yq -r ".$ENV.bucket" deploy/environments.yaml)" >> "$GITHUB_OUTPUT"
+          echo "build=$(yq -r ".$ENV.buildConfiguration" deploy/environments.yaml)" >> "$GITHUB_OUTPUT"
+          echo "envFile=$(yq -r ".$ENV.envFile" deploy/environments.yaml)" >> "$GITHUB_OUTPUT"
+          echo "production=$(yq -r ".$ENV.production" deploy/environments.yaml)" >> "$GITHUB_OUTPUT"
+          echo "apiUrl=$(yq -r ".$ENV.apiUrl" deploy/environments.yaml)" >> "$GITHUB_OUTPUT"
+          echo "cfDomain=$(yq -r ".$ENV.cfDomain" deploy/environments.yaml)" >> "$GITHUB_OUTPUT"
+          echo "region=$(yq -r ".$ENV.region" deploy/environments.yaml)" >> "$GITHUB_OUTPUT"
+
+      - name: Generate Angular environment file (single source = deploy/environments.yaml)
+        run: |
+          cat > "${{ steps.cfg.outputs.envFile }}" <<EOF
+          export const environment = {
+            production: ${{ steps.cfg.outputs.production }},
+            apiUrl: '${{ steps.cfg.outputs.apiUrl }}',
+            appName: 'PMST US-Nepal',
+            cfDomain: '${{ steps.cfg.outputs.cfDomain }}'
+          };
+          EOF
+          echo "Generated ${{ steps.cfg.outputs.envFile }}:"; cat "${{ steps.cfg.outputs.envFile }}"
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build Angular (${{ steps.cfg.outputs.build }})
+        run: npx ng build --configuration ${{ steps.cfg.outputs.build }}
+        env:
+          NODE_OPTIONS: "--max_old_space_size=4096"
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/pmst-github-actions-deploy
+          aws-region: ${{ steps.cfg.outputs.region }}
+
+      - name: Deploy to S3
+        run: |
+          BUCKET="${{ steps.cfg.outputs.bucket }}"
+          aws s3 sync dist/pmst-angular-ui/browser/ "s3://$BUCKET/" \
+            --delete \
+            --cache-control "public, max-age=31536000, immutable" \
+            --exclude "*.html"
+          aws s3 sync dist/pmst-angular-ui/browser/ "s3://$BUCKET/" \
+            --cache-control "no-cache, no-store, must-revalidate" \
+            --exclude "*" \
+            --include "*.html"
+
+      - name: Resolve CloudFront distribution & invalidate
+        run: |
+          BUCKET="${{ steps.cfg.outputs.bucket }}"
+          DIST_ID=$(aws cloudfront list-distributions \
+            --query "DistributionList.Items[?contains(Origins.Items[0].DomainName, '$BUCKET')].Id | [0]" \
+            --output text)
+          if [ "$DIST_ID" = "None" ] || [ -z "$DIST_ID" ]; then
+            echo "No CloudFront distribution found for origin $BUCKET — skipping invalidation."
+          else
+            echo "Invalidating CloudFront $DIST_ID"
+            aws cloudfront create-invalidation --distribution-id "$DIST_ID" --paths "/*"
+          fi
