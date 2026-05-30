@@ -12,10 +12,15 @@ Complete development guide for migrating from WordPress to AWS serverless archit
 - **Frontend:** Angular 17+ LTS (stable until Nov 2026)
 - **Backend:** Java 21 Lambda functions with SnapStart
 - **Authentication:** AWS Cognito + JWT tokens (hybrid approach)
-- **Database:** PostgreSQL + Redis
-- **Infrastructure:** AWS (Lambda, API Gateway, Cognito, S3, CloudFront)
+- **Database:** PostgreSQL 16 (RDS) + RDS Proxy
+- **Media:** S3 (two buckets: frontend + media) + CloudFront CDN
+- **Image Pipeline:** S3 → SQS → Python Lambda (ECR container) + SSM config
+- **Secrets:** AWS Secrets Manager (DB creds) + SSM Parameter Store (config)
+- **State:** S3 (Terraform state) + DynamoDB (state lock)
+- **Observability:** CloudWatch Logs (Lambda + RDS)
+- **Infrastructure:** AWS (Lambda, API Gateway, Cognito, S3, CloudFront, SQS, ECR, RDS, VPC)
 - **IaC:** Terraform (modular, multi-environment)
-- **CI/CD:** GitHub Actions
+- **CI/CD:** GitHub Actions + OIDC (no static AWS keys)
 
 ---
 
@@ -31,8 +36,13 @@ Complete development guide for migrating from WordPress to AWS serverless archit
 | Comments System | Replaces Messaging | ✅ Scope Updated |
 | Events System | From mage-eventpress | ✅ Identified |
 | Follow System | Custom DB table (pmst_follows) | ✅ Identified |
-| Infrastructure | Terraform IaC | ✅ Decided |
-| CI/CD | GitHub Actions → AWS | ✅ Decided |
+| Infrastructure | Terraform IaC | ✅ Implemented |
+| CI/CD | GitHub Actions + OIDC | ✅ Implemented |
+| Image Pipeline | SQS + Python Lambda (ECR) + SSM | ✅ Implemented |
+| Media CDN | S3 + CloudFront (2 distributions) | ✅ Implemented |
+| Secrets | Secrets Manager (DB) + SSM (config) | ✅ Implemented |
+| State Backend | S3 + DynamoDB lock table | ✅ Implemented |
+| Observability | CloudWatch Logs (30d retention prod) | ✅ Implemented |
 
 ---
 
@@ -45,6 +55,7 @@ Complete development guide for migrating from WordPress to AWS serverless archit
 | **pmst-data-migration** | WordPress → PostgreSQL migration scripts | 🟢 Active — `feature/migration-scripts` |
 | **pmst-api-service** | Java 21 Lambda — Articles, Galleries, Users, Follows, Comments (consolidated) | 🟢 Active — `feature/initial-setup` |
 | **pmst-ticketing-service** | Java 21 Lambda — Event ticketing (separate service) | 🔵 Planned |
+| **pmst-auth-gateway** | Future Spring Boot API Gateway — multi-service routing (not active; cognito-local used for local auth) | 🔵 Future |
 | **pmstusnepal-plugins** | WordPress plugins (38 plugins) | 🟢 Reference |
 | **nepalicommunityhub-plugins** | Secondary site plugins | 🟢 Reference |
 | **jwt-token-api** | Spring Boot JWT (retire) | ⚠️ Archive |
@@ -543,7 +554,7 @@ Invoke-RestMethod -Uri http://localhost:8080/auth/me -Headers @{Authorization="B
 |------|---------|
 | `docker-compose.yml` | `cognito-local` service on port 9229 |
 | `application.properties` | Env-var placeholders (`${COGNITO_*}`) |
-| `application-local.properties` | Local values (gitignored) — pool=`local_pool`, client=`local_client`, endpoint=`http://localhost:9229` |
+| `application-local.properties` | Local values (gitignored) — pool=`local_pool`, client=`local_client`, endpoint=`http://localhost:9229`; `pmst.media.bucket=local-dev-stub` |
 | `config/CognitoConfig.java` | SDK client bean — supports both local emulator (endpoint override) and real Cognito |
 | `config/SecurityConfig.java` | Spring Security: public read endpoints, JWT-protected write endpoints |
 | `service/AuthService.java` | Login/register/refresh logic (Cognito SDK wrapper) |
@@ -878,11 +889,12 @@ infrastructure/
 ├── modules/
 │   ├── vpc/                    # VPC, subnets, NAT, security groups
 │   ├── rds/                    # PostgreSQL + RDS Proxy
-│   ├── cognito/                # User pools (or extend jwt-token-api)
+│   ├── cognito/                # User pools
 │   ├── s3/                     # Media storage + frontend hosting
 │   ├── cloudfront/             # CDN distribution
 │   ├── lambda/                 # Java function deployments
-│   └── api-gateway/            # REST API configuration
+│   ├── api-gateway/            # REST API configuration
+│   └── image-processor/        # SQS + Python Lambda + ECR + SSM params (image pipeline)
 ├── environments/
 │   ├── dev/
 │   │   ├── main.tf
@@ -890,6 +902,8 @@ infrastructure/
 │   │   └── terraform.tfvars
 │   ├── staging/
 │   └── prod/
+├── bootstrap/
+│   └── README.md               # One-time: S3 state backend + OIDC roles setup
 ├── backend.tf                  # S3 + DynamoDB state
 └── variables.tf
 ```
@@ -1135,12 +1149,15 @@ resource "aws_lambda_function" "api" {
 | Secret | Pattern | Local | Prod (planned) |
 |--------|---------|-------|----------------|
 | `PMST_YT_API_KEY` | YouTube Data API v3 | `application-local.properties` | SSM `/pmst/prod/youtube-api-key` |
+| `MEDIA_BUCKET` | S3 image upload bucket | `application-local.properties` → `local-dev-stub` | Lambda env var → `pmst-prod-media` |
 | Cognito Client Secret | Auth | TBD | SSM `/pmst/prod/cognito-client-secret` |
 | RDS Password | DB | docker-compose env | SSM `/pmst/prod/rds-password` |
 
 ---
 
 ## Part 7: CI/CD Pipeline (GitHub Actions)
+
+> ⚠️ **Note:** The YAML snippets in this section show the **old static-key pattern** (`AWS_ACCESS_KEY_ID`/`AWS_SECRET_ACCESS_KEY`). The actual implemented workflows use **OIDC (no static keys)** — see **Part 11** for the current authoritative CI/CD documentation. This section is retained for context only.
 
 > **Solo Developer Mode (current):** `pmstusnepal.com` still points to Hostinger/WordPress — no risk working directly on prod AWS infra. Push to `main` → auto-deploys to production. Dev/staging environments exist in Terraform but are **not provisioned** (no cost). Reactivate when team grows.
 
@@ -1156,6 +1173,7 @@ pmst-terraform-infra/.github/workflows/
 
 pmst-angular-ui/.github/workflows/
 └── deploy-frontend-prod.yml    # AUTO: build + S3 sync + CF invalidate on push to main
+```
 
 ### Branching Strategy (Solo Phase — Updated)
 
@@ -1195,55 +1213,14 @@ on:
 
 ### Active Workflows
 
-**`deploy-prod-on-push.yml`** (pmst-terraform-infra) — triggers on push to `main`:
-```yaml
-name: Deploy Production (Auto)
-on:
-  push:
-    branches: [main]
-jobs:
-  terraform-prod:
-    environment: prod
-    defaults:
-      run:
-        working-directory: environments/prod
-    steps:
-      - uses: actions/checkout@v4
-      - uses: hashicorp/setup-terraform@v3
-        with: { terraform_version: "1.6.x" }
-      - uses: aws-actions/configure-aws-credentials@v4
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: us-east-1
-      - run: terraform init
-      - run: terraform plan -var="db_password=${{ secrets.DB_PASSWORD }}" -var="acm_certificate_arn=${{ secrets.ACM_CERTIFICATE_ARN }}" -out=tfplan
-      - run: terraform apply -auto-approve tfplan
-```
+> **See Part 11 for the current authoritative YAML** (OIDC-based). The four active workflows are:
 
-**`deploy-frontend-prod.yml`** (pmst-angular-ui) — triggers on push to `main`:
-```yaml
-name: Deploy Frontend (prod)
-on:
-  push:
-    branches: [main]
-jobs:
-  build-and-deploy:
-    environment: prod
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with: { node-version: 18, cache: npm }
-      - run: npm ci
-      - run: npm run build:prod
-      - uses: aws-actions/configure-aws-credentials@v4
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: us-east-1
-      - run: aws s3 sync dist/pmst-angular-ui/browser/ s3://${{ vars.FRONTEND_BUCKET }} --delete
-      - run: aws cloudfront create-invalidation --distribution-id ${{ vars.CF_DISTRIBUTION_ID }} --paths "/*"
-```
+| Repo | Workflow file | Trigger | Action |
+|------|--------------|---------|--------|
+| pmst-terraform-infra | `deploy-prod-on-push.yml` | Push to `main` | `terraform apply` (prod) |
+| pmst-angular-ui | `deploy-angular.yml` | Push to `main` | S3 sync + CF invalidation |
+| pmst-api-service | `deploy-api-service.yml` | Push to `main` | JAR → S3 → Lambda update |
+| pmst-image-processor | `deploy-image-processor.yml` | Push to `main` | Docker → ECR → Lambda update |
 
 ### Dormant Workflows (Future Scope)
 
@@ -1252,15 +1229,16 @@ jobs:
 | `deploy-dev.yml` | Dormant | Team grows / need isolated dev environment |
 | `deploy-staging.yml` | Dormant | Pre-production testing needed before go-live |
 
-### Secrets Required (GitHub → Settings → Secrets)
-- `AWS_ACCESS_KEY_ID`
-- `AWS_SECRET_ACCESS_KEY`
-- `DB_PASSWORD`
-- `ACM_CERTIFICATE_ARN` (SSL cert in us-east-1 for CloudFront)
+### Required GitHub Secrets (OIDC — No Static Keys)
 
-### Variables Required (GitHub → Settings → Variables)
-- `FRONTEND_BUCKET` — prod S3 bucket name (e.g. `pmst-prod-frontend`)
-- `CF_DISTRIBUTION_ID` — CloudFront distribution ID
+> No `AWS_ACCESS_KEY_ID` or `AWS_SECRET_ACCESS_KEY` needed. See **Part 11** for full bootstrap + YAML details.
+
+| Secret | Repos | Description |
+|--------|-------|-------------|
+| `AWS_ACCOUNT_ID` | All | 12-digit AWS account ID |
+| `TF_VAR_DB_PASSWORD` | terraform-infra only | RDS password |
+| `ACM_CERT_ARN` | terraform-infra only | ACM cert ARN (after first apply) |
+| `CLOUDFRONT_DISTRIBUTION_ID` | angular-ui only | From Terraform output |
 
 ### Documentation Sync Requirements
 
@@ -1485,7 +1463,7 @@ aws s3 sync D:/pmst-migration/uploads/ s3://pmst-prod-media/media/ \
 
 ---
 
-## Part 10: Local Run → Design → Test → Deploy Gate
+## Part 9.5: Local Run → Design → Test → Deploy Gate
 
 > **Rule:** Nothing goes to AWS until the full experience works perfectly on localhost. Run locally, experience it as a real user, fix issues, then deploy.
 
@@ -2012,3 +1990,290 @@ Featured image is **always required** — submit/publish blocked without it. You
 ### Payload (no backend changes needed)
 
 Uses existing `ArticleService.createArticle()` with `CreateArticlePayload` (status: `'draft' | 'pending' | 'published'`).
+
+---
+
+## Part 10: Image Pipeline
+
+### Overview
+
+All images follow a two-path strategy:
+- **New uploads (post-launch):** Angular calls `POST /media/upload` → API returns presigned S3 URL → browser PUTs directly to S3 → Lambda auto-processes
+- **Existing images (pre-launch batch):** `14_process_and_upload_images.py` script processes all migrated images and uploads to S3
+
+### Image Tier Sizes
+
+| Tier | Longest Edge | Use Case |
+|------|-------------|----------|
+| `thumb` | 150px | Gallery grids, avatars |
+| `card` | 480px | Article cards, listing pages |
+| `hero` | 1200px | Detail page featured images |
+| `master` | 2400px | Full-size / download |
+
+Both WebP (primary) and JPEG (fallback) are generated for each tier.
+
+### S3 Storage Layout
+
+```
+pmst-prod-media/
+├── uploads/raw/           ← Browser direct uploads (deleted after processing)
+└── media/{year}/{month}/{uuid}/
+    ├── thumb.webp / thumb.jpg
+    ├── card.webp  / card.jpg
+    ├── hero.webp  / hero.jpg
+    └── master.webp / master.jpg
+```
+
+### Data Flow
+
+```
+Angular form
+  │ POST /api/media/upload {filename, contentType}
+  ▼
+MediaController (Java Lambda)
+  │ returns { presignedUrl, objectKey }
+  ▼
+Browser PUT → S3 uploads/raw/{uuid}.jpg
+  │ S3 event notification
+  ▼
+SQS queue (pmst-prod-image-processing)
+  │ Lambda trigger (batch_size=5)
+  ▼
+image-processor Lambda (Python 3.12 + Pillow)
+  │ 1. Download raw from S3
+  │ 2. Resize to 4 tiers × 2 formats = 8 files
+  │ 3. Upload to media/{year}/{month}/{uuid}/
+  │ 4. Update articles/gallery_images.image_key in RDS
+  │ 5. Delete raw file
+  ▼
+Done — image_key available in API responses
+```
+
+### Database Changes (V6 Migration)
+
+`V6__add_image_key_columns.sql` adds:
+- `articles.image_key VARCHAR(500)` — base S3 path for article featured image
+- `gallery_images.image_key VARCHAR(500)` — base S3 path per gallery image
+
+### Angular Usage
+
+```typescript
+// In component:
+imageUrl = imageUrlMapper.getCardUrl(article.imageKey, article.featuredImage);
+heroUrl  = imageUrlMapper.getHeroUrl(article.imageKey, article.featuredImage);
+thumbUrl = imageUrlMapper.getThumbUrl(article.imageKey, article.featuredImage);
+
+// imageKey present → CloudFront WebP URL
+// imageKey null    → falls back to legacy featuredImage mapping
+```
+
+### Configuration (SSM Parameter Store)
+
+All tuneable — change without redeployment:
+
+| SSM Path | Default | Description |
+|---|---|---|
+| `/pmst/prod/image/master_longest_edge` | `2400` | Max longest edge in px |
+| `/pmst/prod/image/webp_quality` | `85` | WebP encode quality |
+| `/pmst/prod/image/jpeg_quality` | `90` | JPEG encode quality |
+| `/pmst/prod/image/tiers` | `thumb:150,card:480,hero:1200,master:2400` | Tier definitions |
+
+### Batch Migration (Run Before Go-Live)
+
+```bash
+# Dry run first (no uploads)
+cd D:\pmst-migration\scripts
+python 14_process_and_upload_images.py
+
+# Full apply (needs AWS creds + MEDIA_BUCKET env var)
+set MEDIA_BUCKET=pmst-prod-media
+python 14_process_and_upload_images.py --apply --workers 4
+
+# Test with first 50 images
+python 14_process_and_upload_images.py --apply --limit 50
+```
+
+### Pre-Go-Live Checklist (Images)
+
+- [ ] Run `14_process_and_upload_images.py --apply` on all existing images (~3,337)
+- [ ] Verify sample `image_key` values in DB match S3 object paths
+- [ ] Update `environment.prod.ts` → `cfDomain` with actual CloudFront domain
+- [ ] Test `getTierUrl()` returns correct WebP URLs in Angular
+- [ ] Verify S3 lifecycle rule deletes `uploads/raw/` after 1 day
+- [ ] Check CloudWatch logs for image-processor Lambda errors after first upload
+
+---
+
+## Part 11: CI/CD Pipeline (GitHub Actions + OIDC) ← Current
+
+### Authentication (No Static Keys)
+
+All GitHub Actions authenticate to AWS via **OIDC** — no `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` in GitHub Secrets.
+
+### GitHub Actions Workflows
+
+| Repo | Workflow File | Trigger | Action |
+|------|--------------|---------|--------|
+| pmst-terraform-infra | `.github/workflows/terraform-apply.yml` | Push to `main` | `terraform apply` |
+| pmst-angular-ui | `.github/workflows/deploy-angular.yml` | Push to `main` | S3 sync + CF invalidation |
+| pmst-api-service | `.github/workflows/deploy-api-service.yml` | Push to `main` | JAR → S3 → Lambda update |
+| pmst-image-processor | `.github/workflows/deploy-image-processor.yml` | Push to `main` | Docker → ECR → Lambda update |
+
+### Required GitHub Secrets (per repo)
+
+| Secret | Description |
+|--------|-------------|
+| `AWS_ACCOUNT_ID` | 12-digit AWS account ID |
+| `TF_VAR_DB_PASSWORD` | (terraform-infra only) RDS password |
+| `ACM_CERT_ARN` | (terraform-infra only) ACM cert ARN after first apply |
+| `CLOUDFRONT_DISTRIBUTION_ID` | (angular-ui only) From Terraform output |
+
+### Bootstrap Order (First Deploy)
+
+1. Run `bootstrap/README.md` commands to create S3 state bucket + OIDC IAM roles
+2. Manual `terraform init && terraform apply` (first time only — no CI yet)
+3. Get outputs: CloudFront distribution ID, ECR repo URLs
+4. Add secrets to GitHub repos
+5. Push to `main` — all subsequent deploys are fully automated
+
+### IAM Roles Created by Bootstrap
+
+| Role | Used By | Permissions |
+|------|---------|-------------|
+| `pmst-github-actions-terraform` | terraform-infra repo | AdministratorAccess (scoped to repo) |
+| `pmst-github-actions-deploy` | angular-ui, api-service, image-processor | S3 + Lambda + CloudFront + ECR |
+
+---
+
+## Part 12: Production Deployment — Before / During / After
+
+> This section covers the **full Flyway concern** introduced by adding `flyway-core` to `pom.xml`, and the general deployment safety checklist for every prod push.
+
+---
+
+### BEFORE Deployment
+
+#### Flyway — First-Time Prod RDS Bootstrap
+
+Prod RDS is a **clean database** — no migrations have ever run outside Flyway there. On the first Lambda cold start, Flyway will:
+1. Create `flyway_schema_history` table automatically
+2. Apply V2 → V6 in order from scratch
+3. Record real checksums — no manual seeding needed
+
+**No action required** — Flyway handles it. But verify these before `terraform apply`:
+
+- [ ] `mvn package -DskipTests` produces `target/pmst-api-service-lambda.jar` without errors
+- [ ] All `db/migration/V*.sql` files are present in the JAR (`jar tf target/*.jar | grep migration`)
+- [ ] `spring.flyway.validate-on-migrate=false` is set in `application.properties` (handles local history mismatch — safe on clean prod RDS)
+- [ ] Confirm `spring.jpa.hibernate.ddl-auto=validate` — Hibernate must NOT auto-create/alter schema; Flyway owns all DDL
+
+#### Pre-Deploy Checklist (Every Prod Push)
+
+| Check | Command / Action | Pass Condition |
+|-------|-----------------|----------------|
+| Tests pass | `mvn test` | BUILD SUCCESS |
+| Lambda JAR builds | `mvn package -DskipTests` | `target/*-lambda.jar` exists |
+| Terraform plan clean | `terraform plan -chdir=environments/prod` | No unintended destroys |
+| Angular build clean | `npm run build:prod` (in `D:\pmstmigrate`) | No errors, `dist/` produced |
+| Local smoke test | `mvn spring-boot:run -DskipTests` → GET `/articles` | 200 + JSON articles |
+| Branch is `main` | `git branch --show-current` | `main` |
+| No uncommitted changes | `git status` | Clean working tree |
+
+#### Flyway Re-enable Validation (Post First Prod Deploy)
+
+After the first successful prod deploy, flip the flag to catch accidental migration edits:
+
+```properties
+# application.properties — update after first prod deploy
+spring.flyway.validate-on-migrate=true   # re-enable after prod RDS is bootstrapped
+```
+
+---
+
+### DURING Deployment
+
+#### Deployment Order (Always Follow This Sequence)
+
+```
+1. Terraform apply        → provisions/updates AWS infra (RDS, Lambda, API GW, Cognito, S3, CF)
+2. Flyway runs            → auto on Lambda cold start (creates/migrates schema)
+3. Lambda JAR upload      → CI/CD: JAR → S3 → Lambda update-function-code
+4. Angular build + upload → CI/CD: npm build:prod → S3 sync → CF invalidation
+```
+
+**Never deploy frontend before backend** — Angular may reference new API fields that don't exist yet.
+
+#### What Triggers Each Deployment
+
+| Repo | Trigger | What Deploys |
+|------|---------|-------------|
+| `pmst-terraform-infra` | Push to `main` | Full infra (`terraform apply`) |
+| `pmst-api-service` | Push to `main` | Lambda JAR → S3 → `update-function-code` |
+| `pmst-angular-ui` | Push to `main` | `dist/` → S3 sync → CloudFront invalidation |
+| `pmst-image-processor` | Push to `main` | Docker → ECR → Lambda update |
+
+#### Lambda Cold Start After Deploy
+
+On the first request after a Lambda update:
+- Spring Boot initialises (~3–5s with SnapStart)
+- Flyway checks `flyway_schema_history` — applies any pending migrations
+- JPA validates schema against entities — **will crash if columns missing**
+- App starts serving requests
+
+**Watch CloudWatch Logs** for any `SchemaManagementException` or `FlywayMigrateException` immediately after deploy.
+
+#### Monitoring During Deploy
+
+```bash
+# Watch Lambda logs in real time (run in separate terminal after deploy)
+aws logs tail /aws/lambda/pmst-api-prod --follow --region us-east-1
+
+# Check Lambda function last-modified timestamp
+aws lambda get-function --function-name pmst-api-prod --query 'Configuration.LastModified'
+
+# Verify CloudFront invalidation completed
+aws cloudfront list-invalidations --distribution-id <CF_DIST_ID> --query 'InvalidationList.Items[0].Status'
+```
+
+---
+
+### AFTER Deployment
+
+#### Post-Deploy Smoke Tests (Run Immediately)
+
+| Test | Command / URL | Expected |
+|------|--------------|----------|
+| API health | `curl https://api.pmstusnepal.com/articles` | 200 + JSON |
+| Public gallery | `curl https://api.pmstusnepal.com/galleries` | 200 + JSON |
+| Frontend loads | Open `https://pmstusnepal.com` in browser | Homepage renders |
+| CloudFront cache | Check `X-Cache: Hit from cloudfront` header | On 2nd request |
+| Flyway applied | Check CloudWatch for `Successfully applied N migrations` | No errors |
+| Image pipeline | Upload a test image via `/api/media/upload` | Returns `presignedUrl` + `objectKey` |
+
+#### Rollback Plan
+
+| Scenario | Rollback Action | Time |
+|----------|----------------|------|
+| Lambda crash (5xx) | `aws lambda update-function-code --function-name pmst-api-prod --s3-key <previous-jar>` | 2 min |
+| Angular blank page | Re-upload previous `dist/` to S3 + CF invalidation | 3 min |
+| Terraform destroy detected | `git revert` commit + re-run CI | 5 min |
+| DNS issue | Switch A/AAAA back to `46.202.182.16` (Hostinger) | 5 min |
+| Flyway migration failed | Fix migration SQL, redeploy Lambda (Flyway retries on next cold start) | 10 min |
+
+> **Flyway rollback note:** Flyway Community Edition does not support automatic rollback. If a migration fails, fix the SQL and redeploy — Flyway will retry the failed version. Never manually delete rows from `flyway_schema_history` in prod.
+
+#### Post-Deploy Monitoring (First 24h)
+
+- [ ] CloudWatch Lambda error rate → should be 0%
+- [ ] CloudWatch Lambda duration → p99 < 3000ms (cold start with SnapStart)
+- [ ] RDS CPU < 30% under normal load
+- [ ] No `SchemaManagementException` in Lambda logs
+- [ ] S3 `uploads/raw/` objects being deleted (image pipeline working)
+- [ ] CloudFront cache hit ratio > 80% after warm-up
+
+#### After First Prod Deploy — Housekeeping
+
+- [ ] Re-enable `spring.flyway.validate-on-migrate=true` in `application.properties`
+- [ ] Confirm `flyway_schema_history` in prod RDS has all 6 rows (V2–V6 + baseline)
+- [ ] Tag the release: `git tag v1.0.0 && git push --tags`
+- [ ] Archive old local Docker `flyway_schema_history` note in this doc

@@ -106,6 +106,9 @@
                 <button onclick="showTab('prod-readiness')" class="tab-btn px-4 py-2 rounded-lg text-sm font-medium transition-colors hover:bg-gray-100 text-gray-600" data-tab="prod-readiness">
                     <i data-lucide="shield-check" class="w-4 h-4 inline mr-1"></i>Prod Readiness
                 </button>
+                <button onclick="showTab('deploy')" class="tab-btn px-4 py-2 rounded-lg text-sm font-medium transition-colors hover:bg-gray-100 text-gray-600" data-tab="deploy">
+                    <i data-lucide="rocket" class="w-4 h-4 inline mr-1"></i>Deploy
+                </button>
             </div>
         </div>
     </nav>
@@ -605,6 +608,67 @@ mvn test</code></pre>
                 </div>
             </div>
 
+            <!-- Image Pipeline -->
+            <div class="bg-white rounded-xl shadow-lg p-8 mb-6">
+                <h2 class="text-2xl font-bold mb-6 flex items-center gap-2">
+                    <i data-lucide="image" class="text-purple-600"></i>
+                    Image Pipeline
+                    <span class="ml-auto bg-green-100 text-green-700 text-sm px-3 py-1 rounded-full">✅ Implemented</span>
+                </h2>
+                <p class="text-gray-600 mb-4">Automated WebP/JPEG resize pipeline with 4 derivative tiers via Python Lambda + SQS.</p>
+
+                <div class="grid md:grid-cols-2 gap-4 mb-6">
+                    <div class="bg-purple-50 rounded-lg p-4 border border-purple-200">
+                        <h3 class="font-bold text-purple-800 mb-3">Derivative Tiers</h3>
+                        <table class="w-full text-sm">
+                            <thead class="bg-purple-100"><tr><th class="px-2 py-1 text-left">Tier</th><th class="px-2 py-1 text-left">Size</th><th class="px-2 py-1 text-left">Use</th></tr></thead>
+                            <tbody class="divide-y">
+                                <tr><td class="px-2 py-1 font-mono">thumb</td><td class="px-2 py-1">150px</td><td class="px-2 py-1 text-gray-600">Grids, avatars</td></tr>
+                                <tr><td class="px-2 py-1 font-mono">card</td><td class="px-2 py-1">480px</td><td class="px-2 py-1 text-gray-600">Article cards</td></tr>
+                                <tr><td class="px-2 py-1 font-mono">hero</td><td class="px-2 py-1">1200px</td><td class="px-2 py-1 text-gray-600">Detail pages</td></tr>
+                                <tr><td class="px-2 py-1 font-mono">master</td><td class="px-2 py-1">2400px</td><td class="px-2 py-1 text-gray-600">Full-size / download</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="bg-green-50 rounded-lg p-4 border border-green-200">
+                        <h3 class="font-bold text-green-800 mb-3">Components Built</h3>
+                        <ul class="text-sm space-y-1">
+                            <li>✅ <span class="font-mono text-xs">V6__add_image_key_columns.sql</span> — DB migration</li>
+                            <li>✅ <span class="font-mono text-xs">MediaController + MediaService</span> — presigned URL API</li>
+                            <li>✅ <span class="font-mono text-xs">modules/image-processor/</span> — Terraform (SQS + Lambda)</li>
+                            <li>✅ <span class="font-mono text-xs">pmst-image-processor/</span> — Python Lambda (Pillow)</li>
+                            <li>✅ <span class="font-mono text-xs">14_process_and_upload_images.py</span> — batch migration</li>
+                            <li>✅ <span class="font-mono text-xs">ImageUrlMapperService</span> — tier URL helper</li>
+                            <li>✅ GitHub Actions OIDC workflows (all 4 repos)</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="bg-amber-50 border border-amber-200 rounded-lg p-4">
+                    <h4 class="font-bold text-amber-800 mb-2 flex items-center gap-2">
+                        <i data-lucide="check-circle" class="w-5 h-5"></i>
+                        Pre-Go-Live Checklist (Images)
+                    </h4>
+                    <div class="bg-white rounded p-3 mb-3 text-sm">
+                        <p class="font-semibold text-gray-700 mb-1">Local vs Prod — no code changes needed</p>
+                        <table class="w-full text-xs">
+                            <thead class="bg-gray-100"><tr><th class="px-2 py-1 text-left">Setting</th><th class="px-2 py-1 text-left">Local</th><th class="px-2 py-1 text-left">Prod Lambda</th></tr></thead>
+                            <tbody class="divide-y">
+                                <tr><td class="px-2 py-1 font-mono">pmst.media.bucket</td><td class="px-2 py-1"><code>application-local.properties</code> → <code>local-dev-stub</code></td><td class="px-2 py-1"><code>MEDIA_BUCKET</code> env var → <code>pmst-prod-media</code></td></tr>
+                                <tr><td class="px-2 py-1 font-mono">cfDomain (Angular)</td><td class="px-2 py-1"><code>environment.ts</code> → <code>''</code> (fallback to local assets)</td><td class="px-2 py-1"><code>environment.prod.ts</code> → real CF domain</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <ol class="text-sm text-amber-700 space-y-1 list-decimal list-inside">
+                        <li>Run <code class="bg-amber-100 px-1 rounded">14_process_and_upload_images.py --apply</code> for all ~3,337 images</li>
+                        <li>Set <code class="bg-amber-100 px-1 rounded">cfDomain</code> in <code class="bg-amber-100 px-1 rounded">environment.prod.ts</code> to actual CloudFront domain</li>
+                        <li>Verify <code class="bg-amber-100 px-1 rounded">image_key</code> values in DB match S3 paths</li>
+                        <li>Bootstrap OIDC IAM roles + S3 state backend (see <code class="bg-amber-100 px-1 rounded">bootstrap/README.md</code>)</li>
+                        <li>Run first manual <code class="bg-amber-100 px-1 rounded">terraform apply</code>, then CI/CD takes over</li>
+                    </ol>
+                </div>
+            </div>
+
             <!-- Production Environment (Hostinger) -->
             <div class="bg-white rounded-xl shadow-lg p-8 mb-6">
                 <h2 class="text-2xl font-bold mb-6 flex items-center gap-2">
@@ -916,10 +980,23 @@ mvn test</code></pre>
                         Data & Storage
                     </h3>
                     <ul class="space-y-2 text-sm">
-                        <li class="flex items-center gap-2"><span class="w-2 h-2 bg-pink-500 rounded-full"></span>PostgreSQL (RDS)</li>
-                        <li class="flex items-center gap-2"><span class="w-2 h-2 bg-pink-500 rounded-full"></span>Redis (ElastiCache)</li>
-                        <li class="flex items-center gap-2"><span class="w-2 h-2 bg-pink-500 rounded-full"></span>S3 (Media)</li>
-                        <li class="flex items-center gap-2"><span class="w-2 h-2 bg-pink-500 rounded-full"></span>RDS Proxy</li>
+                        <li class="flex items-center gap-2"><span class="w-2 h-2 bg-pink-500 rounded-full"></span>PostgreSQL 16 (RDS)</li>
+                        <li class="flex items-center gap-2"><span class="w-2 h-2 bg-pink-500 rounded-full"></span>RDS Proxy (connection pooling)</li>
+                        <li class="flex items-center gap-2"><span class="w-2 h-2 bg-pink-500 rounded-full"></span>S3 (frontend + media buckets)</li>
+                        <li class="flex items-center gap-2"><span class="w-2 h-2 bg-pink-500 rounded-full"></span>DynamoDB (Terraform state lock)</li>
+                    </ul>
+                </div>
+                <div class="bg-white rounded-xl shadow-lg p-6">
+                    <h3 class="font-bold text-lg mb-4 flex items-center gap-2">
+                        <i data-lucide="settings" class="text-orange-600"></i>
+                        Platform Services
+                    </h3>
+                    <ul class="space-y-2 text-sm">
+                        <li class="flex items-center gap-2"><span class="w-2 h-2 bg-orange-500 rounded-full"></span>SQS (image processing queue + DLQ)</li>
+                        <li class="flex items-center gap-2"><span class="w-2 h-2 bg-orange-500 rounded-full"></span>ECR (Python Lambda container registry)</li>
+                        <li class="flex items-center gap-2"><span class="w-2 h-2 bg-orange-500 rounded-full"></span>Secrets Manager (DB credentials)</li>
+                        <li class="flex items-center gap-2"><span class="w-2 h-2 bg-orange-500 rounded-full"></span>SSM Parameter Store (image config)</li>
+                        <li class="flex items-center gap-2"><span class="w-2 h-2 bg-orange-500 rounded-full"></span>CloudWatch Logs (Lambda + RDS)</li>
                     </ul>
                 </div>
             </div>
@@ -2033,7 +2110,8 @@ mvn test</code></pre>
 │   ├── cognito/                # User Pool, App Client, groups
 │   ├── s3/                     # Frontend bucket + media bucket (OAC)
 │   ├── cloudfront/             # CDN + SPA fallback (403/404 → index.html)
-│   ├── lambda/                 # 8 Java 21 services with SnapStart
+│   ├── lambda/                 # Java 21 services with SnapStart
+│   ├── image-processor/        # SQS + Python Lambda (ECR) + SSM config
 │   └── api-gateway/            # REST API + Cognito JWT authorizer
 ├── environments/
 │   ├── dev/                    # db.t3.micro · 256MB Lambda · no proxy
@@ -2085,30 +2163,33 @@ mvn test</code></pre>
                 </div>
 
                 <!-- Required Secrets -->
-                <h3 class="font-bold text-lg mb-3">Required GitHub Secrets</h3>
+                <h3 class="font-bold text-lg mb-3">Required GitHub Secrets (OIDC — No Static AWS Keys)</h3>
+                <div class="bg-green-50 border border-green-200 rounded-lg p-3 mb-4 text-sm text-green-800">
+                    <strong>✅ OIDC Implemented:</strong> GitHub Actions authenticates via AWS IAM OIDC role — no <code>AWS_ACCESS_KEY_ID</code> or <code>AWS_SECRET_ACCESS_KEY</code> needed.
+                </div>
                 <div class="grid md:grid-cols-2 gap-3 mb-6">
                     <div class="bg-gray-50 rounded-lg p-3 font-mono text-sm flex items-center gap-2">
-                        <i data-lucide="key" class="w-4 h-4 text-gray-500 shrink-0"></i> AWS_ACCESS_KEY_ID
+                        <i data-lucide="key" class="w-4 h-4 text-gray-500 shrink-0"></i> AWS_ACCOUNT_ID
                     </div>
                     <div class="bg-gray-50 rounded-lg p-3 font-mono text-sm flex items-center gap-2">
-                        <i data-lucide="key" class="w-4 h-4 text-gray-500 shrink-0"></i> AWS_SECRET_ACCESS_KEY
+                        <i data-lucide="key" class="w-4 h-4 text-gray-500 shrink-0"></i> TF_VAR_DB_PASSWORD
                     </div>
                     <div class="bg-gray-50 rounded-lg p-3 font-mono text-sm flex items-center gap-2">
-                        <i data-lucide="key" class="w-4 h-4 text-gray-500 shrink-0"></i> DB_PASSWORD
+                        <i data-lucide="key" class="w-4 h-4 text-gray-500 shrink-0"></i> ACM_CERT_ARN <span class="text-xs text-gray-400 font-sans">(prod only)</span>
                     </div>
                     <div class="bg-gray-50 rounded-lg p-3 font-mono text-sm flex items-center gap-2">
-                        <i data-lucide="key" class="w-4 h-4 text-gray-500 shrink-0"></i> ACM_CERTIFICATE_ARN <span class="text-xs text-gray-400 font-sans">(prod only)</span>
+                        <i data-lucide="key" class="w-4 h-4 text-gray-500 shrink-0"></i> CLOUDFRONT_DISTRIBUTION_ID
                     </div>
                 </div>
 
                 <!-- Next Steps -->
                 <div class="bg-amber-50 border border-amber-200 rounded-lg p-4">
-                    <h4 class="font-bold text-amber-800 mb-2">&#128073; Before running terraform init</h4>
+                    <h4 class="font-bold text-amber-800 mb-2">&#128073; Bootstrap (one-time, before first terraform apply)</h4>
                     <ol class="text-sm text-amber-700 space-y-1 list-decimal list-inside">
-                        <li>Create S3 bucket <code class="bg-amber-100 px-1 rounded">pmst-terraform-state</code> in us-east-1</li>
-                        <li>Create DynamoDB table <code class="bg-amber-100 px-1 rounded">pmst-terraform-locks</code> (partition key: <code class="bg-amber-100 px-1 rounded">LockID</code>)</li>
-                        <li>Add the four GitHub secrets above</li>
-                        <li>Run <code class="bg-amber-100 px-1 rounded">terraform init</code> from <code class="bg-amber-100 px-1 rounded">environments/prod/</code></li>
+                        <li>Run <code class="bg-amber-100 px-1 rounded">bootstrap/setup-oidc.sh</code> — creates S3 state bucket, DynamoDB lock table, OIDC IAM role</li>
+                        <li>Add the four GitHub secrets above to the repo</li>
+                        <li>Run first <code class="bg-amber-100 px-1 rounded">terraform apply</code> manually from <code class="bg-amber-100 px-1 rounded">environments/prod/</code></li>
+                        <li>All subsequent deployments handled by CI/CD on push to <code class="bg-amber-100 px-1 rounded">main</code></li>
                     </ol>
                 </div>
 
@@ -3089,6 +3170,159 @@ Protected (writes, /auth/me, /users/**): COGNITO_USER_POOLS</div>
                 </table>
             </div>
         </div><!-- closes tab-prod-readiness -->
+
+        <!-- Tab: Deploy -->
+        <div id="tab-deploy" class="tab-content">
+            <h2 class="text-2xl font-bold text-gray-800 mb-2">Production Deployment — Before / During / After</h2>
+            <p class="text-gray-600 mb-6">Full deployment safety checklist covering Flyway DB migrations, deployment order, live monitoring, and rollback procedures.</p>
+
+            <!-- BEFORE -->
+            <div class="mb-10">
+                <h3 class="text-xl font-bold text-blue-700 mb-4 flex items-center gap-2">
+                    <i data-lucide="clipboard-check" class="w-5 h-5"></i> BEFORE Deployment
+                </h3>
+
+                <div class="bg-blue-50 border border-blue-200 rounded-xl p-5 mb-5">
+                    <h4 class="font-bold text-blue-800 mb-2">Flyway — First-Time Prod RDS Bootstrap</h4>
+                    <p class="text-sm text-gray-700 mb-3">Prod RDS is a <strong>clean database</strong> — no migrations have ever run outside Flyway there. On the first Lambda cold start, Flyway will automatically create <code>flyway_schema_history</code>, apply V2→V6 in order, and record real checksums. <strong>No manual action required.</strong></p>
+                    <div class="space-y-2 text-sm">
+                        <div class="flex items-start gap-2"><span class="text-blue-500 mt-0.5">☐</span><span><code>mvn package -DskipTests</code> produces <code>target/pmst-api-service-lambda.jar</code></span></div>
+                        <div class="flex items-start gap-2"><span class="text-blue-500 mt-0.5">☐</span><span>All migration files present in JAR: <code>jar tf target/*.jar | grep migration</code></span></div>
+                        <div class="flex items-start gap-2"><span class="text-blue-500 mt-0.5">☐</span><span><code>spring.flyway.validate-on-migrate=false</code> set (handles local history mismatch — safe on clean prod RDS)</span></div>
+                        <div class="flex items-start gap-2"><span class="text-blue-500 mt-0.5">☐</span><span><code>spring.jpa.hibernate.ddl-auto=validate</code> confirmed — Flyway owns all DDL, Hibernate must not auto-create</span></div>
+                    </div>
+                </div>
+
+                <h4 class="font-semibold text-gray-700 mb-3">Pre-Deploy Checklist (Every Prod Push)</h4>
+                <div class="overflow-x-auto">
+                    <table class="min-w-full text-sm border border-gray-200 rounded-lg">
+                        <thead class="bg-gray-50"><tr>
+                            <th class="px-4 py-2 text-left text-gray-600 font-semibold">Check</th>
+                            <th class="px-4 py-2 text-left text-gray-600 font-semibold">Command / Action</th>
+                            <th class="px-4 py-2 text-left text-gray-600 font-semibold">Pass Condition</th>
+                        </tr></thead>
+                        <tbody class="divide-y divide-gray-100">
+                            <tr><td class="px-4 py-2">Tests pass</td><td class="px-4 py-2 font-mono text-xs">mvn test</td><td class="px-4 py-2 text-green-700">BUILD SUCCESS</td></tr>
+                            <tr class="bg-gray-50"><td class="px-4 py-2">Lambda JAR builds</td><td class="px-4 py-2 font-mono text-xs">mvn package -DskipTests</td><td class="px-4 py-2 text-green-700">target/*-lambda.jar exists</td></tr>
+                            <tr><td class="px-4 py-2">Terraform plan clean</td><td class="px-4 py-2 font-mono text-xs">terraform plan -chdir=environments/prod</td><td class="px-4 py-2 text-green-700">No unintended destroys</td></tr>
+                            <tr class="bg-gray-50"><td class="px-4 py-2">Angular build clean</td><td class="px-4 py-2 font-mono text-xs">npm run build:prod</td><td class="px-4 py-2 text-green-700">No errors, dist/ produced</td></tr>
+                            <tr><td class="px-4 py-2">Local smoke test</td><td class="px-4 py-2 font-mono text-xs">GET localhost:8080/articles</td><td class="px-4 py-2 text-green-700">200 + JSON articles</td></tr>
+                            <tr class="bg-gray-50"><td class="px-4 py-2">On main branch</td><td class="px-4 py-2 font-mono text-xs">git branch --show-current</td><td class="px-4 py-2 text-green-700">main</td></tr>
+                            <tr><td class="px-4 py-2">No uncommitted changes</td><td class="px-4 py-2 font-mono text-xs">git status</td><td class="px-4 py-2 text-green-700">Clean working tree</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- DURING -->
+            <div class="mb-10">
+                <h3 class="text-xl font-bold text-amber-700 mb-4 flex items-center gap-2">
+                    <i data-lucide="zap" class="w-5 h-5"></i> DURING Deployment
+                </h3>
+
+                <div class="bg-amber-50 border border-amber-200 rounded-xl p-5 mb-5">
+                    <h4 class="font-bold text-amber-800 mb-3">Deployment Order — Always Follow This Sequence</h4>
+                    <div class="space-y-2">
+                        <div class="flex items-center gap-3 bg-white rounded-lg p-3 border border-amber-100">
+                            <span class="bg-amber-500 text-white w-7 h-7 rounded-full flex items-center justify-center font-bold text-sm flex-shrink-0">1</span>
+                            <div><strong>Terraform apply</strong> — provisions/updates AWS infra (RDS, Lambda, API GW, Cognito, S3, CF)</div>
+                        </div>
+                        <div class="flex items-center gap-3 bg-white rounded-lg p-3 border border-amber-100">
+                            <span class="bg-amber-500 text-white w-7 h-7 rounded-full flex items-center justify-center font-bold text-sm flex-shrink-0">2</span>
+                            <div><strong>Flyway runs</strong> — auto on Lambda cold start; creates/migrates schema</div>
+                        </div>
+                        <div class="flex items-center gap-3 bg-white rounded-lg p-3 border border-amber-100">
+                            <span class="bg-amber-500 text-white w-7 h-7 rounded-full flex items-center justify-center font-bold text-sm flex-shrink-0">3</span>
+                            <div><strong>Lambda JAR upload</strong> — CI/CD: JAR → S3 → <code>update-function-code</code></div>
+                        </div>
+                        <div class="flex items-center gap-3 bg-white rounded-lg p-3 border border-amber-100">
+                            <span class="bg-amber-500 text-white w-7 h-7 rounded-full flex items-center justify-center font-bold text-sm flex-shrink-0">4</span>
+                            <div><strong>Angular build + upload</strong> — CI/CD: <code>npm build:prod</code> → S3 sync → CF invalidation</div>
+                        </div>
+                    </div>
+                    <p class="text-sm text-amber-800 mt-3 font-medium">⚠️ Never deploy frontend before backend — Angular may reference new API fields that don't exist yet.</p>
+                </div>
+
+                <div class="bg-gray-900 text-green-400 rounded-lg p-4 text-xs font-mono mb-4">
+                    <div class="text-gray-400 mb-2"># Watch Lambda logs in real time after deploy</div>
+                    <div>aws logs tail /aws/lambda/pmst-api-prod --follow --region us-east-1</div>
+                    <div class="text-gray-400 mt-2"># Verify CloudFront invalidation completed</div>
+                    <div>aws cloudfront list-invalidations --distribution-id &lt;CF_DIST_ID&gt; --query 'InvalidationList.Items[0].Status'</div>
+                    <div class="text-gray-400 mt-2"># Confirm Lambda updated</div>
+                    <div>aws lambda get-function --function-name pmst-api-prod --query 'Configuration.LastModified'</div>
+                </div>
+
+                <div class="bg-red-50 border border-red-200 rounded-lg p-4 text-sm">
+                    <h4 class="font-bold text-red-800 mb-2">Lambda Cold Start — What Happens</h4>
+                    <p class="text-gray-700">Spring Boot initialises (~3–5s with SnapStart) → Flyway checks <code>flyway_schema_history</code> and applies pending migrations → JPA validates schema → app serves requests.</p>
+                    <p class="text-red-700 mt-2 font-medium">Watch CloudWatch for <code>SchemaManagementException</code> or <code>FlywayMigrateException</code> immediately after deploy.</p>
+                </div>
+            </div>
+
+            <!-- AFTER -->
+            <div class="mb-10">
+                <h3 class="text-xl font-bold text-green-700 mb-4 flex items-center gap-2">
+                    <i data-lucide="check-circle" class="w-5 h-5"></i> AFTER Deployment
+                </h3>
+
+                <h4 class="font-semibold text-gray-700 mb-3">Post-Deploy Smoke Tests (Run Immediately)</h4>
+                <div class="overflow-x-auto mb-6">
+                    <table class="min-w-full text-sm border border-gray-200 rounded-lg">
+                        <thead class="bg-gray-50"><tr>
+                            <th class="px-4 py-2 text-left text-gray-600 font-semibold">Test</th>
+                            <th class="px-4 py-2 text-left text-gray-600 font-semibold">Command / URL</th>
+                            <th class="px-4 py-2 text-left text-gray-600 font-semibold">Expected</th>
+                        </tr></thead>
+                        <tbody class="divide-y divide-gray-100">
+                            <tr><td class="px-4 py-2">API health</td><td class="px-4 py-2 font-mono text-xs">curl https://api.pmstusnepal.com/articles</td><td class="px-4 py-2 text-green-700">200 + JSON</td></tr>
+                            <tr class="bg-gray-50"><td class="px-4 py-2">Public gallery</td><td class="px-4 py-2 font-mono text-xs">curl https://api.pmstusnepal.com/galleries</td><td class="px-4 py-2 text-green-700">200 + JSON</td></tr>
+                            <tr><td class="px-4 py-2">Frontend loads</td><td class="px-4 py-2 font-mono text-xs">https://pmstusnepal.com</td><td class="px-4 py-2 text-green-700">Homepage renders</td></tr>
+                            <tr class="bg-gray-50"><td class="px-4 py-2">CloudFront cache</td><td class="px-4 py-2 font-mono text-xs">X-Cache header on 2nd request</td><td class="px-4 py-2 text-green-700">Hit from cloudfront</td></tr>
+                            <tr><td class="px-4 py-2">Flyway applied</td><td class="px-4 py-2 font-mono text-xs">CloudWatch logs</td><td class="px-4 py-2 text-green-700">Successfully applied N migrations</td></tr>
+                            <tr class="bg-gray-50"><td class="px-4 py-2">Image pipeline</td><td class="px-4 py-2 font-mono text-xs">POST /api/media/upload</td><td class="px-4 py-2 text-green-700">Returns presignedUrl + objectKey</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <h4 class="font-semibold text-gray-700 mb-3">Rollback Plan</h4>
+                <div class="overflow-x-auto mb-6">
+                    <table class="min-w-full text-sm border border-gray-200 rounded-lg">
+                        <thead class="bg-gray-50"><tr>
+                            <th class="px-4 py-2 text-left text-gray-600 font-semibold">Scenario</th>
+                            <th class="px-4 py-2 text-left text-gray-600 font-semibold">Rollback Action</th>
+                            <th class="px-4 py-2 text-left text-gray-600 font-semibold">Time</th>
+                        </tr></thead>
+                        <tbody class="divide-y divide-gray-100">
+                            <tr><td class="px-4 py-2">Lambda crash (5xx)</td><td class="px-4 py-2 font-mono text-xs">aws lambda update-function-code --s3-key &lt;previous-jar&gt;</td><td class="px-4 py-2">2 min</td></tr>
+                            <tr class="bg-gray-50"><td class="px-4 py-2">Angular blank page</td><td class="px-4 py-2">Re-upload previous dist/ + CF invalidation</td><td class="px-4 py-2">3 min</td></tr>
+                            <tr><td class="px-4 py-2">Terraform destroy detected</td><td class="px-4 py-2">git revert + re-run CI</td><td class="px-4 py-2">5 min</td></tr>
+                            <tr class="bg-gray-50"><td class="px-4 py-2">DNS issue</td><td class="px-4 py-2">Switch A/AAAA back to 46.202.182.16 (Hostinger)</td><td class="px-4 py-2">5 min</td></tr>
+                            <tr><td class="px-4 py-2">Flyway migration failed</td><td class="px-4 py-2">Fix SQL → redeploy Lambda (Flyway retries on cold start)</td><td class="px-4 py-2">10 min</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4 text-sm mb-6">
+                    <strong class="text-yellow-800">Flyway rollback note:</strong> <span class="text-gray-700">Flyway Community Edition does not support automatic rollback. If a migration fails, fix the SQL and redeploy — Flyway will retry the failed version on next cold start. Never manually delete rows from <code>flyway_schema_history</code> in prod.</span>
+                </div>
+
+                <h4 class="font-semibold text-gray-700 mb-3">Post-Deploy Monitoring (First 24h)</h4>
+                <div class="space-y-2 text-sm mb-6">
+                    <div class="flex items-center gap-2 p-2 bg-gray-50 rounded"><span class="text-gray-400">☐</span><span>CloudWatch Lambda error rate → 0%</span></div>
+                    <div class="flex items-center gap-2 p-2 bg-gray-50 rounded"><span class="text-gray-400">☐</span><span>CloudWatch Lambda p99 duration &lt; 3000ms (SnapStart)</span></div>
+                    <div class="flex items-center gap-2 p-2 bg-gray-50 rounded"><span class="text-gray-400">☐</span><span>RDS CPU &lt; 30% under normal load</span></div>
+                    <div class="flex items-center gap-2 p-2 bg-gray-50 rounded"><span class="text-gray-400">☐</span><span>No <code>SchemaManagementException</code> in Lambda logs</span></div>
+                    <div class="flex items-center gap-2 p-2 bg-gray-50 rounded"><span class="text-gray-400">☐</span><span>S3 <code>uploads/raw/</code> objects being deleted (image pipeline working)</span></div>
+                    <div class="flex items-center gap-2 p-2 bg-gray-50 rounded"><span class="text-gray-400">☐</span><span>CloudFront cache hit ratio &gt; 80% after warm-up</span></div>
+                </div>
+
+                <h4 class="font-semibold text-gray-700 mb-3">After First Prod Deploy — Housekeeping</h4>
+                <div class="space-y-2 text-sm">
+                    <div class="flex items-center gap-2 p-2 bg-green-50 rounded border border-green-100"><span class="text-gray-400">☐</span><span>Re-enable <code>spring.flyway.validate-on-migrate=true</code> in <code>application.properties</code></span></div>
+                    <div class="flex items-center gap-2 p-2 bg-green-50 rounded border border-green-100"><span class="text-gray-400">☐</span><span>Confirm <code>flyway_schema_history</code> in prod RDS has all 6 rows (V2–V6 + baseline)</span></div>
+                    <div class="flex items-center gap-2 p-2 bg-green-50 rounded border border-green-100"><span class="text-gray-400">☐</span><span>Tag the release: <code>git tag v1.0.0 &amp;&amp; git push --tags</code></span></div>
+                </div>
+            </div>
+        </div><!-- closes tab-deploy -->
 
     </main>
 

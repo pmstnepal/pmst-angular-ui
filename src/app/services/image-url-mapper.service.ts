@@ -1,18 +1,25 @@
 import { Injectable } from '@angular/core';
+import { environment } from '../../environments/environment';
+
+export type ImageTier = 'thumb' | 'card' | 'hero' | 'master';
 
 /**
  * Image URL Mapper Service
- * Maps WordPress image URLs to local/development paths
+ * Maps WordPress image URLs to local/development paths.
+ * In production, maps image_key (S3 base path) to CloudFront tier URLs.
  *
- * Unified Lookup Strategy:
- * - All content images have unique filenames across all years
- * - Uses manifest.json for O(1) filename-to-path lookups
- * - 2024/2025/2026 articles find their images in 2019/2023 folders
+ * Two URL strategies:
+ *  1. imageKey-based (new uploads + migrated images):
+ *     getTierUrl(imageKey, tier) → {CF_DOMAIN}/{imageKey}/{tier}.webp
+ *  2. Legacy WP URL mapping (fallback for items not yet processed):
+ *     mapUrl(wpUrl) → local asset or CF URL
  */
 @Injectable({
   providedIn: 'root'
 })
 export class ImageUrlMapperService {
+  private readonly cfDomain: string = (environment as any).cfDomain ?? '';
+
   // Direct mappings for non-year paths
   private patterns = [
     {
@@ -32,6 +39,44 @@ export class ImageUrlMapperService {
 
   constructor() {
     // Manifest loads lazily on first use - no blocking
+  }
+
+  /**
+   * Primary method for prod — resolves an image_key + tier to a full CloudFront URL.
+   * Falls back to mapUrl(legacyUrl) when image_key is null (item not yet processed).
+   *
+   * @param imageKey  S3 base path e.g. "media/2024/03/my-photo-uuid"
+   * @param tier      Desired size tier
+   * @param legacyUrl Original WP URL used as fallback when imageKey is null
+   */
+  getTierUrl(imageKey: string | null | undefined, tier: ImageTier = 'card', legacyUrl?: string | null): string {
+    if (imageKey) {
+      const base = this.cfDomain ? `${this.cfDomain}/${imageKey}` : `/assets/processed/${imageKey}`;
+      return `${base}/${tier}.webp`;
+    }
+    return this.mapUrl(legacyUrl);
+  }
+
+  /**
+   * Convenience overload: same as getTierUrl but always returns the card tier.
+   * Use for article cards, gallery grids — most common case.
+   */
+  getCardUrl(imageKey: string | null | undefined, legacyUrl?: string | null): string {
+    return this.getTierUrl(imageKey, 'card', legacyUrl);
+  }
+
+  /**
+   * Returns hero URL (1200px) — use for detail page featured images.
+   */
+  getHeroUrl(imageKey: string | null | undefined, legacyUrl?: string | null): string {
+    return this.getTierUrl(imageKey, 'hero', legacyUrl);
+  }
+
+  /**
+   * Returns thumbnail URL (150px) — use for gallery grids, avatars.
+   */
+  getThumbUrl(imageKey: string | null | undefined, legacyUrl?: string | null): string {
+    return this.getTierUrl(imageKey, 'thumb', legacyUrl);
   }
 
   /**
