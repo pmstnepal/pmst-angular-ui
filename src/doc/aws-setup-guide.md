@@ -366,3 +366,103 @@ Both pipelines passed on `test` branch after the above fixes:
 - [x] No `window is not defined` errors in build output
 - [x] No budget exceeded errors in build output
 - [x] API calls route correctly through `/api/{proxy+}`
+
+---
+
+### Infrastructure Provisioning & Destroy — May 31, 2026
+
+#### IAM Role for GitHub Actions (Terraform)
+
+Created the OIDC-based IAM role so the CI/CD pipeline could authenticate to AWS without static keys:
+
+- **Role name:** `pmst-github-actions-terraform`
+- **Trust policy:** GitHub OIDC provider scoped to `pmstnepal/pmst-terraform-infra`
+- **Permissions:** `AdministratorAccess` (scoped to repo via OIDC condition)
+- **Purpose:** Allows `pmst-terraform-infra` GitHub Actions workflow to run `terraform apply` / `terraform destroy` without `AWS_ACCESS_KEY_ID`
+
+#### Manual `terraform apply` — Test Environment
+
+First full infrastructure provision run against `deploy/test.tfvars`:
+
+```powershell
+cd d:\pmstmigrateinfra
+$env:TF_VAR_db_password = "..."
+terraform init -backend-config=deploy/backend-test.hcl
+terraform apply -var-file=deploy/test.tfvars
+```
+
+**Resources provisioned:** 77 resources including:
+- RDS PostgreSQL (`pmst-test-postgres`) — private subnet
+- Lambda function (`pmst-test-pmst-api-service`)
+- S3 buckets (`pmst-test-frontend`, `pmst-test-media`)
+- CloudFront distribution → `d3p3q3lvpevw39.cloudfront.net`
+- VPC + subnets + NAT Gateway + security groups
+- Cognito User Pool
+- API Gateway REST API → `t529isqhyc.execute-api.us-east-1.amazonaws.com/test`
+
+#### Database Migration — Blocked
+
+Attempted to run `python run_all_migrations.py` from `d:\pmst-migration` but RDS is in a **private subnet** with no public access configured.
+
+**Blocker:** Cannot reach `pmst-test-postgres` endpoint directly from laptop.
+
+**Options for next session:**
+1. Set `db_publicly_accessible = true` in `deploy/test.tfvars` → `terraform apply` → run scripts → revert + destroy same day
+2. Use SSM Session Manager port-forward through an EC2 instance or VPC endpoint
+3. Run migration scripts from a Lambda function or ECS task inside the VPC
+
+> See `todaydeploy.md` → Phase 3 for the port-forward approach.
+
+#### `terraform destroy` — Clean
+
+All 77 test resources destroyed successfully:
+
+```powershell
+cd d:\pmstmigrateinfra
+
+# 1. Empty S3 buckets first
+aws s3 rm s3://pmst-test-frontend --recursive
+aws s3 rm s3://pmst-test-media --recursive
+
+# 2. Delete ECR images
+aws ecr batch-delete-image --repository-name pmst-test-image-processor --image-ids imageTag=latest
+
+# 3. Destroy
+$env:TF_VAR_db_password = "..."
+terraform init -backend-config=deploy/backend-test.hcl
+terraform destroy -var-file=deploy/test.tfvars -auto-approve
+```
+
+**Result:** `Destroy complete! 77 resources destroyed.`
+
+> The warnings about API Gateway logging not being fully reset are **normal** — these are account-level settings that Terraform doesn't fully manage. They have no impact on test environment cleanup.
+
+**Post-destroy verification:**
+- [x] RDS instance deleted
+- [x] Lambda functions deleted
+- [x] S3 buckets deleted
+- [x] CloudFront distribution deleted
+- [x] VPC and networking deleted
+- [x] Cognito User Pool deleted
+- [x] Billing stopped — no ongoing charges for test resources
+
+---
+
+### Full Session Summary — May 31, 2026
+
+| # | Task | Status |
+|---|------|--------|
+| 1 | Fixed API service workflow (JAR path issue) | ✅ Done |
+| 2 | Created IAM role `pmst-github-actions-terraform` for Terraform CI | ✅ Done |
+| 3 | Fixed Angular build: `window is not defined` (SSR prerender) | ✅ Done |
+| 4 | Fixed Angular build: component style budget exceeded | ✅ Done |
+| 5 | Fixed API Gateway 403: `apiUrl` missing `/api` suffix | ✅ Done |
+| 6 | Deployed test infrastructure manually via `terraform apply` (77 resources) | ✅ Done |
+| 7 | Both CI/CD pipelines passed (`pmst-angular-ui` + `pmst-api-service`, `test` branch) | ✅ Done |
+| 8 | Attempted database migration — blocked by private RDS subnet | ⚠️ Blocked |
+| 9 | Destroyed all test infrastructure cleanly (`terraform destroy`) | ✅ Done |
+
+**Next session — pending items:**
+- [ ] Enable RDS public access in `deploy/test.tfvars` OR set up SSM port-forward for DB migration
+- [ ] Run full data migration (10 scripts in `d:\pmst-migration\scripts\`)
+- [ ] Verify migrated data via smoke tests against test API endpoints
