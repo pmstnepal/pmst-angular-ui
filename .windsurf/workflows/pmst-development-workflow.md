@@ -44,6 +44,8 @@ Complete development guide for migrating from WordPress to AWS serverless archit
 | State Backend | S3 + DynamoDB lock table | ✅ Implemented |
 | Observability | CloudWatch Logs (30d retention prod) | ✅ Implemented |
 
+> **AWS Setup, Known Bugs & Session Logs:** [`src/doc/aws-setup-guide.md`](../src/doc/aws-setup-guide.md) — includes Terraform fix history, SSR/prerender patterns, API Gateway URL rules, and dated session logs for each deployment session.
+
 ---
 
 ## GitHub Repositories (pmstnepal org)
@@ -2174,6 +2176,16 @@ All GitHub Actions authenticate to AWS via **OIDC** — no `AWS_ACCESS_KEY_ID` /
 |------|---------|-------------|
 | `pmst-github-actions-terraform` | terraform-infra repo | AdministratorAccess (scoped to repo) |
 | `pmst-github-actions-deploy` | angular-ui, api-service, image-processor | S3 + Lambda + CloudFront + ECR |
+
+### Known Pipeline Issues & Fixes
+
+For detailed root-cause analysis of past pipeline failures and their fixes, see **[`src/doc/aws-setup-guide.md` → Session Log](../src/doc/aws-setup-guide.md#session-log--may-31-2026)**. Key recurring patterns to watch:
+
+| Symptom | Root Cause | Fix Reference |
+|---------|-----------|---------------|
+| `ReferenceError: window is not defined` during prerender | Browser API used without `isPlatformBrowser` guard | `aws-setup-guide.md` Fix 1 |
+| `exceeded maximum budget` on component style | `anyComponentStyle` error limit too tight | `aws-setup-guide.md` Fix 2 |
+| API 403 `Missing Authentication Token` | `apiUrl` missing `/api` path segment | `aws-setup-guide.md` Fix 3 |
 
 ---
 

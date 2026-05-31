@@ -112,6 +112,9 @@
                 <button onclick="showTab('cicd')" class="tab-btn px-4 py-2 rounded-lg text-sm font-medium transition-colors hover:bg-gray-100 text-gray-600" data-tab="cicd">
                     <i data-lucide="git-merge" class="w-4 h-4 inline mr-1"></i>CICD Strategy
                 </button>
+                <button onclick="showTab('session-log')" class="tab-btn px-4 py-2 rounded-lg text-sm font-medium transition-colors hover:bg-gray-100 text-gray-600" data-tab="session-log">
+                    <i data-lucide="history" class="w-4 h-4 inline mr-1"></i>Session Log
+                </button>
             </div>
         </div>
     </nav>
@@ -1693,6 +1696,12 @@ mvn test</code></pre>
                                 <div class="mt-1 flex gap-1 flex-wrap"><span class="text-xs bg-green-100 text-green-700 px-1.5 rounded">articles</span><span class="text-xs bg-green-100 text-green-700 px-1.5 rounded">galleries</span></div>
                                 <div class="mt-1 text-xs text-green-600">✓ seo_focus_keyword + seo_description + indexes</div>
                             </div>
+                            <div class="kanban-card bg-white p-3 rounded-lg shadow opacity-75" data-component="gallery-carousel-ssr" data-status="done">
+                                <div class="font-medium text-sm line-through">GalleryCarouselComponent SSR Fix</div>
+                                <div class="text-xs text-gray-500">shared/components/gallery-carousel/</div>
+                                <div class="mt-1 flex gap-1 flex-wrap"><span class="text-xs bg-blue-100 text-blue-700 px-1.5 rounded">isPlatformBrowser</span><span class="text-xs bg-blue-100 text-blue-700 px-1.5 rounded">prerender</span></div>
+                                <div class="mt-1 text-xs text-green-600">✓ May 31, 2026 — window guard prevents SSR crash</div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -3127,6 +3136,19 @@ mvn test</code></pre>
                     <div class="flex items-start gap-3">
                         <span class="text-green-600 font-bold text-lg">✅</span>
                         <div>
+                            <h4 class="font-bold text-green-800">Fix 5 — API Gateway: <code>apiUrl</code> Must Include <code>/api</code> Suffix (May 31, 2026)</h4>
+                            <p class="text-sm text-green-700"><strong>File:</strong> <code>deploy/environments.yaml</code></p>
+                            <p class="text-sm text-gray-600 mt-1">All API calls returned 403 "Missing Authentication Token" during prerender. Root cause: <code>apiUrl</code> pointed to <code>…/test</code> but the API Gateway resource is mounted at <code>/api/{proxy+}</code>. Angular services appended paths directly, hitting non-existent routes. Fix: append <code>/api</code> to <code>apiUrl</code> for all environments.</p>
+                            <div class="mt-2 bg-gray-100 rounded p-3 text-xs font-mono whitespace-pre">apiUrl: "https://&lt;id&gt;.execute-api.us-east-1.amazonaws.com/&lt;stage&gt;/api"
+
+Service call: ${apiUrl}/youtube/config
+→ resolves to: …/test/api/youtube/config  ✅ matches /api/{proxy+}</div>
+                            <p class="text-xs text-amber-700 mt-2">⚠️ Prod note: if custom domain strips <code>/api</code>, remove the suffix in <code>environment.prod.ts</code>. Check <code>modules/cloudfront/main.tf</code> origin path.</p>
+                        </div>
+                    </div>
+                    <div class="flex items-start gap-3 mt-4">
+                        <span class="text-green-600 font-bold text-lg">✅</span>
+                        <div>
                             <h4 class="font-bold text-green-800">Fix 4 — API Gateway: Native Cognito Authorizer</h4>
                             <p class="text-sm text-green-700"><strong>Files:</strong> <code>modules/api-gateway/main.tf</code>, <code>modules/lambda/main.tf</code>, outputs, variables, <code>environments/prod/main.tf</code></p>
                             <p class="text-sm text-gray-600 mt-1">Terraform provisioned a <code>CognitoAuthorizer</code> Lambda (type <code>TOKEN</code>) whose handler class didn't exist — every API call would 500 on prod cold start. Replaced with native <code>COGNITO_USER_POOLS</code> authorizer. Public GET routes use <code>NONE</code> auth; protected routes use <code>COGNITO_USER_POOLS</code>. Spring Security is the second defense layer inside Lambda.</p>
@@ -3903,6 +3925,20 @@ Protected (writes, /auth/me, /users/**): COGNITO_USER_POOLS</div>
                 </div>
             </div>
 
+            <!-- Pipeline pass history -->
+            <div class="bg-emerald-50 border border-emerald-200 rounded-xl p-5 mb-6">
+                <h3 class="font-bold text-emerald-800 mb-3 flex items-center gap-2"><i data-lucide="check-circle" class="w-5 h-5"></i> Pipeline Pass History</h3>
+                <div class="overflow-x-auto">
+                    <table class="min-w-full text-xs">
+                        <thead><tr class="text-gray-500 border-b border-emerald-200"><th class="px-2 py-1 text-left">Date</th><th class="px-2 py-1 text-left">Pipeline</th><th class="px-2 py-1 text-left">Branch</th><th class="px-2 py-1 text-left">Result</th><th class="px-2 py-1 text-left">Notes</th></tr></thead>
+                        <tbody class="divide-y divide-emerald-100">
+                            <tr><td class="px-2 py-1.5 text-gray-600">May 31, 2026</td><td class="px-2 py-1.5">Build Angular &amp; Deploy</td><td class="px-2 py-1.5 font-mono">test</td><td class="px-2 py-1.5"><span class="bg-green-100 text-green-700 px-1.5 py-0.5 rounded">✅ Passed</span></td><td class="px-2 py-1.5 text-gray-500">First e2e pass. 3 fixes applied (SSR, budget, apiUrl)</td></tr>
+                            <tr><td class="px-2 py-1.5 text-gray-600">May 31, 2026</td><td class="px-2 py-1.5">Deploy API Service</td><td class="px-2 py-1.5 font-mono">test</td><td class="px-2 py-1.5"><span class="bg-green-100 text-green-700 px-1.5 py-0.5 rounded">✅ Passed</span></td><td class="px-2 py-1.5 text-gray-500">Live: d3p3q3lvpevw39.cloudfront.net</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
             <!-- Setup checklist -->
             <div class="bg-white border border-gray-200 rounded-xl p-5">
                 <h3 class="font-bold text-gray-800 mb-3 flex items-center gap-2"><i data-lucide="check-square" class="w-5 h-5 text-indigo-600"></i> One-Time Setup</h3>
@@ -3915,6 +3951,108 @@ Protected (writes, /auth/me, /users/**): COGNITO_USER_POOLS</div>
                 </div>
             </div>
         </div><!-- closes tab-cicd -->
+
+        <!-- Tab: Session Log -->
+        <div id="tab-session-log" class="tab-content">
+            <div class="flex items-center justify-between mb-6">
+                <div>
+                    <h2 class="text-2xl font-bold text-gray-800">Session Log</h2>
+                    <p class="text-gray-500 text-sm mt-1">Chronological record of development sessions — fixes applied, decisions made, and environments verified.</p>
+                </div>
+                <a href="../src/doc/aws-setup-guide.md" class="text-indigo-600 hover:text-indigo-800 text-sm font-medium flex items-center gap-1"><i data-lucide="external-link" class="w-4 h-4"></i> aws-setup-guide.md</a>
+            </div>
+
+            <!-- Session: May 31, 2026 -->
+            <div class="bg-white border border-gray-200 rounded-xl shadow-sm mb-6 overflow-hidden">
+                <div class="bg-gradient-to-r from-emerald-600 to-emerald-700 text-white px-6 py-4 flex items-center justify-between">
+                    <div>
+                        <h3 class="font-bold text-lg flex items-center gap-2"><i data-lucide="rocket" class="w-5 h-5"></i> May 31, 2026 — First Successful End-to-End Test Deploy</h3>
+                        <p class="text-emerald-100 text-sm mt-0.5">Both pipelines green on <code class="bg-emerald-800 px-1 rounded">test</code> branch · 3 issues found &amp; fixed</p>
+                    </div>
+                    <span class="bg-white/20 px-3 py-1 rounded-full text-sm font-medium">✅ All Passed</span>
+                </div>
+                <div class="p-6">
+
+                    <!-- Live URLs -->
+                    <div class="bg-gray-50 rounded-lg p-4 mb-6 flex flex-wrap gap-4 text-sm">
+                        <div><span class="text-gray-500">Frontend:</span> <a href="https://d3p3q3lvpevw39.cloudfront.net" target="_blank" class="text-indigo-600 hover:underline font-mono text-xs">https://d3p3q3lvpevw39.cloudfront.net</a></div>
+                        <div><span class="text-gray-500">API base:</span> <span class="font-mono text-xs text-gray-700">https://t529isqhyc.execute-api.us-east-1.amazonaws.com/test/api</span></div>
+                    </div>
+
+                    <!-- Fix 1 -->
+                    <div class="border border-gray-100 rounded-lg p-4 mb-4">
+                        <div class="flex items-center gap-3 mb-2">
+                            <span class="bg-blue-100 text-blue-700 px-2 py-0.5 rounded text-xs font-bold">Fix 1</span>
+                            <h4 class="font-semibold text-gray-800">SSR Prerender Crash — <code>window is not defined</code></h4>
+                        </div>
+                        <div class="grid md:grid-cols-2 gap-4 text-sm">
+                            <div>
+                                <p class="text-gray-600"><strong>File:</strong> <code>gallery-carousel.component.ts</code></p>
+                                <p class="text-gray-600 mt-1"><strong>Root cause:</strong> <code>window.setInterval()</code> called unconditionally — crashes in Node.js during prerender.</p>
+                                <p class="text-gray-600 mt-1"><strong>Fix:</strong> Guard with <code>isPlatformBrowser(this.platformId)</code> before any <code>window</code> usage.</p>
+                            </div>
+                            <div class="bg-gray-50 rounded p-3 text-xs font-mono">
+                                <div class="text-gray-400 mb-1">// After</div>
+                                <div>startAutoRotate() {</div>
+                                <div class="pl-4 text-blue-700">if (!isPlatformBrowser(this.platformId)) return;</div>
+                                <div class="pl-4">this.autoRotateInterval = window.setInterval(...);</div>
+                                <div>}</div>
+                            </div>
+                        </div>
+                        <p class="text-xs text-gray-500 mt-2">Pattern applies to all browser APIs: <code>window</code>, <code>document</code>, <code>localStorage</code>, <code>navigator</code>, <code>IntersectionObserver</code>, etc.</p>
+                    </div>
+
+                    <!-- Fix 2 -->
+                    <div class="border border-gray-100 rounded-lg p-4 mb-4">
+                        <div class="flex items-center gap-3 mb-2">
+                            <span class="bg-purple-100 text-purple-700 px-2 py-0.5 rounded text-xs font-bold">Fix 2</span>
+                            <h4 class="font-semibold text-gray-800">Component Style Budget Errors</h4>
+                        </div>
+                        <p class="text-sm text-gray-600"><strong>File:</strong> <code>angular.json</code> (both <code>production</code> and <code>test</code> configs)</p>
+                        <p class="text-sm text-gray-600 mt-1"><strong>Root cause:</strong> <code>anyComponentStyle maximumError: 4kb</code> — exceeded by <code>news-detail</code>, <code>submit-content</code>, <code>submit-gallery</code>.</p>
+                        <div class="mt-2 grid grid-cols-3 gap-3 text-xs text-center">
+                            <div class="bg-gray-50 rounded p-2"><div class="text-gray-500">Setting</div><div class="font-bold">Before → After</div></div>
+                            <div class="bg-gray-50 rounded p-2"><div class="text-gray-500">maximumWarning</div><div class="font-bold">2 kB → 4 kB</div></div>
+                            <div class="bg-gray-50 rounded p-2"><div class="text-gray-500">maximumError</div><div class="font-bold">4 kB → 10 kB</div></div>
+                        </div>
+                    </div>
+
+                    <!-- Fix 3 -->
+                    <div class="border border-gray-100 rounded-lg p-4 mb-4">
+                        <div class="flex items-center gap-3 mb-2">
+                            <span class="bg-amber-100 text-amber-700 px-2 py-0.5 rounded text-xs font-bold">Fix 3</span>
+                            <h4 class="font-semibold text-gray-800">API Gateway 403 — <code>Missing Authentication Token</code></h4>
+                        </div>
+                        <p class="text-sm text-gray-600"><strong>File:</strong> <code>deploy/environments.yaml</code></p>
+                        <p class="text-sm text-gray-600 mt-1"><strong>Root cause:</strong> <code>apiUrl</code> had no <code>/api</code> suffix. API GW route is <code>/api/{proxy+}</code>, so calls to <code>…/test/youtube/config</code> matched no route → 403.</p>
+                        <div class="mt-2 bg-gray-50 rounded p-3 text-xs font-mono">
+                            <div class="text-red-600">Before: apiUrl: "…/test"</div>
+                            <div class="text-green-700 mt-1">After:&nbsp; apiUrl: "…/test/api"</div>
+                        </div>
+                        <p class="text-xs text-amber-700 mt-2">⚠️ Rule: <code>apiUrl</code> must end with <code>/&lt;stage&gt;/api</code>. For prod with custom domain, verify CloudFront origin path doesn't already strip <code>/api</code>.</p>
+                    </div>
+
+                    <!-- Smoke test results -->
+                    <div class="bg-green-50 border border-green-200 rounded-lg p-4">
+                        <h4 class="font-semibold text-green-800 mb-2 flex items-center gap-2"><i data-lucide="check-circle" class="w-4 h-4"></i> Smoke Test Results</h4>
+                        <div class="grid md:grid-cols-2 gap-1 text-sm">
+                            <div class="flex items-center gap-2 text-green-700"><i data-lucide="check" class="w-3 h-3"></i> Homepage loads on CloudFront URL</div>
+                            <div class="flex items-center gap-2 text-green-700"><i data-lucide="check" class="w-3 h-3"></i> Browser + server bundles produced</div>
+                            <div class="flex items-center gap-2 text-green-700"><i data-lucide="check" class="w-3 h-3"></i> 10 static routes prerendered</div>
+                            <div class="flex items-center gap-2 text-green-700"><i data-lucide="check" class="w-3 h-3"></i> No <code>window is not defined</code> in build</div>
+                            <div class="flex items-center gap-2 text-green-700"><i data-lucide="check" class="w-3 h-3"></i> No budget exceeded errors</div>
+                            <div class="flex items-center gap-2 text-green-700"><i data-lucide="check" class="w-3 h-3"></i> API calls route through <code>/api/{proxy+}</code></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Placeholder for future sessions -->
+            <div class="bg-gray-50 border border-dashed border-gray-300 rounded-xl p-6 text-center text-gray-400">
+                <i data-lucide="plus-circle" class="w-8 h-8 mx-auto mb-2 opacity-50"></i>
+                <p class="text-sm">Future session entries will appear here. Full details in <code>src/doc/aws-setup-guide.md</code>.</p>
+            </div>
+        </div><!-- closes tab-session-log -->
 
     </main>
 
@@ -3940,7 +4078,7 @@ Protected (writes, /auth/me, /users/**): COGNITO_USER_POOLS</div>
         document.addEventListener('DOMContentLoaded', function() {
             lucide.createIcons();
             mermaid.initialize({ startOnLoad: false });
-            document.getElementById('lastUpdated').textContent = new Date('2026-05-30').toLocaleDateString('en-US', { 
+            document.getElementById('lastUpdated').textContent = new Date('2026-05-31').toLocaleDateString('en-US', { 
                 year: 'numeric', month: 'short', day: 'numeric' 
             });
             loadProgress();
