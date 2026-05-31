@@ -1,4 +1,5 @@
-import { Injectable, signal, computed, effect, inject } from '@angular/core';
+import { Injectable, signal, computed, effect, inject, PLATFORM_ID } from '@angular/core';
+import { isPlatformBrowser } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
 import { Router } from '@angular/router';
 import { Observable, tap, catchError, throwError, of, map } from 'rxjs';
@@ -50,7 +51,10 @@ const STORAGE_KEYS = {
 export class AuthService {
   private http = inject(HttpClient);
   private router = inject(Router);
+  private platformId = inject(PLATFORM_ID);
   private readonly baseUrl = `${environment.apiUrl}/auth`;
+
+  private get isBrowser(): boolean { return isPlatformBrowser(this.platformId); }
 
   private currentUser = signal<User | null>(null);
   private isAuthenticated = signal(false);
@@ -62,6 +66,7 @@ export class AuthService {
     this.checkAuthStatus();
 
     effect(() => {
+      if (!this.isBrowser) return;
       const user = this.currentUser();
       if (user) {
         localStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(user));
@@ -72,6 +77,7 @@ export class AuthService {
   }
 
   private checkAuthStatus(): void {
+    if (!this.isBrowser) return;
     const token = localStorage.getItem(STORAGE_KEYS.ACCESS_TOKEN);
     const userJson = localStorage.getItem(STORAGE_KEYS.USER);
     if (token && userJson) {
@@ -86,11 +92,11 @@ export class AuthService {
 
   /** Used by the HTTP interceptor on each request. */
   getAccessToken(): string | null {
-    return localStorage.getItem(STORAGE_KEYS.ACCESS_TOKEN);
+    return this.isBrowser ? localStorage.getItem(STORAGE_KEYS.ACCESS_TOKEN) : null;
   }
 
   getRefreshToken(): string | null {
-    return localStorage.getItem(STORAGE_KEYS.REFRESH_TOKEN);
+    return this.isBrowser ? localStorage.getItem(STORAGE_KEYS.REFRESH_TOKEN) : null;
   }
 
   login(credentials: LoginCredentials): Observable<User> {
@@ -120,8 +126,10 @@ export class AuthService {
     }
     return this.http.post<AuthResponse>(`${this.baseUrl}/refresh`, { refreshToken }).pipe(
       tap(resp => {
-        localStorage.setItem(STORAGE_KEYS.ID_TOKEN, resp.idToken);
-        localStorage.setItem(STORAGE_KEYS.ACCESS_TOKEN, resp.accessToken);
+        if (this.isBrowser) {
+          localStorage.setItem(STORAGE_KEYS.ID_TOKEN, resp.idToken);
+          localStorage.setItem(STORAGE_KEYS.ACCESS_TOKEN, resp.accessToken);
+        }
         // refreshToken stays the same
       }),
       map(resp => resp.accessToken)
@@ -158,9 +166,11 @@ export class AuthService {
   isModerator(): boolean { return this.hasRole('moderator') || this.hasRole('admin'); }
 
   private storeTokens(resp: AuthResponse): void {
-    localStorage.setItem(STORAGE_KEYS.ID_TOKEN, resp.idToken);
-    localStorage.setItem(STORAGE_KEYS.ACCESS_TOKEN, resp.accessToken);
-    localStorage.setItem(STORAGE_KEYS.REFRESH_TOKEN, resp.refreshToken);
+    if (this.isBrowser) {
+      localStorage.setItem(STORAGE_KEYS.ID_TOKEN, resp.idToken);
+      localStorage.setItem(STORAGE_KEYS.ACCESS_TOKEN, resp.accessToken);
+      localStorage.setItem(STORAGE_KEYS.REFRESH_TOKEN, resp.refreshToken);
+    }
     if (resp.user) {
       this.currentUser.set(resp.user);
       this.isAuthenticated.set(true);
