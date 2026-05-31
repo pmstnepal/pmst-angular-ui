@@ -8,8 +8,8 @@ test:
   buildConfiguration: test
   envFile: src/environments/environment.test.ts
   production: false
-  apiUrl: "https://REPLACE_WITH_TEST_API.execute-api.us-east-1.amazonaws.com"
-  cfDomain: "https://REPLACE_WITH_TEST_CF.cloudfront.net"
+  apiUrl: "https://t529isqhyc.execute-api.us-east-1.amazonaws.com/test"
+  cfDomain: "https://d3p3q3lvpevw39.cloudfront.net"
   region: us-east-1
 
 prod:

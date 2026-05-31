@@ -56,6 +56,10 @@ Thumbs.db
 
 # Documentation secrets (keep local only)
 src/doc/secrets
+src/doc/*accessKeys*.csv
+src/doc/*.csv
+src/doc/terraformlogs.md
+src/doc/terrafrom output
 
 # Image assets - managed separately (S3 or manual copy)
 src/assets/images/
