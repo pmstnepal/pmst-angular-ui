@@ -1,5 +1,5 @@
-import { Component, Input, signal, computed, inject, OnInit, OnDestroy } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { Component, Input, signal, computed, inject, OnInit, OnDestroy, PLATFORM_ID } from '@angular/core';
+import { CommonModule, isPlatformBrowser } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { ImageUrlMapperService } from '../../../services/image-url-mapper.service';
 
@@ -58,6 +58,7 @@ interface GalleryItem {
 })
 export class GalleryCarouselComponent implements OnInit, OnDestroy {
   imageMapper = inject(ImageUrlMapperService);
+  private platformId = inject(PLATFORM_ID);
 
   @Input() title = '';
   @Input() visibleCount = 4;
@@ -82,6 +83,7 @@ export class GalleryCarouselComponent implements OnInit, OnDestroy {
   }
 
   startAutoRotate() {
+    if (!isPlatformBrowser(this.platformId)) return;
     this.autoRotateInterval = window.setInterval(() => {
       this.currentIndex.update(i => (i + 1) % this.itemsSignal().length);
     }, 5000);
