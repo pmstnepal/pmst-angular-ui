@@ -192,6 +192,127 @@ terraform apply -var-file=deploy/test.tfvars
 
 ---
 
+## Step 7b — Full Teardown (Delete Everything, Start Fresh)
+
+Run this when you want to delete the IAM user and all manually-created bootstrap resources so the account is clean for a future re-setup.
+
+> ⚠️ Only do this if you are **intentionally resetting** the project. The Terraform infrastructure (`terraform destroy`) must be run **first** before this step.
+
+### What was created manually (outside Terraform)
+
+| Resource | Name | How to delete |
+|---|---|---|
+| IAM User | `pmst-deploy` | Console or CLI — steps below |
+| IAM Role | `pmst-github-actions-terraform` | Console or CLI |
+| IAM Role | `pmst-github-actions-deploy` | Console or CLI |
+| IAM Role | `pmstnepal_s3_access_ec2` | Console (if no longer needed) |
+| S3 Bucket | `pmst-terraform-state` | CLI — only if full reset |
+| DynamoDB Table | `pmst-terraform-locks` | CLI — only if full reset |
+| AWS CLI profile | `~/.aws/credentials` + `~/.aws/config` | Delete local files |
+| GitHub Secrets | `AWS_ACCOUNT_ID`, `TF_VAR_DB_PASSWORD` | GitHub → Settings → Secrets |
+
+### Delete IAM User (`pmst-deploy`)
+
+Must delete the access key first, then detach policies, then delete the user:
+
+```powershell
+# 1. Delete access key (replace KEY_ID with actual value)
+$env:PAGER=""
+aws iam delete-access-key --user-name pmst-deploy --access-key-id AKIAYYO7UDYMQEIKWHE7
+
+# 2. Detach AdministratorAccess policy
+aws iam detach-user-policy --user-name pmst-deploy --policy-arn arn:aws:iam::aws:policy/AdministratorAccess
+
+# 3. Delete the user
+aws iam delete-user --user-name pmst-deploy
+```
+
+Or via Console: **IAM → Users → pmst-deploy → Delete**
+
+### Delete Bootstrap IAM Roles
+
+```powershell
+$env:PAGER=""
+
+# pmst-github-actions-terraform
+aws iam detach-role-policy --role-name pmst-github-actions-terraform --policy-arn arn:aws:iam::aws:policy/AdministratorAccess
+aws iam delete-role --role-name pmst-github-actions-terraform
+
+# pmst-github-actions-deploy
+aws iam detach-role-policy --role-name pmst-github-actions-deploy --policy-arn arn:aws:iam::aws:policy/AdministratorAccess
+aws iam delete-role --role-name pmst-github-actions-deploy
+```
+
+> For roles with inline policies, list them first:
+> ```powershell
+> aws iam list-role-policies --role-name pmst-github-actions-terraform
+> aws iam delete-role-policy --role-name pmst-github-actions-terraform --policy-name <inline-policy-name>
+> ```
+
+### Delete Terraform Backend (Only for Full Reset)
+
+```powershell
+$env:PAGER=""
+
+# Empty and delete state bucket
+aws s3 rm s3://pmst-terraform-state --recursive
+aws s3api delete-bucket --bucket pmst-terraform-state --region us-east-1
+
+# Delete DynamoDB lock table
+aws dynamodb delete-table --table-name pmst-terraform-locks --region us-east-1
+```
+
+### Clear Local AWS Credentials
+
+```powershell
+# Remove saved CLI credentials
+Remove-Item "$env:USERPROFILE\.aws\credentials"
+Remove-Item "$env:USERPROFILE\.aws\config"
+
+# Verify no profile remains
+aws sts get-caller-identity
+# Should fail with "Unable to locate credentials"
+```
+
+### Full Teardown Checklist
+
+- [ ] `terraform destroy` run and completed (77 resources = 0 remaining)
+- [ ] Access key `AKIAYYO7UDYMQEIKWHE7` deleted
+- [ ] IAM user `pmst-deploy` deleted
+- [ ] IAM role `pmst-github-actions-terraform` deleted
+- [ ] IAM role `pmst-github-actions-deploy` deleted
+- [ ] S3 bucket `pmst-terraform-state` deleted (full reset only)
+- [ ] DynamoDB table `pmst-terraform-locks` deleted (full reset only)
+- [ ] Local `~/.aws/credentials` cleared
+- [ ] GitHub secrets removed from all repos (optional — they become invalid anyway)
+
+---
+
+## Step 7c — Re-Setup From Scratch Checklist
+
+When you come back to provision a fresh test environment, follow these steps **in order**:
+
+| # | Step | Reference |
+|---|------|-----------|
+| 1 | Create IAM user `pmst-deploy` with `AdministratorAccess` | Step 1 above |
+| 2 | Generate access key, run `aws configure` | Step 2 above |
+| 3 | Verify: `aws sts get-caller-identity` prints account ID | Step 2 above |
+| 4 | Create S3 state bucket `pmst-terraform-state` + DynamoDB lock table | Step 3 above |
+| 5 | Create OIDC provider in IAM for GitHub Actions | `bootstrap/README.md` |
+| 6 | Create IAM roles `pmst-github-actions-terraform` + `pmst-github-actions-deploy` | `bootstrap/README.md` |
+| 7 | Add `AWS_ACCOUNT_ID` + `TF_VAR_DB_PASSWORD` to GitHub repo secrets | Step 6 above |
+| 8 | `terraform init -backend-config=deploy/backend-test.hcl` | Step 4 above |
+| 9 | `terraform apply -var-file=deploy/test.tfvars` | Step 5 above |
+| 10 | Update `deploy/environments.yaml` with new CloudFront URL + API URL | Session Log Fix 3 |
+| 11 | Push to `test` branch → pipelines deploy frontend + API | CI/CD Strategy tab |
+| 12 | Fix RDS access for DB migration (public subnet or SSM port-forward) | Session Log — DB Migration Blocked |
+| 13 | Run `python run_all_migrations.py` from `d:\pmst-migration` | `pmst-data-migration` README |
+| 14 | Smoke test all routes | Session Log — Smoke Test Checklist |
+
+> **Key gotcha:** `apiUrl` in `deploy/environments.yaml` must always end with `/<stage>/api` — see Session Log Fix 3.
+
+---
+
 ## Cost Awareness
 
 | Resource | Approx. Cost |
