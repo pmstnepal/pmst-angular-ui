@@ -245,6 +245,16 @@
                                 <td class="px-4 py-2">Java 21 Lambda &mdash; Event ticketing, RSVP, attendee management &mdash; <span class="bg-purple-200 text-purple-800 px-1.5 py-0.5 rounded text-xs font-semibold">PLANNED</span> &nbsp;<code class="bg-gray-100 text-gray-600 px-1 rounded text-xs">:8081</code></td>
                                 <td class="px-4 py-2"><span class="bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full text-xs">&#128309; Planned</span></td>
                             </tr>
+                            <tr class="bg-yellow-50">
+                                <td class="px-4 py-2 font-mono font-semibold">pmst-auth-gateway</td>
+                                <td class="px-4 py-2">Spring Boot API Gateway &mdash; multi-service routing (future; cognito-local used for local auth) &mdash; <code class="bg-gray-100 text-gray-600 px-1 rounded text-xs">d:\pmst-services\pmst-auth-gateway\</code></td>
+                                <td class="px-4 py-2"><span class="bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full text-xs">&#128309; Future</span></td>
+                            </tr>
+                            <tr class="bg-teal-50">
+                                <td class="px-4 py-2 font-mono font-semibold">automation</td>
+                                <td class="px-4 py-2">YouTube playlist automation &mdash; Nepali Music + Movies Trailers &mdash; weekly cron &mdash; <code class="bg-gray-100 text-gray-600 px-1 rounded text-xs">d:\pmst-services\automation\</code></td>
+                                <td class="px-4 py-2"><span class="bg-green-100 text-green-700 px-2 py-0.5 rounded-full text-xs">&#127866; Active</span></td>
+                            </tr>
                             <tr>
                                 <td class="px-4 py-2 font-mono font-semibold">pmstusnepal-plugins</td>
                                 <td class="px-4 py-2">WordPress plugins (38 plugins) &mdash; reference</td>
@@ -801,6 +811,20 @@ mvn test</code></pre>
                                 <td class="px-4 py-2 font-mono font-semibold">pmst-data-migration</td>
                                 <td class="px-4 py-2 font-mono text-xs">d:\pmst-migration\</td>
                                 <td class="px-4 py-2"><a href="https://github.com/pmstnepal/pmst-data-migration" target="_blank" class="text-indigo-600 hover:underline text-xs">pmstnepal/pmst-data-migration</a></td>
+                                <td class="px-4 py-2 font-mono">N/A</td>
+                                <td class="px-4 py-2"><span class="bg-green-100 text-green-700 px-2 py-0.5 rounded-full text-xs">🟢 Active</span></td>
+                            </tr>
+                            <tr class="bg-yellow-50">
+                                <td class="px-4 py-2 font-mono font-semibold">pmst-auth-gateway</td>
+                                <td class="px-4 py-2 font-mono text-xs">d:\pmst-services\pmst-auth-gateway\</td>
+                                <td class="px-4 py-2"><span class="text-xs text-gray-400">future repo</span></td>
+                                <td class="px-4 py-2 font-mono">:8082</td>
+                                <td class="px-4 py-2"><span class="bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full text-xs">🔵 Future</span></td>
+                            </tr>
+                            <tr class="bg-teal-50">
+                                <td class="px-4 py-2 font-mono font-semibold">automation</td>
+                                <td class="px-4 py-2 font-mono text-xs">d:\pmst-services\automation\</td>
+                                <td class="px-4 py-2"><span class="text-xs text-gray-400">private / local only</span></td>
                                 <td class="px-4 py-2 font-mono">N/A</td>
                                 <td class="px-4 py-2"><span class="bg-green-100 text-green-700 px-2 py-0.5 rounded-full text-xs">🟢 Active</span></td>
                             </tr>
@@ -1579,11 +1603,11 @@ mvn test</code></pre>
                             Todo
                         </h3>
                         <div class="space-y-2" id="todoColumn">
-                            <div class="kanban-card bg-white p-3 rounded-lg shadow cursor-pointer" data-component="follow-button" data-status="todo" onclick="moveCard(this)">
-                                <div class="font-medium text-sm">FollowButtonComponent</div>
-                                <div class="text-xs text-gray-500">shared/components/follow-button</div>
+                            <div class="kanban-card bg-white p-3 rounded-lg shadow cursor-pointer" data-component="author-card" data-status="todo" onclick="moveCard(this)">
+                                <div class="font-medium text-sm">AuthorCardComponent</div>
+                                <div class="text-xs text-gray-500">shared/components/</div>
                                 <div class="mt-2 flex gap-1">
-                                    <span class="text-xs bg-pink-100 text-pink-700 px-1.5 rounded">follow-plugin</span>
+                                    <span class="text-xs bg-blue-100 text-blue-700 px-1.5 rounded">author-profile</span>
                                 </div>
                             </div>
                             <div class="kanban-card bg-white p-3 rounded-lg shadow cursor-pointer" data-component="event-detail" data-status="todo" onclick="moveCard(this)">
@@ -1591,13 +1615,6 @@ mvn test</code></pre>
                                 <div class="text-xs text-gray-500">features/events/</div>
                                 <div class="mt-2 flex gap-1">
                                     <span class="text-xs bg-red-100 text-red-700 px-1.5 rounded">mage-eventpress</span>
-                                </div>
-                            </div>
-                            <div class="kanban-card bg-white p-3 rounded-lg shadow cursor-pointer" data-component="author-card" data-status="todo" onclick="moveCard(this)">
-                                <div class="font-medium text-sm">AuthorCardComponent</div>
-                                <div class="text-xs text-gray-500">shared/components/</div>
-                                <div class="mt-2 flex gap-1">
-                                    <span class="text-xs bg-blue-100 text-blue-700 px-1.5 rounded">author-profile</span>
                                 </div>
                             </div>
                         </div>
@@ -1610,6 +1627,27 @@ mvn test</code></pre>
                             In Progress
                         </h3>
                         <div class="space-y-2" id="inProgressColumn">
+                            <div class="kanban-card bg-white p-3 rounded-lg shadow cursor-pointer" data-component="follow-button" data-status="inprogress" onclick="moveCard(this)">
+                                <div class="font-medium text-sm">FollowButtonComponent</div>
+                                <div class="text-xs text-gray-500">shared/components/follow-button</div>
+                                <div class="mt-2 flex gap-1">
+                                    <span class="text-xs bg-pink-100 text-pink-700 px-1.5 rounded">follow-plugin</span>
+                                </div>
+                            </div>
+                            <div class="kanban-card bg-white p-3 rounded-lg shadow cursor-pointer" data-component="submit-content" data-status="inprogress" onclick="moveCard(this)">
+                                <div class="font-medium text-sm">SubmitContentComponent</div>
+                                <div class="text-xs text-gray-500">features/user/submit-content</div>
+                                <div class="mt-2 flex gap-1">
+                                    <span class="text-xs bg-orange-100 text-orange-700 px-1.5 rounded">user-submit</span>
+                                </div>
+                            </div>
+                            <div class="kanban-card bg-white p-3 rounded-lg shadow cursor-pointer" data-component="submit-gallery" data-status="inprogress" onclick="moveCard(this)">
+                                <div class="font-medium text-sm">SubmitGalleryComponent</div>
+                                <div class="text-xs text-gray-500">features/user/submit-gallery</div>
+                                <div class="mt-2 flex gap-1">
+                                    <span class="text-xs bg-orange-100 text-orange-700 px-1.5 rounded">gallery-submit</span>
+                                </div>
+                            </div>
                             <div class="kanban-card bg-white p-3 rounded-lg shadow cursor-pointer" data-component="events-list" data-status="inprogress" onclick="moveCard(this)">
                                 <div class="font-medium text-sm">EventsListComponent</div>
                                 <div class="text-xs text-gray-500">features/events/</div>
@@ -1734,11 +1772,11 @@ mvn test</code></pre>
                 <!-- Status banner -->
                 <div class="bg-emerald-600 text-white rounded-lg p-4 mb-4 flex items-center gap-3">
                     <i data-lucide="check-circle" class="w-5 h-5 shrink-0"></i>
-                    <div class="text-sm"><strong>All 10 migration scripts completed successfully on local Docker PostgreSQL</strong> &mdash; 1,446 articles &middot; 5,471 tags &middot; 15,773 article-tag links &middot; 13 galleries &middot; <strong>612 gallery images</strong> &middot; 377 comments &middot; 68 articles with meta (youtube / embed / gallery)</div>
+                    <div class="text-sm"><strong>All 10 core migration scripts completed successfully on local Docker PostgreSQL</strong> &mdash; 1,446 articles &middot; 5,471 tags &middot; 15,773 article-tag links &middot; 13 galleries &middot; <strong>612 gallery images</strong> &middot; 377 comments &middot; 68 articles with meta (youtube / embed / gallery). Plus 4 extended scripts (11–14): Cognito link, user profiles seed, gallery SEO, image processing &amp; S3 upload.</div>
                 </div>
                 <div class="bg-amber-50 border border-amber-300 rounded-lg p-3 mb-6 flex items-center gap-3">
                     <i data-lucide="alert-circle" class="w-5 h-5 text-amber-600 shrink-0"></i>
-                    <div class="text-sm text-amber-800"><strong>Next:</strong> Re-run these scripts against AWS RDS once Terraform provisions the instance. Media files still need FTP download → S3 sync.</div>
+                    <div class="text-sm text-amber-800"><strong>Next:</strong> Re-run all 14 scripts against AWS RDS once Terraform provisions the instance (use <code>db_publicly_accessible = true</code> or SSM port-forward). Media files still need FTP download → S3 sync via script 14.</div>
                 </div>
 
                 <!-- Table mapping -->
@@ -1763,6 +1801,10 @@ mvn test</code></pre>
                             <tr class="bg-green-50"><td class="px-4 py-2 font-mono text-xs">wp_comments</td><td class="px-4 py-2">379</td><td class="px-4 py-2">comments (377 approved)</td><td class="px-4 py-2"><span class="bg-emerald-500 text-white px-2 py-0.5 rounded text-xs font-semibold">✅ Migrated</span></td></tr>
                             <tr class="bg-green-50"><td class="px-4 py-2 font-mono text-xs">wp_pmst_author_profiles</td><td class="px-4 py-2">2</td><td class="px-4 py-2">user_profiles (merge)</td><td class="px-4 py-2"><span class="bg-emerald-500 text-white px-2 py-0.5 rounded text-xs font-semibold">✅ Migrated</span></td></tr>
                             <tr class="bg-green-50"><td class="px-4 py-2 font-mono text-xs">wp_social_users</td><td class="px-4 py-2">4</td><td class="px-4 py-2">users (social login)</td><td class="px-4 py-2"><span class="bg-emerald-500 text-white px-2 py-0.5 rounded text-xs font-semibold">✅ Migrated</span></td></tr>
+                            <tr class="bg-blue-50"><td class="px-4 py-2 font-mono text-xs">— (extended)</td><td class="px-4 py-2">—</td><td class="px-4 py-2">Script 11: Link user_profiles → Cognito UUIDs</td><td class="px-4 py-2"><span class="bg-blue-200 text-blue-800 px-2 py-0.5 rounded text-xs font-semibold">✅ Script ready</span></td></tr>
+                            <tr class="bg-blue-50"><td class="px-4 py-2 font-mono text-xs">— (extended)</td><td class="px-4 py-2">—</td><td class="px-4 py-2">Script 12: Seed user_profiles defaults</td><td class="px-4 py-2"><span class="bg-blue-200 text-blue-800 px-2 py-0.5 rounded text-xs font-semibold">✅ Script ready</span></td></tr>
+                            <tr class="bg-blue-50"><td class="px-4 py-2 font-mono text-xs">— (extended)</td><td class="px-4 py-2">—</td><td class="px-4 py-2">Script 13: Gallery SEO migration</td><td class="px-4 py-2"><span class="bg-blue-200 text-blue-800 px-2 py-0.5 rounded text-xs font-semibold">✅ Script ready</span></td></tr>
+                            <tr class="bg-blue-50"><td class="px-4 py-2 font-mono text-xs">— (media)</td><td class="px-4 py-2">3,337</td><td class="px-4 py-2">Script 14: Process &amp; upload images → S3</td><td class="px-4 py-2"><span class="bg-amber-200 text-amber-800 px-2 py-0.5 rounded text-xs font-semibold">⏳ Pending RDS</span></td></tr>
                             <tr class="opacity-50"><td class="px-4 py-2 font-mono text-xs">wp_e_events</td><td class="px-4 py-2">1</td><td class="px-4 py-2 text-gray-400">Rebuilding fresh</td><td class="px-4 py-2"><span class="bg-gray-200 text-gray-600 px-2 py-0.5 rounded text-xs">Skip</span></td></tr>
                             <tr class="opacity-50"><td class="px-4 py-2 font-mono text-xs">wp_pmst_messages</td><td class="px-4 py-2">7</td><td class="px-4 py-2 text-gray-400">Rebuilding fresh</td><td class="px-4 py-2"><span class="bg-gray-200 text-gray-600 px-2 py-0.5 rounded text-xs">Skip</span></td></tr>
                             <tr class="opacity-50"><td class="px-4 py-2 font-mono text-xs">wp_pmst_reactions</td><td class="px-4 py-2">3</td><td class="px-4 py-2 text-gray-400">Rebuilding fresh</td><td class="px-4 py-2"><span class="bg-gray-200 text-gray-600 px-2 py-0.5 rounded text-xs">Skip</span></td></tr>
@@ -4130,6 +4172,50 @@ Protected (writes, /auth/me, /users/**): COGNITO_USER_POOLS</div>
                 </div>
             </div>
 
+            <!-- Session: Jun 21, 2026 -->
+            <div class="bg-white border border-gray-200 rounded-xl shadow-sm mb-6 overflow-hidden">
+                <div class="bg-gradient-to-r from-teal-600 to-teal-700 text-white px-6 py-4 flex items-center justify-between">
+                    <div>
+                        <h3 class="font-bold text-lg flex items-center gap-2"><i data-lucide="youtube" class="w-5 h-5"></i> Jun 21, 2026 — YouTube Playlist Automation Run</h3>
+                        <p class="text-teal-100 text-sm mt-0.5">Both playlists updated: Nepali Music Videos + Nepali Movies Trailers · 20 total videos added</p>
+                    </div>
+                    <span class="bg-white/20 px-3 py-1 rounded-full text-sm font-medium">✅ Success</span>
+                </div>
+                <div class="p-6">
+                    <div class="grid md:grid-cols-2 gap-4 mb-4">
+                        <div class="border border-gray-100 rounded-lg p-4">
+                            <div class="flex items-center gap-2 mb-2">
+                                <span class="bg-teal-100 text-teal-700 px-2 py-0.5 rounded text-xs font-bold">Music</span>
+                                <h4 class="font-semibold text-gray-800 text-sm">Nepali Music Videos — 10/10 added</h4>
+                            </div>
+                            <ul class="text-xs text-gray-600 space-y-0.5">
+                                <li>3 videos from last week (by view count)</li>
+                                <li>3 videos from last month (by view count)</li>
+                                <li>2 videos from last 6 months</li>
+                                <li>2 videos from last year</li>
+                            </ul>
+                        </div>
+                        <div class="border border-gray-100 rounded-lg p-4">
+                            <div class="flex items-center gap-2 mb-2">
+                                <span class="bg-purple-100 text-purple-700 px-2 py-0.5 rounded text-xs font-bold">Movies</span>
+                                <h4 class="font-semibold text-gray-800 text-sm">Nepali Movies Trailers — 10/10 added</h4>
+                            </div>
+                            <ul class="text-xs text-gray-600 space-y-0.5">
+                                <li>3 popular within 3 months (combined score)</li>
+                                <li>5 latest within 2 weeks (by date)</li>
+                                <li>2 highest views within 1 year</li>
+                            </ul>
+                        </div>
+                    </div>
+                    <div class="bg-amber-50 border border-amber-200 rounded-lg p-3 text-sm text-amber-800">
+                        <strong>⚠️ Note:</strong> Movies playlist contained duplicate videos across timeframes (same video appearing in multiple timeframe buckets). Cross-timeframe dedup fix is pending — see <code>d:\pmst-services\automation\main.py</code> <code>get_popular_videos_by_timeframe()</code>.
+                    </div>
+                    <div class="mt-3 text-xs text-gray-500">
+                        <strong>Setup:</strong> Rebuilt venv from Python 3.9 → 3.14 · re-authenticated OAuth (token.json expired) · automation runs from <code>d:\pmst-services\automation\</code>
+                    </div>
+                </div>
+            </div>
+
             <!-- Placeholder for future sessions -->
             <div class="bg-gray-50 border border-dashed border-gray-300 rounded-xl p-6 text-center text-gray-400">
                 <i data-lucide="plus-circle" class="w-8 h-8 mx-auto mb-2 opacity-50"></i>
@@ -4161,7 +4247,7 @@ Protected (writes, /auth/me, /users/**): COGNITO_USER_POOLS</div>
         document.addEventListener('DOMContentLoaded', function() {
             lucide.createIcons();
             mermaid.initialize({ startOnLoad: false });
-            document.getElementById('lastUpdated').textContent = new Date('2026-05-31').toLocaleDateString('en-US', { 
+            document.getElementById('lastUpdated').textContent = new Date('2026-06-28').toLocaleDateString('en-US', { 
                 year: 'numeric', month: 'short', day: 'numeric' 
             });
             loadProgress();
