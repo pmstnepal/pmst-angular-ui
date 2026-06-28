@@ -57,7 +57,9 @@ Complete development guide for migrating from WordPress to AWS serverless archit
 | **pmst-data-migration** | WordPress → PostgreSQL migration scripts | 🟢 Active — `feature/migration-scripts` |
 | **pmst-api-service** | Java 21 Lambda — Articles, Galleries, Users, Follows, Comments (consolidated) | 🟢 Active — `feature/initial-setup` |
 | **pmst-ticketing-service** | Java 21 Lambda — Event ticketing (separate service) | 🔵 Planned |
-| **pmst-auth-gateway** | Future Spring Boot API Gateway — multi-service routing (not active; cognito-local used for local auth) | 🔵 Future |
+| ~~**pmst-auth-gateway**~~ | Archived — AWS Cognito User Pool used directly; repo exists but inactive | ⚠️ Archive |
+| **pmst-youtube-automation** | Python — YouTube playlist automation (Nepali Music + Movies Trailers), private repo | 🟢 Active |
+| **postautomation** | Python — Nepali news scraper + AI processor + Blogger/PMST poster, hourly CI | 🟡 In Progress |
 | **pmstusnepal-plugins** | WordPress plugins (38 plugins) | 🟢 Reference |
 | **nepalicommunityhub-plugins** | Secondary site plugins | 🟢 Reference |
 | **jwt-token-api** | Spring Boot JWT (retire) | ⚠️ Archive |

@@ -115,6 +115,9 @@
                 <button onclick="showTab('session-log')" class="tab-btn px-4 py-2 rounded-lg text-sm font-medium transition-colors hover:bg-gray-100 text-gray-600" data-tab="session-log">
                     <i data-lucide="history" class="w-4 h-4 inline mr-1"></i>Session Log
                 </button>
+                <a href="automations-dashboard.html" class="px-4 py-2 rounded-lg text-sm font-medium transition-colors bg-teal-50 text-teal-700 hover:bg-teal-100 flex items-center gap-1 whitespace-nowrap">
+                    <i data-lucide="bot" class="w-4 h-4 inline mr-1"></i>Automations ↗
+                </a>
             </div>
         </div>
     </nav>
@@ -245,15 +248,20 @@
                                 <td class="px-4 py-2">Java 21 Lambda &mdash; Event ticketing, RSVP, attendee management &mdash; <span class="bg-purple-200 text-purple-800 px-1.5 py-0.5 rounded text-xs font-semibold">PLANNED</span> &nbsp;<code class="bg-gray-100 text-gray-600 px-1 rounded text-xs">:8081</code></td>
                                 <td class="px-4 py-2"><span class="bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full text-xs">&#128309; Planned</span></td>
                             </tr>
-                            <tr class="bg-yellow-50">
-                                <td class="px-4 py-2 font-mono font-semibold">pmst-auth-gateway</td>
-                                <td class="px-4 py-2">Spring Boot API Gateway &mdash; multi-service routing (future; cognito-local used for local auth) &mdash; <code class="bg-gray-100 text-gray-600 px-1 rounded text-xs">d:\pmst-services\pmst-auth-gateway\</code></td>
-                                <td class="px-4 py-2"><span class="bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full text-xs">&#128309; Future</span></td>
+                            <tr class="bg-gray-50 opacity-60">
+                                <td class="px-4 py-2 font-mono font-semibold line-through text-gray-400">pmst-auth-gateway</td>
+                                <td class="px-4 py-2 text-gray-400 text-sm">Archived — not used. AWS Cognito User Pool replaces this directly. Repo exists but is inactive.</td>
+                                <td class="px-4 py-2"><span class="bg-gray-200 text-gray-500 px-2 py-0.5 rounded-full text-xs">⚠️ Archived</span></td>
                             </tr>
                             <tr class="bg-teal-50">
-                                <td class="px-4 py-2 font-mono font-semibold">automation</td>
-                                <td class="px-4 py-2">YouTube playlist automation &mdash; Nepali Music + Movies Trailers &mdash; weekly cron &mdash; <code class="bg-gray-100 text-gray-600 px-1 rounded text-xs">d:\pmst-services\automation\</code></td>
-                                <td class="px-4 py-2"><span class="bg-green-100 text-green-700 px-2 py-0.5 rounded-full text-xs">&#127866; Active</span></td>
+                                <td class="px-4 py-2 font-mono font-semibold">pmst-youtube-automation</td>
+                                <td class="px-4 py-2">YouTube playlist automation &mdash; Nepali Music + Movies Trailers &mdash; <code class="bg-gray-100 text-gray-600 px-1 rounded text-xs">d:\pmst-services\automation\</code> &mdash; <a href="automations-dashboard.html" class="text-indigo-600 hover:underline text-xs">→ Automation Dashboard</a></td>
+                                <td class="px-4 py-2"><span class="bg-green-100 text-green-700 px-2 py-0.5 rounded-full text-xs">🟢 Active</span></td>
+                            </tr>
+                            <tr class="bg-purple-50">
+                                <td class="px-4 py-2 font-mono font-semibold">postautomation</td>
+                                <td class="px-4 py-2">Post automation &mdash; scrapes Nepali news, AI-processes, posts to Blogger + PMST API (in progress) &mdash; <code class="bg-gray-100 text-gray-600 px-1 rounded text-xs">d:\pmst-services\postautomation\</code> &mdash; <a href="automations-dashboard.html" class="text-indigo-600 hover:underline text-xs">→ Automation Dashboard</a></td>
+                                <td class="px-4 py-2"><span class="bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded-full text-xs">🟡 In Progress</span></td>
                             </tr>
                             <tr>
                                 <td class="px-4 py-2 font-mono font-semibold">pmstusnepal-plugins</td>
@@ -814,19 +822,26 @@ mvn test</code></pre>
                                 <td class="px-4 py-2 font-mono">N/A</td>
                                 <td class="px-4 py-2"><span class="bg-green-100 text-green-700 px-2 py-0.5 rounded-full text-xs">🟢 Active</span></td>
                             </tr>
-                            <tr class="bg-yellow-50">
-                                <td class="px-4 py-2 font-mono font-semibold">pmst-auth-gateway</td>
-                                <td class="px-4 py-2 font-mono text-xs">d:\pmst-services\pmst-auth-gateway\</td>
-                                <td class="px-4 py-2"><span class="text-xs text-gray-400">future repo</span></td>
-                                <td class="px-4 py-2 font-mono">:8082</td>
-                                <td class="px-4 py-2"><span class="bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full text-xs">🔵 Future</span></td>
+                            <tr class="bg-gray-50 opacity-60">
+                                <td class="px-4 py-2 font-mono font-semibold line-through text-gray-400">pmst-auth-gateway</td>
+                                <td class="px-4 py-2 text-gray-400 text-xs">Archived — AWS Cognito used directly instead</td>
+                                <td class="px-4 py-2"><span class="text-xs text-gray-400">⚠️ Archived</span></td>
+                                <td class="px-4 py-2 font-mono text-gray-400">N/A</td>
+                                <td class="px-4 py-2"><span class="bg-gray-200 text-gray-500 px-2 py-0.5 rounded-full text-xs">⚠️ Archived</span></td>
                             </tr>
                             <tr class="bg-teal-50">
-                                <td class="px-4 py-2 font-mono font-semibold">automation</td>
+                                <td class="px-4 py-2 font-mono font-semibold">pmst-youtube-automation</td>
                                 <td class="px-4 py-2 font-mono text-xs">d:\pmst-services\automation\</td>
-                                <td class="px-4 py-2"><span class="text-xs text-gray-400">private / local only</span></td>
+                                <td class="px-4 py-2"><span class="text-xs text-gray-400">private repo</span></td>
                                 <td class="px-4 py-2 font-mono">N/A</td>
                                 <td class="px-4 py-2"><span class="bg-green-100 text-green-700 px-2 py-0.5 rounded-full text-xs">🟢 Active</span></td>
+                            </tr>
+                            <tr class="bg-purple-50">
+                                <td class="px-4 py-2 font-mono font-semibold">postautomation</td>
+                                <td class="px-4 py-2 font-mono text-xs">d:\pmst-services\postautomation\</td>
+                                <td class="px-4 py-2"><a href="https://github.com/pmstnepal/postautomation" target="_blank" class="text-indigo-600 hover:underline text-xs">pmstnepal/postautomation</a></td>
+                                <td class="px-4 py-2 font-mono">N/A</td>
+                                <td class="px-4 py-2"><span class="bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded-full text-xs">🟡 In Progress</span></td>
                             </tr>
                             <tr class="bg-gray-50">
                                 <td class="px-4 py-2 font-mono font-semibold">pmstusnepal-plugins</td>

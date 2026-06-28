@@ -1,0 +1,836 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PMST Automation Projects Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+        .status-done    { background:#d1fae5; color:#065f46; }
+        .status-inprog  { background:#fef3c7; color:#92400e; }
+        .status-blocked { background:#fee2e2; color:#991b1b; }
+        .status-planned { background:#e0e7ff; color:#3730a3; }
+        .card-hover { transition: all .25s ease; }
+        .card-hover:hover { transform: translateY(-2px); box-shadow: 0 12px 28px rgba(0,0,0,.12); }
+        .pipe-step { position:relative; }
+        .pipe-step:not(:last-child)::after {
+            content:'→'; position:absolute; right:-18px; top:50%;
+            transform:translateY(-50%); color:#6366f1; font-weight:700; font-size:1.1rem;
+        }
+        @media(max-width:768px){ .pipe-step:not(:last-child)::after { display:none; } }
+        @media print { .no-print { display:none!important; } }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+
+<!-- Header -->
+<header class="bg-gradient-to-r from-teal-600 to-indigo-700 text-white shadow-lg sticky top-0 z-50">
+    <div class="container mx-auto px-6 py-4">
+        <div class="flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <i data-lucide="bot" class="w-8 h-8"></i>
+                <div>
+                    <h1 class="text-2xl font-bold">PMST Automation Projects</h1>
+                    <p class="text-teal-100 text-sm">YouTube Playlist Automation &amp; Post Automation — Development Dashboard</p>
+                </div>
+            </div>
+            <div class="flex items-center gap-3">
+                <a href="pmst-master-plan.html" class="text-teal-100 hover:text-white text-sm flex items-center gap-1 no-print">
+                    <i data-lucide="arrow-left" class="w-4 h-4"></i> Master Plan
+                </a>
+                <button onclick="window.print()" class="p-2 rounded-lg bg-white/20 hover:bg-white/30 transition-colors no-print">
+                    <i data-lucide="printer" class="w-5 h-5"></i>
+                </button>
+                <span class="bg-white/20 px-3 py-1 rounded-full text-sm">Updated: <span id="lastUpdated"></span></span>
+            </div>
+        </div>
+    </div>
+</header>
+
+<!-- Nav Tabs -->
+<nav class="bg-white shadow-sm border-b border-gray-200 sticky top-[73px] z-40 no-print">
+    <div class="container mx-auto px-6">
+        <div class="flex gap-1 overflow-x-auto py-2">
+            <button onclick="showTab('overview')" class="tab-btn px-4 py-2 rounded-lg text-sm font-medium transition-colors bg-teal-100 text-teal-700" data-tab="overview">
+                <i data-lucide="layout-grid" class="w-4 h-4 inline mr-1"></i>Overview
+            </button>
+            <button onclick="showTab('youtube')" class="tab-btn px-4 py-2 rounded-lg text-sm font-medium transition-colors hover:bg-gray-100 text-gray-600" data-tab="youtube">
+                <i data-lucide="youtube" class="w-4 h-4 inline mr-1"></i>YouTube Automation
+            </button>
+            <button onclick="showTab('postautomation')" class="tab-btn px-4 py-2 rounded-lg text-sm font-medium transition-colors hover:bg-gray-100 text-gray-600" data-tab="postautomation">
+                <i data-lucide="newspaper" class="w-4 h-4 inline mr-1"></i>Post Automation
+            </button>
+            <button onclick="showTab('roadmap')" class="tab-btn px-4 py-2 rounded-lg text-sm font-medium transition-colors hover:bg-gray-100 text-gray-600" data-tab="roadmap">
+                <i data-lucide="map" class="w-4 h-4 inline mr-1"></i>Roadmap
+            </button>
+        </div>
+    </div>
+</nav>
+
+<main class="container mx-auto px-6 py-8">
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<!-- TAB 1: OVERVIEW                                                 -->
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<div id="tab-overview" class="tab-content active">
+
+    <!-- Project Cards -->
+    <div class="grid md:grid-cols-2 gap-6 mb-8">
+
+        <!-- YouTube Automation Card -->
+        <div class="bg-white rounded-xl shadow-lg overflow-hidden card-hover cursor-pointer" onclick="showTab('youtube')">
+            <div class="bg-gradient-to-r from-red-500 to-red-600 text-white p-5">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center gap-3">
+                        <i data-lucide="youtube" class="w-8 h-8"></i>
+                        <div>
+                            <h2 class="text-xl font-bold">YouTube Playlist Automation</h2>
+                            <p class="text-red-100 text-sm">pmst-youtube-automation</p>
+                        </div>
+                    </div>
+                    <span class="bg-green-400 text-green-900 px-3 py-1 rounded-full text-xs font-bold">✅ RUNNING</span>
+                </div>
+            </div>
+            <div class="p-5">
+                <p class="text-gray-600 text-sm mb-4">Automatically curates 2 YouTube playlists weekly — Nepali Music Videos (10 videos) and Nepali Movies Trailers (10 videos) — using YouTube Data API v3 with OAuth 2.0.</p>
+                <div class="grid grid-cols-2 gap-3 mb-4">
+                    <div class="bg-red-50 rounded-lg p-3 text-center">
+                        <div class="text-2xl font-bold text-red-600">2</div>
+                        <div class="text-xs text-gray-500">Playlists managed</div>
+                    </div>
+                    <div class="bg-green-50 rounded-lg p-3 text-center">
+                        <div class="text-2xl font-bold text-green-600">20</div>
+                        <div class="text-xs text-gray-500">Videos added per run</div>
+                    </div>
+                </div>
+                <div class="space-y-2 text-sm">
+                    <div class="flex justify-between"><span class="text-gray-500">Local path</span><code class="text-xs bg-gray-100 px-1 rounded">d:\pmst-services\automation\</code></div>
+                    <div class="flex justify-between"><span class="text-gray-500">GitHub</span><code class="text-xs bg-gray-100 px-1 rounded">pmstnepal/pmst-youtube-automation</code></div>
+                    <div class="flex justify-between"><span class="text-gray-500">Language</span><span class="font-medium">Python 3.14</span></div>
+                    <div class="flex justify-between"><span class="text-gray-500">Last run</span><span class="font-medium text-green-700">Jun 21, 2026 ✅</span></div>
+                    <div class="flex justify-between"><span class="text-gray-500">Schedule</span><span class="font-medium">Manual (cron planned)</span></div>
+                </div>
+                <div class="mt-4 bg-amber-50 border border-amber-200 rounded p-2 text-xs text-amber-800">
+                    ⚠️ Known: Cross-timeframe duplicate videos in Movies playlist — fix pending
+                </div>
+            </div>
+        </div>
+
+        <!-- Post Automation Card -->
+        <div class="bg-white rounded-xl shadow-lg overflow-hidden card-hover cursor-pointer" onclick="showTab('postautomation')">
+            <div class="bg-gradient-to-r from-indigo-500 to-purple-600 text-white p-5">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center gap-3">
+                        <i data-lucide="newspaper" class="w-8 h-8"></i>
+                        <div>
+                            <h2 class="text-xl font-bold">Post Automation</h2>
+                            <p class="text-indigo-100 text-sm">postautomation</p>
+                        </div>
+                    </div>
+                    <span class="bg-yellow-300 text-yellow-900 px-3 py-1 rounded-full text-xs font-bold">🟡 IN PROGRESS</span>
+                </div>
+            </div>
+            <div class="p-5">
+                <p class="text-gray-600 text-sm mb-4">Scrapes Nepali entertainment news, processes with AI (GPT-4 + DALL-E), and posts to Blogger (working) and PMST API (blocked — needs live endpoint). Runs hourly via GitHub Actions.</p>
+                <div class="grid grid-cols-3 gap-2 mb-4">
+                    <div class="bg-green-50 rounded-lg p-2 text-center">
+                        <div class="text-xl font-bold text-green-600">Blogger</div>
+                        <div class="text-xs text-gray-500">✅ Working</div>
+                    </div>
+                    <div class="bg-red-50 rounded-lg p-2 text-center">
+                        <div class="text-xl font-bold text-red-600">PMST API</div>
+                        <div class="text-xs text-gray-500">🔴 Blocked</div>
+                    </div>
+                    <div class="bg-yellow-50 rounded-lg p-2 text-center">
+                        <div class="text-xl font-bold text-yellow-600">AI</div>
+                        <div class="text-xs text-gray-500">🟡 Needs key</div>
+                    </div>
+                </div>
+                <div class="space-y-2 text-sm">
+                    <div class="flex justify-between"><span class="text-gray-500">Local path</span><code class="text-xs bg-gray-100 px-1 rounded">d:\pmst-services\postautomation\</code></div>
+                    <div class="flex justify-between"><span class="text-gray-500">GitHub</span><a href="https://github.com/pmstnepal/postautomation" target="_blank" class="text-xs text-indigo-600 hover:underline">pmstnepal/postautomation</a></div>
+                    <div class="flex justify-between"><span class="text-gray-500">Language</span><span class="font-medium">Python 3.10+</span></div>
+                    <div class="flex justify-between"><span class="text-gray-500">CI</span><span class="font-medium text-green-700">GitHub Actions hourly ✅</span></div>
+                    <div class="flex justify-between"><span class="text-gray-500">Branch</span><code class="text-xs bg-gray-100 px-1 rounded">main</code></div>
+                </div>
+                <div class="mt-4 bg-red-50 border border-red-200 rounded p-2 text-xs text-red-800">
+                    🔴 Blocker: PMST API URL + Cognito pool/client IDs needed — depends on Terraform test env
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Project comparison table -->
+    <div class="bg-white rounded-xl shadow-lg p-6 mb-6">
+        <h2 class="text-xl font-bold mb-4 flex items-center gap-2">
+            <i data-lucide="git-compare" class="text-teal-600"></i>
+            Project Comparison
+        </h2>
+        <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+                <thead class="bg-gray-100">
+                    <tr>
+                        <th class="px-4 py-2 text-left">Dimension</th>
+                        <th class="px-4 py-2 text-left">YouTube Automation</th>
+                        <th class="px-4 py-2 text-left">Post Automation</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y">
+                    <tr><td class="px-4 py-2 font-medium text-gray-700">Purpose</td><td class="px-4 py-2">Curate YouTube playlists</td><td class="px-4 py-2">Scrape &amp; publish Nepali news</td></tr>
+                    <tr class="bg-gray-50"><td class="px-4 py-2 font-medium text-gray-700">External API</td><td class="px-4 py-2">YouTube Data API v3</td><td class="px-4 py-2">YouTube API + OpenAI + Blogger + PMST API</td></tr>
+                    <tr><td class="px-4 py-2 font-medium text-gray-700">Auth</td><td class="px-4 py-2">Google OAuth 2.0 (token.json)</td><td class="px-4 py-2">AWS Cognito (JWT) + Google OAuth (Blogger)</td></tr>
+                    <tr class="bg-gray-50"><td class="px-4 py-2 font-medium text-gray-700">Schedule</td><td class="px-4 py-2">Manual run (weekly cron planned)</td><td class="px-4 py-2">GitHub Actions every hour</td></tr>
+                    <tr><td class="px-4 py-2 font-medium text-gray-700">Output</td><td class="px-4 py-2">2 updated YouTube playlists</td><td class="px-4 py-2">Blog posts on Blogger + PMST articles</td></tr>
+                    <tr class="bg-gray-50"><td class="px-4 py-2 font-medium text-gray-700">Repo</td><td class="px-4 py-2"><code class="text-xs bg-gray-100 px-1 rounded">pmstnepal/pmst-youtube-automation (private)</code></td><td class="px-4 py-2"><a href="https://github.com/pmstnepal/postautomation" target="_blank" class="text-indigo-600 hover:underline text-xs">pmstnepal/postautomation</a></td></tr>
+                    <tr><td class="px-4 py-2 font-medium text-gray-700">Overall Status</td>
+                        <td class="px-4 py-2"><span class="status-done px-2 py-0.5 rounded text-xs font-semibold">✅ Complete &amp; Running</span></td>
+                        <td class="px-4 py-2"><span class="status-inprog px-2 py-0.5 rounded text-xs font-semibold">🟡 Partially Working</span></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Key Dependencies -->
+    <div class="bg-amber-50 border border-amber-300 rounded-xl p-6">
+        <h3 class="font-bold text-amber-900 mb-3 flex items-center gap-2">
+            <i data-lucide="alert-triangle" class="w-5 h-5 text-amber-600"></i>
+            Shared Blockers / Dependencies
+        </h3>
+        <div class="grid md:grid-cols-2 gap-4 text-sm">
+            <div class="bg-white rounded-lg p-4 border border-amber-200">
+                <div class="font-semibold text-amber-800 mb-2">Post Automation → PMST API</div>
+                <p class="text-gray-700">Needs AWS RDS live + Lambda deployed via Terraform. Once test env is up, set <code class="bg-gray-100 px-1 rounded text-xs">API_BASE_URL</code> + <code class="bg-gray-100 px-1 rounded text-xs">COGNITO_POOL_ID</code> + <code class="bg-gray-100 px-1 rounded text-xs">COGNITO_CLIENT_ID</code> as GitHub secrets.</p>
+            </div>
+            <div class="bg-white rounded-lg p-4 border border-amber-200">
+                <div class="font-semibold text-amber-800 mb-2">YouTube Automation → Scheduling</div>
+                <p class="text-gray-700">Currently runs manually. Next: add GitHub Actions workflow with weekly cron. OAuth token refresh needs to be handled via service account or stored token secret.</p>
+            </div>
+        </div>
+    </div>
+
+</div><!-- end overview -->
+
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<!-- TAB 2: YOUTUBE AUTOMATION                                       -->
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<div id="tab-youtube" class="tab-content">
+
+    <!-- Header banner -->
+    <div class="bg-gradient-to-r from-red-600 to-red-700 text-white rounded-xl p-6 mb-6">
+        <div class="flex items-center justify-between flex-wrap gap-3">
+            <div>
+                <h2 class="text-2xl font-bold flex items-center gap-2"><i data-lucide="youtube" class="w-7 h-7"></i> YouTube Playlist Automation</h2>
+                <p class="text-red-100 mt-1 text-sm">Auto-curates Nepali Music Videos &amp; Nepali Movies Trailers playlists · YouTube Data API v3 · OAuth 2.0 · Python 3.14</p>
+            </div>
+            <div class="flex gap-2 flex-wrap">
+                <span class="bg-green-400 text-green-900 px-3 py-1 rounded-full text-sm font-bold">✅ Fully Operational</span>
+                <code class="bg-white/20 px-3 py-1 rounded-full text-sm">d:\pmst-services\automation\</code>
+            </div>
+        </div>
+    </div>
+
+    <!-- Architecture Pipeline -->
+    <div class="bg-white rounded-xl shadow-lg p-6 mb-6">
+        <h3 class="font-bold text-lg mb-4 flex items-center gap-2"><i data-lucide="workflow" class="text-red-600"></i> How It Works</h3>
+        <div class="flex flex-wrap gap-4 items-center justify-center py-2">
+            <div class="pipe-step bg-red-50 border border-red-200 rounded-lg px-4 py-3 text-center min-w-[100px] mr-5">
+                <i data-lucide="key" class="w-5 h-5 mx-auto text-red-600 mb-1"></i>
+                <div class="text-xs font-semibold">OAuth Auth</div>
+                <div class="text-xs text-gray-500">token.json</div>
+            </div>
+            <div class="pipe-step bg-blue-50 border border-blue-200 rounded-lg px-4 py-3 text-center min-w-[100px] mr-5">
+                <i data-lucide="search" class="w-5 h-5 mx-auto text-blue-600 mb-1"></i>
+                <div class="text-xs font-semibold">Search Videos</div>
+                <div class="text-xs text-gray-500">YouTube API</div>
+            </div>
+            <div class="pipe-step bg-purple-50 border border-purple-200 rounded-lg px-4 py-3 text-center min-w-[100px] mr-5">
+                <i data-lucide="filter" class="w-5 h-5 mx-auto text-purple-600 mb-1"></i>
+                <div class="text-xs font-semibold">Filter &amp; Rank</div>
+                <div class="text-xs text-gray-500">by timeframe</div>
+            </div>
+            <div class="pipe-step bg-orange-50 border border-orange-200 rounded-lg px-4 py-3 text-center min-w-[100px] mr-5">
+                <i data-lucide="trash-2" class="w-5 h-5 mx-auto text-orange-600 mb-1"></i>
+                <div class="text-xs font-semibold">Clear Playlist</div>
+                <div class="text-xs text-gray-500">remove old</div>
+            </div>
+            <div class="pipe-step bg-green-50 border border-green-200 rounded-lg px-4 py-3 text-center min-w-[100px]">
+                <i data-lucide="plus-circle" class="w-5 h-5 mx-auto text-green-600 mb-1"></i>
+                <div class="text-xs font-semibold">Add 10 Videos</div>
+                <div class="text-xs text-gray-500">per playlist</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Codebase Structure -->
+    <div class="bg-white rounded-xl shadow-lg p-6 mb-6">
+        <h3 class="font-bold text-lg mb-4 flex items-center gap-2"><i data-lucide="folder-open" class="text-red-600"></i> Codebase Structure</h3>
+        <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+                <thead class="bg-gray-100">
+                    <tr>
+                        <th class="px-4 py-2 text-left">File</th>
+                        <th class="px-4 py-2 text-left">Purpose</th>
+                        <th class="px-4 py-2 text-left">Status</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y">
+                    <tr><td class="px-4 py-2 font-mono text-xs font-semibold">main.py</td><td class="px-4 py-2">Main orchestrator — auth, search, filter, clear, add for all playlists</td><td class="px-4 py-2"><span class="status-done px-2 py-0.5 rounded text-xs font-semibold">✅ Complete</span></td></tr>
+                    <tr class="bg-gray-50"><td class="px-4 py-2 font-mono text-xs font-semibold">config.py</td><td class="px-4 py-2">All configuration — playlist IDs, search queries, timeframe buckets, filters, ranking weights</td><td class="px-4 py-2"><span class="status-done px-2 py-0.5 rounded text-xs font-semibold">✅ Complete</span></td></tr>
+                    <tr><td class="px-4 py-2 font-mono text-xs font-semibold">requirements.txt</td><td class="px-4 py-2">Python dependencies (google-api-python-client, google-auth-oauthlib, APScheduler, cryptography)</td><td class="px-4 py-2"><span class="status-done px-2 py-0.5 rounded text-xs font-semibold">✅ Complete</span></td></tr>
+                    <tr class="bg-gray-50"><td class="px-4 py-2 font-mono text-xs font-semibold">.gitignore</td><td class="px-4 py-2">Excludes token.json, client_secret.json, logs/, venv/, __pycache__/</td><td class="px-4 py-2"><span class="status-done px-2 py-0.5 rounded text-xs font-semibold">✅ Created</span></td></tr>
+                    <tr><td class="px-4 py-2 font-mono text-xs font-semibold">token.json</td><td class="px-4 py-2">OAuth 2.0 token (auto-generated, gitignored) — expires, delete to re-auth</td><td class="px-4 py-2"><span class="status-inprog px-2 py-0.5 rounded text-xs font-semibold">🔑 Local only</span></td></tr>
+                    <tr class="bg-gray-50"><td class="px-4 py-2 font-mono text-xs font-semibold">client_secret.json</td><td class="px-4 py-2">Google OAuth client credentials (gitignored) — from Google Cloud Console</td><td class="px-4 py-2"><span class="status-inprog px-2 py-0.5 rounded text-xs font-semibold">🔑 Local only</span></td></tr>
+                    <tr><td class="px-4 py-2 font-mono text-xs font-semibold">venv/</td><td class="px-4 py-2">Python 3.14 virtual environment — rebuilt Jun 21, 2026</td><td class="px-4 py-2"><span class="status-done px-2 py-0.5 rounded text-xs font-semibold">✅ Ready</span></td></tr>
+                    <tr class="bg-gray-50"><td class="px-4 py-2 font-mono text-xs font-semibold">GitHub Actions</td><td class="px-4 py-2">Weekly cron schedule — not yet created</td><td class="px-4 py-2"><span class="status-planned px-2 py-0.5 rounded text-xs font-semibold">📋 Planned</span></td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Playlist Configuration -->
+    <div class="grid md:grid-cols-2 gap-6 mb-6">
+        <div class="bg-white rounded-xl shadow-lg p-6">
+            <h3 class="font-bold text-lg mb-4 flex items-center gap-2">
+                <i data-lucide="music" class="text-red-600"></i> Nepali Music Videos
+            </h3>
+            <div class="space-y-2 text-sm mb-4">
+                <div class="flex justify-between"><span class="text-gray-500">Playlist ID</span><code class="text-xs bg-gray-100 px-1 rounded">PL706KEgmVFK9HI...</code></div>
+                <div class="flex justify-between"><span class="text-gray-500">Search query</span><span class="font-medium">"Nepali music"</span></div>
+                <div class="flex justify-between"><span class="text-gray-500">Category</span><span class="font-medium">Music (ID: 10)</span></div>
+                <div class="flex justify-between"><span class="text-gray-500">Total per run</span><span class="font-medium text-green-700">10 videos</span></div>
+            </div>
+            <h4 class="font-semibold text-gray-700 mb-2 text-sm">Timeframe Buckets</h4>
+            <div class="space-y-1">
+                <div class="flex justify-between bg-red-50 rounded px-3 py-1.5 text-xs"><span>Last 7 days</span><span class="font-semibold">3 videos (by views)</span></div>
+                <div class="flex justify-between bg-orange-50 rounded px-3 py-1.5 text-xs"><span>Last 30 days</span><span class="font-semibold">3 videos (by views)</span></div>
+                <div class="flex justify-between bg-yellow-50 rounded px-3 py-1.5 text-xs"><span>Last 6 months</span><span class="font-semibold">2 videos (by views)</span></div>
+                <div class="flex justify-between bg-green-50 rounded px-3 py-1.5 text-xs"><span>Last 12 months</span><span class="font-semibold">2 videos (by views)</span></div>
+            </div>
+        </div>
+        <div class="bg-white rounded-xl shadow-lg p-6">
+            <h3 class="font-bold text-lg mb-4 flex items-center gap-2">
+                <i data-lucide="film" class="text-purple-600"></i> Nepali Movies Trailers
+            </h3>
+            <div class="space-y-2 text-sm mb-4">
+                <div class="flex justify-between"><span class="text-gray-500">Playlist ID</span><code class="text-xs bg-gray-100 px-1 rounded">PL706KEgmVFK9d0...</code></div>
+                <div class="flex justify-between"><span class="text-gray-500">Search query</span><span class="font-medium">"Nepali movie trailer official"</span></div>
+                <div class="flex justify-between"><span class="text-gray-500">Category</span><span class="font-medium">Film &amp; Animation (ID: 1)</span></div>
+                <div class="flex justify-between"><span class="text-gray-500">Total per run</span><span class="font-medium text-green-700">10 videos</span></div>
+            </div>
+            <h4 class="font-semibold text-gray-700 mb-2 text-sm">Timeframe Buckets</h4>
+            <div class="space-y-1">
+                <div class="flex justify-between bg-purple-50 rounded px-3 py-1.5 text-xs"><span>Last 3 months</span><span class="font-semibold">3 videos (by combined score)</span></div>
+                <div class="flex justify-between bg-blue-50 rounded px-3 py-1.5 text-xs"><span>Last 14 days</span><span class="font-semibold">5 videos (by date)</span></div>
+                <div class="flex justify-between bg-green-50 rounded px-3 py-1.5 text-xs"><span>Last 12 months</span><span class="font-semibold">2 videos (by views)</span></div>
+            </div>
+            <div class="mt-3 bg-gray-50 rounded p-2 text-xs">
+                <strong>Filters:</strong> Excludes "review", "reaction", "analysis", "explained". Requires "trailer", "official", "teaser", "promo".
+            </div>
+        </div>
+    </div>
+
+    <!-- Run History -->
+    <div class="bg-white rounded-xl shadow-lg p-6 mb-6">
+        <h3 class="font-bold text-lg mb-4 flex items-center gap-2"><i data-lucide="history" class="text-red-600"></i> Run History</h3>
+        <table class="w-full text-sm">
+            <thead class="bg-gray-100">
+                <tr>
+                    <th class="px-4 py-2 text-left">Date</th>
+                    <th class="px-4 py-2 text-left">Music Videos</th>
+                    <th class="px-4 py-2 text-left">Movies Trailers</th>
+                    <th class="px-4 py-2 text-left">Notes</th>
+                    <th class="px-4 py-2 text-left">Status</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y">
+                <tr class="bg-green-50">
+                    <td class="px-4 py-2 font-medium">Jun 21, 2026</td>
+                    <td class="px-4 py-2">10/10 added</td>
+                    <td class="px-4 py-2">10/10 added</td>
+                    <td class="px-4 py-2 text-xs text-amber-700">⚠️ 3 duplicate videos in movies (cross-timeframe dedup bug)</td>
+                    <td class="px-4 py-2"><span class="status-done px-2 py-0.5 rounded text-xs font-semibold">✅ Success</span></td>
+                </tr>
+                <tr class="opacity-50">
+                    <td class="px-4 py-2 text-gray-400 italic" colspan="5">Earlier runs — token.json was expired; venv was pointing to Python 3.9 (removed). Rebuilt venv with Python 3.14 on Jun 21.</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Known Issues & Next Steps -->
+    <div class="grid md:grid-cols-2 gap-6">
+        <div class="bg-white rounded-xl shadow-lg p-6">
+            <h3 class="font-bold text-lg mb-4 flex items-center gap-2 text-amber-700"><i data-lucide="alert-triangle" class="w-5 h-5"></i> Known Issues</h3>
+            <div class="space-y-3">
+                <div class="bg-amber-50 border-l-4 border-amber-400 rounded p-3">
+                    <div class="font-semibold text-amber-800 text-sm">Cross-timeframe duplicate videos (Movies playlist)</div>
+                    <div class="text-xs text-gray-600 mt-1">The same video can appear in multiple timeframe buckets and be added twice. <code>get_popular_videos_by_timeframe()</code> deduplicates per-timeframe but not across all timeframes before final add. Fix: collect all candidate IDs first, deduplicate globally, then add.</div>
+                    <div class="mt-1"><span class="status-planned px-2 py-0.5 rounded text-xs">📋 Fix Pending</span></div>
+                </div>
+                <div class="bg-blue-50 border-l-4 border-blue-400 rounded p-3">
+                    <div class="font-semibold text-blue-800 text-sm">Manual scheduling only</div>
+                    <div class="text-xs text-gray-600 mt-1">No GitHub Actions workflow yet. Token refresh via OAuth browser flow won't work headlessly — needs service account or token stored as GitHub secret.</div>
+                    <div class="mt-1"><span class="status-planned px-2 py-0.5 rounded text-xs">📋 Planned</span></div>
+                </div>
+            </div>
+        </div>
+        <div class="bg-white rounded-xl shadow-lg p-6">
+            <h3 class="font-bold text-lg mb-4 flex items-center gap-2 text-indigo-700"><i data-lucide="list-checks" class="w-5 h-5"></i> Next Steps</h3>
+            <div class="space-y-2">
+                <div class="flex items-start gap-2 text-sm p-2 rounded bg-gray-50">
+                    <span class="text-red-500 font-bold mt-0.5">1</span>
+                    <div><strong>Push to GitHub</strong> — create private repo <code class="text-xs bg-gray-100 px-1 rounded">pmstnepal/pmst-youtube-automation</code> and push all files</div>
+                </div>
+                <div class="flex items-start gap-2 text-sm p-2 rounded bg-gray-50">
+                    <span class="text-red-500 font-bold mt-0.5">2</span>
+                    <div><strong>Fix dedup bug</strong> — global dedup across timeframes before adding to playlist</div>
+                </div>
+                <div class="flex items-start gap-2 text-sm p-2 rounded bg-gray-50">
+                    <span class="text-red-500 font-bold mt-0.5">3</span>
+                    <div><strong>Add GitHub Actions</strong> — weekly cron with token.json stored as encrypted secret</div>
+                </div>
+                <div class="flex items-start gap-2 text-sm p-2 rounded bg-gray-50">
+                    <span class="text-red-500 font-bold mt-0.5">4</span>
+                    <div><strong>Add README.md</strong> — setup guide, OAuth flow, config docs</div>
+                </div>
+                <div class="flex items-start gap-2 text-sm p-2 rounded bg-gray-50">
+                    <span class="text-red-500 font-bold mt-0.5">5</span>
+                    <div><strong>Future</strong> — create PMST articles from top-performing videos via Post Automation pipeline</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</div><!-- end youtube -->
+
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<!-- TAB 3: POST AUTOMATION                                          -->
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<div id="tab-postautomation" class="tab-content">
+
+    <!-- Header banner -->
+    <div class="bg-gradient-to-r from-indigo-600 to-purple-700 text-white rounded-xl p-6 mb-6">
+        <div class="flex items-center justify-between flex-wrap gap-3">
+            <div>
+                <h2 class="text-2xl font-bold flex items-center gap-2"><i data-lucide="newspaper" class="w-7 h-7"></i> Post Automation (Entertainment Content)</h2>
+                <p class="text-indigo-100 mt-1 text-sm">Scrapes · AI-processes · Posts to Blogger (working) &amp; PMST API (blocked) · Hourly GitHub Actions</p>
+            </div>
+            <div class="flex gap-2 flex-wrap">
+                <span class="bg-yellow-300 text-yellow-900 px-3 py-1 rounded-full text-sm font-bold">🟡 Partially Working</span>
+                <a href="https://github.com/pmstnepal/postautomation" target="_blank" class="bg-white/20 hover:bg-white/30 px-3 py-1 rounded-full text-sm flex items-center gap-1">
+                    <i data-lucide="github" class="w-4 h-4"></i> pmstnepal/postautomation
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Architecture Pipeline -->
+    <div class="bg-white rounded-xl shadow-lg p-6 mb-6">
+        <h3 class="font-bold text-lg mb-4 flex items-center gap-2"><i data-lucide="workflow" class="text-indigo-600"></i> Full Pipeline</h3>
+        <div class="flex flex-wrap gap-4 items-center justify-center py-2">
+            <div class="pipe-step bg-indigo-50 border border-indigo-200 rounded-lg px-3 py-3 text-center min-w-[90px] mr-5">
+                <i data-lucide="key" class="w-5 h-5 mx-auto text-indigo-600 mb-1"></i>
+                <div class="text-xs font-semibold">Cognito Auth</div>
+                <div class="text-xs text-gray-500">AWS JWT</div>
+            </div>
+            <div class="pipe-step bg-blue-50 border border-blue-200 rounded-lg px-3 py-3 text-center min-w-[90px] mr-5">
+                <i data-lucide="globe" class="w-5 h-5 mx-auto text-blue-600 mb-1"></i>
+                <div class="text-xs font-semibold">Scrape News</div>
+                <div class="text-xs text-gray-500">BS4 + lxml</div>
+            </div>
+            <div class="pipe-step bg-purple-50 border border-purple-200 rounded-lg px-3 py-3 text-center min-w-[90px] mr-5">
+                <i data-lucide="trending-up" class="w-5 h-5 mx-auto text-purple-600 mb-1"></i>
+                <div class="text-xs font-semibold">Trending Filter</div>
+                <div class="text-xs text-gray-500">velocity score</div>
+            </div>
+            <div class="pipe-step bg-pink-50 border border-pink-200 rounded-lg px-3 py-3 text-center min-w-[90px] mr-5">
+                <i data-lucide="sparkles" class="w-5 h-5 mx-auto text-pink-600 mb-1"></i>
+                <div class="text-xs font-semibold">AI Process</div>
+                <div class="text-xs text-gray-500">GPT-4 + DALL-E</div>
+            </div>
+            <div class="pipe-step bg-green-50 border border-green-200 rounded-lg px-3 py-3 text-center min-w-[90px] mr-5">
+                <i data-lucide="rss" class="w-5 h-5 mx-auto text-green-600 mb-1"></i>
+                <div class="text-xs font-semibold">Post Blogger</div>
+                <div class="text-xs text-gray-500">✅ Working</div>
+            </div>
+            <div class="pipe-step bg-orange-50 border border-orange-200 rounded-lg px-3 py-3 text-center min-w-[90px]">
+                <i data-lucide="server" class="w-5 h-5 mx-auto text-orange-600 mb-1"></i>
+                <div class="text-xs font-semibold">Post PMST API</div>
+                <div class="text-xs text-red-600 font-semibold">🔴 Blocked</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Component Kanban -->
+    <div class="bg-white rounded-xl shadow-lg p-6 mb-6">
+        <h3 class="font-bold text-lg mb-4 flex items-center gap-2"><i data-lucide="columns" class="text-indigo-600"></i> Component Status</h3>
+        <div class="grid md:grid-cols-3 gap-4">
+            <!-- Done -->
+            <div class="bg-green-50 rounded-lg p-4">
+                <h4 class="font-bold text-green-700 mb-3 flex items-center gap-2"><span class="w-3 h-3 bg-green-500 rounded-full"></span> Done / Working</h4>
+                <div class="space-y-2">
+                    <div class="bg-white rounded-lg p-3 shadow-sm">
+                        <div class="font-medium text-sm">blogger_news_poster.py</div>
+                        <div class="text-xs text-gray-500">Posts to Blogger via Google API</div>
+                        <div class="mt-1 text-xs text-green-600">✓ Running hourly in CI</div>
+                    </div>
+                    <div class="bg-white rounded-lg p-3 shadow-sm">
+                        <div class="font-medium text-sm">news_scraper.py</div>
+                        <div class="text-xs text-gray-500">scrapers/ — BeautifulSoup scraping</div>
+                        <div class="mt-1 text-xs text-green-600">✓ Sources configured in sources.json</div>
+                    </div>
+                    <div class="bg-white rounded-lg p-3 shadow-sm">
+                        <div class="font-medium text-sm">content_logger.py</div>
+                        <div class="text-xs text-gray-500">utils/ — dedup via news_log.json</div>
+                        <div class="mt-1 text-xs text-green-600">✓ Prevents reprocessing</div>
+                    </div>
+                    <div class="bg-white rounded-lg p-3 shadow-sm">
+                        <div class="font-medium text-sm">spread_algorithm.py</div>
+                        <div class="text-xs text-gray-500">utils/ — velocity / trending filter</div>
+                        <div class="mt-1 text-xs text-green-600">✓ Ranks by engagement</div>
+                    </div>
+                    <div class="bg-white rounded-lg p-3 shadow-sm">
+                        <div class="font-medium text-sm">GitHub Actions CI</div>
+                        <div class="text-xs text-gray-500">blogger_news_poster.yml</div>
+                        <div class="mt-1 text-xs text-green-600">✓ Runs every hour, commits news_log.json</div>
+                    </div>
+                </div>
+            </div>
+            <!-- In Progress -->
+            <div class="bg-yellow-50 rounded-lg p-4">
+                <h4 class="font-bold text-yellow-700 mb-3 flex items-center gap-2"><span class="w-3 h-3 bg-yellow-500 rounded-full"></span> In Progress</h4>
+                <div class="space-y-2">
+                    <div class="bg-white rounded-lg p-3 shadow-sm">
+                        <div class="font-medium text-sm">video_scraper.py</div>
+                        <div class="text-xs text-gray-500">scrapers/ — YouTube video scraping</div>
+                        <div class="mt-1 text-xs text-yellow-600">⚡ Written, needs youtube_api_key configured</div>
+                    </div>
+                    <div class="bg-white rounded-lg p-3 shadow-sm">
+                        <div class="font-medium text-sm">content_processor.py</div>
+                        <div class="text-xs text-gray-500">ai_processors/ — GPT-4 enhancement</div>
+                        <div class="mt-1 text-xs text-yellow-600">⚡ Written, needs OPENAI_API_KEY</div>
+                    </div>
+                    <div class="bg-white rounded-lg p-3 shadow-sm">
+                        <div class="font-medium text-sm">main.py (full pipeline)</div>
+                        <div class="text-xs text-gray-500">Full orchestrator with all components</div>
+                        <div class="mt-1 text-xs text-yellow-600">⚡ Complete but blocked by API + AI keys</div>
+                    </div>
+                </div>
+            </div>
+            <!-- Blocked -->
+            <div class="bg-red-50 rounded-lg p-4">
+                <h4 class="font-bold text-red-700 mb-3 flex items-center gap-2"><span class="w-3 h-3 bg-red-500 rounded-full"></span> Blocked</h4>
+                <div class="space-y-2">
+                    <div class="bg-white rounded-lg p-3 shadow-sm border-l-4 border-red-400">
+                        <div class="font-medium text-sm">pmst_api.py</div>
+                        <div class="text-xs text-gray-500">api_integration/ — posts to PMST</div>
+                        <div class="mt-1 text-xs text-red-600">🔴 Needs: API_BASE_URL (live Lambda endpoint)</div>
+                    </div>
+                    <div class="bg-white rounded-lg p-3 shadow-sm border-l-4 border-red-400">
+                        <div class="font-medium text-sm">cognito_client.py</div>
+                        <div class="text-xs text-gray-500">api_integration/ — AWS Cognito auth</div>
+                        <div class="mt-1 text-xs text-red-600">🔴 Needs: COGNITO_POOL_ID + COGNITO_CLIENT_ID</div>
+                    </div>
+                    <div class="bg-white rounded-lg p-3 shadow-sm border-l-4 border-red-400">
+                        <div class="font-medium text-sm">image_processor.py</div>
+                        <div class="text-xs text-gray-500">ai_processors/ — DALL-E image gen</div>
+                        <div class="mt-1 text-xs text-red-600">🔴 Needs: OPENAI_API_KEY</div>
+                    </div>
+                    <div class="bg-white rounded-lg p-3 shadow-sm border-l-4 border-orange-400">
+                        <div class="font-medium text-sm">PMST API integration test</div>
+                        <div class="text-xs text-gray-500">End-to-end: scrape → post article</div>
+                        <div class="mt-1 text-xs text-orange-600">⏳ Depends on Terraform test env being live</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Config Reference -->
+    <div class="bg-white rounded-xl shadow-lg p-6 mb-6">
+        <h3 class="font-bold text-lg mb-4 flex items-center gap-2"><i data-lucide="settings" class="text-indigo-600"></i> Configuration &amp; Secrets</h3>
+        <div class="grid md:grid-cols-2 gap-6">
+            <div>
+                <h4 class="font-semibold text-gray-700 mb-3 text-sm">Environment Variables (.env / GitHub Secrets)</h4>
+                <table class="w-full text-xs">
+                    <thead class="bg-gray-100">
+                        <tr><th class="px-3 py-1.5 text-left">Variable</th><th class="px-3 py-1.5 text-left">Status</th></tr>
+                    </thead>
+                    <tbody class="divide-y">
+                        <tr><td class="px-3 py-1.5 font-mono">BLOG_ID</td><td class="px-3 py-1.5"><span class="status-done px-1.5 py-0.5 rounded text-xs">✅ Set (GitHub Secret)</span></td></tr>
+                        <tr class="bg-gray-50"><td class="px-3 py-1.5 font-mono">GOOGLE_CREDENTIALS</td><td class="px-3 py-1.5"><span class="status-done px-1.5 py-0.5 rounded text-xs">✅ Set (GitHub Secret)</span></td></tr>
+                        <tr><td class="px-3 py-1.5 font-mono">TOKEN_PICKLE</td><td class="px-3 py-1.5"><span class="status-done px-1.5 py-0.5 rounded text-xs">✅ Set (GitHub Secret)</span></td></tr>
+                        <tr class="bg-gray-50"><td class="px-3 py-1.5 font-mono">COGNITO_POOL_ID</td><td class="px-3 py-1.5"><span class="status-blocked px-1.5 py-0.5 rounded text-xs">🔴 Not set</span></td></tr>
+                        <tr><td class="px-3 py-1.5 font-mono">COGNITO_CLIENT_ID</td><td class="px-3 py-1.5"><span class="status-blocked px-1.5 py-0.5 rounded text-xs">🔴 Not set</span></td></tr>
+                        <tr class="bg-gray-50"><td class="px-3 py-1.5 font-mono">COGNITO_USERNAME</td><td class="px-3 py-1.5"><span class="status-blocked px-1.5 py-0.5 rounded text-xs">🔴 Not set</span></td></tr>
+                        <tr><td class="px-3 py-1.5 font-mono">COGNITO_PASSWORD</td><td class="px-3 py-1.5"><span class="status-blocked px-1.5 py-0.5 rounded text-xs">🔴 Not set</span></td></tr>
+                        <tr class="bg-gray-50"><td class="px-3 py-1.5 font-mono">API_BASE_URL</td><td class="px-3 py-1.5"><span class="status-blocked px-1.5 py-0.5 rounded text-xs">🔴 Not set — needs live Lambda URL</span></td></tr>
+                        <tr><td class="px-3 py-1.5 font-mono">OPENAI_API_KEY</td><td class="px-3 py-1.5"><span class="status-blocked px-1.5 py-0.5 rounded text-xs">🔴 Not set</span></td></tr>
+                        <tr class="bg-gray-50"><td class="px-3 py-1.5 font-mono">YOUTUBE_API_KEY</td><td class="px-3 py-1.5"><span class="status-inprog px-1.5 py-0.5 rounded text-xs">🟡 Needed for video scraping</span></td></tr>
+                    </tbody>
+                </table>
+            </div>
+            <div>
+                <h4 class="font-semibold text-gray-700 mb-3 text-sm">config/config.json Defaults</h4>
+                <div class="bg-gray-900 text-green-300 rounded-lg p-3 font-mono text-xs">
+                    <div>{</div>
+                    <div class="pl-4">"run_frequency_minutes": 60,</div>
+                    <div class="pl-4">"max_news_articles": 5,</div>
+                    <div class="pl-4">"max_videos": 5,</div>
+                    <div class="pl-4">"velocity_threshold": 100,</div>
+                    <div class="pl-4">"ai_image_generation": <span class="text-yellow-300">true</span>,</div>
+                    <div class="pl-4">"enable_video_processing": <span class="text-yellow-300">true</span>,</div>
+                    <div class="pl-4 text-red-400">"cognito_pool_id": "your-pool-id" <span class="text-gray-500">// ← needed</span></div>
+                    <div>}</div>
+                </div>
+                <div class="mt-3 bg-blue-50 rounded p-3 text-xs text-blue-800">
+                    <strong>sources.json</strong> defines scraping sources with selectors, category mappings and content filters for each Nepali entertainment news site.
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Next Steps -->
+    <div class="bg-white rounded-xl shadow-lg p-6">
+        <h3 class="font-bold text-lg mb-4 flex items-center gap-2 text-indigo-700"><i data-lucide="list-checks" class="w-5 h-5"></i> Next Steps (in order)</h3>
+        <div class="space-y-2">
+            <div class="flex items-start gap-3 p-3 bg-red-50 rounded-lg border border-red-200">
+                <span class="bg-red-600 text-white text-xs font-bold rounded-full w-6 h-6 flex items-center justify-center shrink-0">1</span>
+                <div class="text-sm"><strong>Deploy Terraform test environment</strong> — this unblocks the Lambda API URL and Cognito pool/client IDs. See <a href="pmst-master-plan.html" class="text-indigo-600 underline">Master Plan → Deploy tab</a>.</div>
+            </div>
+            <div class="flex items-start gap-3 p-3 bg-orange-50 rounded-lg border border-orange-200">
+                <span class="bg-orange-500 text-white text-xs font-bold rounded-full w-6 h-6 flex items-center justify-center shrink-0">2</span>
+                <div class="text-sm"><strong>Set GitHub Secrets</strong> — add <code class="text-xs bg-gray-100 px-1 rounded">COGNITO_POOL_ID</code>, <code class="text-xs bg-gray-100 px-1 rounded">COGNITO_CLIENT_ID</code>, <code class="text-xs bg-gray-100 px-1 rounded">COGNITO_USERNAME</code>, <code class="text-xs bg-gray-100 px-1 rounded">COGNITO_PASSWORD</code>, <code class="text-xs bg-gray-100 px-1 rounded">API_BASE_URL</code> to <code class="text-xs bg-gray-100 px-1 rounded">pmstnepal/postautomation</code>.</div>
+            </div>
+            <div class="flex items-start gap-3 p-3 bg-yellow-50 rounded-lg border border-yellow-200">
+                <span class="bg-yellow-500 text-white text-xs font-bold rounded-full w-6 h-6 flex items-center justify-center shrink-0">3</span>
+                <div class="text-sm"><strong>Add OPENAI_API_KEY secret</strong> — enables GPT-4 content enhancement and DALL-E image generation for articles.</div>
+            </div>
+            <div class="flex items-start gap-3 p-3 bg-blue-50 rounded-lg border border-blue-200">
+                <span class="bg-blue-500 text-white text-xs font-bold rounded-full w-6 h-6 flex items-center justify-center shrink-0">4</span>
+                <div class="text-sm"><strong>Update GitHub Actions workflow</strong> — extend <code class="text-xs bg-gray-100 px-1 rounded">blogger_news_poster.yml</code> to also run <code class="text-xs bg-gray-100 px-1 rounded">main.py</code> for full pipeline once secrets are set.</div>
+            </div>
+            <div class="flex items-start gap-3 p-3 bg-indigo-50 rounded-lg border border-indigo-200">
+                <span class="bg-indigo-500 text-white text-xs font-bold rounded-full w-6 h-6 flex items-center justify-center shrink-0">5</span>
+                <div class="text-sm"><strong>Test end-to-end</strong> — run manually against test API, verify articles appear in PMST platform, validate image URLs resolve from S3.</div>
+            </div>
+        </div>
+    </div>
+
+</div><!-- end postautomation -->
+
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<!-- TAB 4: ROADMAP                                                  -->
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<div id="tab-roadmap" class="tab-content">
+
+    <div class="bg-white rounded-xl shadow-lg p-6 mb-6">
+        <h2 class="text-2xl font-bold mb-6 flex items-center gap-2">
+            <i data-lucide="map" class="text-teal-600"></i> Combined Automation Roadmap
+        </h2>
+
+        <!-- Timeline -->
+        <div class="relative">
+            <!-- Vertical line -->
+            <div class="absolute left-8 top-0 bottom-0 w-0.5 bg-gray-200"></div>
+
+            <div class="space-y-6">
+                <!-- Phase: Done -->
+                <div class="relative flex items-start gap-6">
+                    <div class="w-16 h-16 rounded-full bg-green-500 flex items-center justify-center shrink-0 shadow-lg z-10">
+                        <i data-lucide="check" class="w-7 h-7 text-white"></i>
+                    </div>
+                    <div class="flex-1 bg-green-50 border border-green-200 rounded-xl p-5">
+                        <div class="flex items-center justify-between mb-2">
+                            <h3 class="font-bold text-green-800 text-lg">Phase 1 — Foundation ✅ Complete</h3>
+                            <span class="text-xs text-gray-500">May–Jun 2026</span>
+                        </div>
+                        <div class="grid md:grid-cols-2 gap-3 text-sm">
+                            <div>
+                                <div class="font-semibold text-green-700 mb-1">YouTube Automation</div>
+                                <ul class="space-y-0.5 text-gray-700">
+                                    <li>✅ YouTube Data API v3 integration</li>
+                                    <li>✅ OAuth 2.0 authentication flow</li>
+                                    <li>✅ Multi-playlist support (Music + Movies)</li>
+                                    <li>✅ Timeframe bucket ranking system</li>
+                                    <li>✅ Nepali trailer keyword filtering</li>
+                                    <li>✅ First successful run (Jun 21, 2026)</li>
+                                </ul>
+                            </div>
+                            <div>
+                                <div class="font-semibold text-green-700 mb-1">Post Automation</div>
+                                <ul class="space-y-0.5 text-gray-700">
+                                    <li>✅ News scraper (BeautifulSoup + lxml)</li>
+                                    <li>✅ Content logger (dedup via news_log.json)</li>
+                                    <li>✅ Spread/velocity algorithm</li>
+                                    <li>✅ Blogger posting (OAuth 2.0)</li>
+                                    <li>✅ GitHub Actions CI (hourly cron)</li>
+                                    <li>✅ Auto-commit news_log.json on changes</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Phase: Current -->
+                <div class="relative flex items-start gap-6">
+                    <div class="w-16 h-16 rounded-full bg-yellow-500 flex items-center justify-center shrink-0 shadow-lg z-10">
+                        <i data-lucide="zap" class="w-7 h-7 text-white"></i>
+                    </div>
+                    <div class="flex-1 bg-yellow-50 border border-yellow-200 rounded-xl p-5">
+                        <div class="flex items-center justify-between mb-2">
+                            <h3 class="font-bold text-yellow-800 text-lg">Phase 2 — Stabilize &amp; Connect 🟡 Now</h3>
+                            <span class="text-xs text-gray-500">Jun–Jul 2026</span>
+                        </div>
+                        <div class="grid md:grid-cols-2 gap-3 text-sm">
+                            <div>
+                                <div class="font-semibold text-yellow-700 mb-1">YouTube Automation</div>
+                                <ul class="space-y-0.5 text-gray-700">
+                                    <li>📋 Push to private GitHub repo</li>
+                                    <li>📋 Fix cross-timeframe dedup bug</li>
+                                    <li>📋 Add README.md with setup guide</li>
+                                    <li>📋 GitHub Actions weekly cron</li>
+                                </ul>
+                            </div>
+                            <div>
+                                <div class="font-semibold text-yellow-700 mb-1">Post Automation</div>
+                                <ul class="space-y-0.5 text-gray-700">
+                                    <li>⏳ Deploy Terraform test env (unblocks API URL)</li>
+                                    <li>📋 Set Cognito GitHub Secrets</li>
+                                    <li>📋 Set OPENAI_API_KEY secret</li>
+                                    <li>📋 Test PMST API article creation</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Phase: Next -->
+                <div class="relative flex items-start gap-6">
+                    <div class="w-16 h-16 rounded-full bg-blue-500 flex items-center justify-center shrink-0 shadow-lg z-10">
+                        <i data-lucide="rocket" class="w-7 h-7 text-white"></i>
+                    </div>
+                    <div class="flex-1 bg-blue-50 border border-blue-200 rounded-xl p-5">
+                        <div class="flex items-center justify-between mb-2">
+                            <h3 class="font-bold text-blue-800 text-lg">Phase 3 — Full Pipeline 📋 Planned</h3>
+                            <span class="text-xs text-gray-500">Jul–Aug 2026</span>
+                        </div>
+                        <div class="grid md:grid-cols-2 gap-3 text-sm">
+                            <div>
+                                <div class="font-semibold text-blue-700 mb-1">YouTube Automation</div>
+                                <ul class="space-y-0.5 text-gray-700">
+                                    <li>📋 Create PMST articles from top videos</li>
+                                    <li>📋 Multi-language support (EN + NP)</li>
+                                    <li>📋 Analytics: track which videos get most clicks</li>
+                                </ul>
+                            </div>
+                            <div>
+                                <div class="font-semibold text-blue-700 mb-1">Post Automation</div>
+                                <ul class="space-y-0.5 text-gray-700">
+                                    <li>📋 Full AI pipeline: GPT-4 enhance + DALL-E images</li>
+                                    <li>📋 Video scraping (trailers → articles)</li>
+                                    <li>📋 Sentiment filtering (exclude negative news)</li>
+                                    <li>📋 Social media: Twitter/X + Instagram auto-post</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Phase: Future -->
+                <div class="relative flex items-start gap-6">
+                    <div class="w-16 h-16 rounded-full bg-gray-400 flex items-center justify-center shrink-0 shadow-lg z-10">
+                        <i data-lucide="star" class="w-7 h-7 text-white"></i>
+                    </div>
+                    <div class="flex-1 bg-gray-50 border border-gray-200 rounded-xl p-5">
+                        <div class="flex items-center justify-between mb-2">
+                            <h3 class="font-bold text-gray-700 text-lg">Phase 4 — Advanced &amp; Integrated 💡 Future</h3>
+                            <span class="text-xs text-gray-500">Sep 2026+</span>
+                        </div>
+                        <ul class="text-sm text-gray-600 grid md:grid-cols-2 gap-1">
+                            <li>💡 YouTube videos → auto-create PMST articles</li>
+                            <li>💡 Comment monitoring &amp; engagement analytics</li>
+                            <li>💡 Editor approval workflow before publish</li>
+                            <li>💡 Best-time-to-post scheduling (ML-based)</li>
+                            <li>💡 TikTok video compilation from Nepali content</li>
+                            <li>💡 Unified admin dashboard for both automations</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Dependency Map -->
+    <div class="bg-white rounded-xl shadow-lg p-6">
+        <h3 class="font-bold text-lg mb-4 flex items-center gap-2"><i data-lucide="git-merge" class="text-teal-600"></i> Key Dependencies</h3>
+        <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+                <thead class="bg-gray-100">
+                    <tr>
+                        <th class="px-4 py-2 text-left">What needs to happen</th>
+                        <th class="px-4 py-2 text-left">Depends on</th>
+                        <th class="px-4 py-2 text-left">Unlocks</th>
+                        <th class="px-4 py-2 text-left">Status</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y">
+                    <tr class="bg-red-50"><td class="px-4 py-2 font-medium">Terraform test env deploy</td><td class="px-4 py-2">IAM role + Terraform apply</td><td class="px-4 py-2">PMST API URL + Cognito IDs for Post Automation</td><td class="px-4 py-2"><span class="status-blocked px-2 py-0.5 rounded text-xs">🔴 Blocked</span></td></tr>
+                    <tr><td class="px-4 py-2 font-medium">GitHub repo for YouTube automation</td><td class="px-4 py-2">Manual: create private repo on GitHub.com</td><td class="px-4 py-2">CI/CD, collaboration, version control</td><td class="px-4 py-2"><span class="status-planned px-2 py-0.5 rounded text-xs">📋 Planned</span></td></tr>
+                    <tr class="bg-gray-50"><td class="px-4 py-2 font-medium">OpenAI API key</td><td class="px-4 py-2">Purchase/obtain key from OpenAI</td><td class="px-4 py-2">AI content enhancement + DALL-E images in Post Automation</td><td class="px-4 py-2"><span class="status-planned px-2 py-0.5 rounded text-xs">📋 Planned</span></td></tr>
+                    <tr><td class="px-4 py-2 font-medium">Set GitHub Secrets (postautomation)</td><td class="px-4 py-2">Terraform test env output values</td><td class="px-4 py-2">Full Post Automation pipeline running in CI</td><td class="px-4 py-2"><span class="status-blocked px-2 py-0.5 rounded text-xs">🔴 Depends on Terraform</span></td></tr>
+                    <tr class="bg-gray-50"><td class="px-4 py-2 font-medium">YouTube weekly cron (GitHub Actions)</td><td class="px-4 py-2">Push to private repo first</td><td class="px-4 py-2">Fully automated no-touch weekly playlist updates</td><td class="px-4 py-2"><span class="status-planned px-2 py-0.5 rounded text-xs">📋 Planned</span></td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+</div><!-- end roadmap -->
+
+</main>
+
+<!-- Footer -->
+<footer class="bg-gray-800 text-white mt-12 py-6">
+    <div class="container mx-auto px-6 text-center text-sm text-gray-400">
+        <p>PMST Automation Projects — Part of the PMST US-Nepal migration from WordPress to AWS Serverless</p>
+        <div class="flex justify-center gap-4 mt-2">
+            <a href="pmst-master-plan.html" class="hover:text-white">← Master Plan</a>
+            <a href="aws-setup-guide.md" class="hover:text-white">AWS Setup Guide</a>
+            <a href="https://github.com/pmstnepal/postautomation" target="_blank" class="hover:text-white">Post Automation GitHub</a>
+        </div>
+    </div>
+</footer>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        lucide.createIcons();
+        document.getElementById('lastUpdated').textContent = new Date('2026-06-28').toLocaleDateString('en-US', {
+            year: 'numeric', month: 'short', day: 'numeric'
+        });
+    });
+
+    function showTab(tabName) {
+        document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+        document.querySelectorAll('.tab-btn').forEach(b => {
+            b.classList.remove('bg-teal-100', 'text-teal-700');
+            b.classList.add('hover:bg-gray-100', 'text-gray-600');
+        });
+        const tab = document.getElementById('tab-' + tabName);
+        if (tab) tab.classList.add('active');
+        const btn = document.querySelector('[data-tab="' + tabName + '"]');
+        if (btn) {
+            btn.classList.add('bg-teal-100', 'text-teal-700');
+            btn.classList.remove('hover:bg-gray-100', 'text-gray-600');
+        }
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+</script>
+</body>
+</html>
