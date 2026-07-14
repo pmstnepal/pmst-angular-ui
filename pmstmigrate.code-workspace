@@ -1,0 +1,29 @@
+{
+	"folders": [
+		{
+			"path": "."
+		},
+		{
+			"path": "../pmstmigrateinfra"
+		},
+		{
+			"path": "../pmst-migration"
+		},
+		{
+			"path": "../pmst-services/pmst-api-service"
+		},
+		{
+			"path": "../pmst-services/automation"
+		},
+		{
+			"path": "../pmst-services/postautomation"
+		},
+		{
+			"path": "../pmst-services/eventmgmt"
+		},
+		{
+			"path": "../pmst-services/pmst-ticketing-service"
+		}
+	],
+	"settings": {}
+}

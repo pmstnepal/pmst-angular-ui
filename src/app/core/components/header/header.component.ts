@@ -2,6 +2,7 @@ import { Component, signal, OnInit, inject, PLATFORM_ID, HostListener, computed 
 import { RouterLink, RouterLinkActive, Router } from '@angular/router';
 import { CommonModule, isPlatformBrowser } from '@angular/common';
 import { AuthService } from '../../services/auth.service';
+import { SettingsService } from '../../services/settings.service';
 
 @Component({
   selector: 'pmst-header',
@@ -30,8 +31,10 @@ import { AuthService } from '../../services/auth.service';
                class="pmst-nav-link" [class.pmst-nav-link-scrolled]="isScrolled()">Spotlight</a>
             <a routerLink="/showcase" routerLinkActive="pmst-nav-active"
                class="pmst-nav-link" [class.pmst-nav-link-scrolled]="isScrolled()">Gallery</a>
-            <a routerLink="/events" routerLinkActive="pmst-nav-active"
-               class="pmst-nav-link" [class.pmst-nav-link-scrolled]="isScrolled()">Events</a>
+            @if (eventsEnabled()) {
+              <a routerLink="/events" routerLinkActive="pmst-nav-active"
+                 class="pmst-nav-link" [class.pmst-nav-link-scrolled]="isScrolled()">Events</a>
+            }
           </div>
 
           <!-- Auth Buttons -->
@@ -43,6 +46,10 @@ import { AuthService } from '../../services/auth.service';
                  class="pmst-btn" [class.pmst-btn-scrolled]="isScrolled()">Join Now</a>
             } @else {
               <div class="flex items-center space-x-3">
+                @if (isStaff()) {
+                  <a routerLink="/admin/events" routerLinkActive="pmst-nav-active"
+                     class="pmst-nav-link" [class.pmst-nav-link-scrolled]="isScrolled()">Manage Events</a>
+                }
                 <a routerLink="/dashboard" class="pmst-user-link">
                   @if (currentUser()?.avatarUrl) {
                     <img [src]="currentUser()?.avatarUrl" [alt]="currentUser()?.displayName || currentUser()?.username" class="pmst-avatar">
@@ -83,12 +90,18 @@ import { AuthService } from '../../services/auth.service';
               <a routerLink="/" (click)="closeMobileMenu()" class="pmst-mobile-link pmst-mobile-nav-link">Home</a>
               <a routerLink="/spotlight" (click)="closeMobileMenu()" class="pmst-mobile-link pmst-mobile-nav-link">Spotlight</a>
               <a routerLink="/showcase" (click)="closeMobileMenu()" class="pmst-mobile-link pmst-mobile-nav-link">Gallery</a>
-              <a routerLink="/events" (click)="closeMobileMenu()" class="pmst-mobile-link pmst-mobile-nav-link">Events</a>
+              @if (eventsEnabled()) {
+                <a routerLink="/events" (click)="closeMobileMenu()" class="pmst-mobile-link pmst-mobile-nav-link">Events</a>
+              }
               <hr class="my-2 border-white/10">
               @if (!authenticated()) {
                 <a routerLink="/login" (click)="closeMobileMenu()" class="pmst-mobile-link">Sign In</a>
                 <a routerLink="/register" (click)="closeMobileMenu()" class="pmst-mobile-link pmst-mobile-btn">Join Now</a>
               } @else {
+                @if (isStaff()) {
+                  <a routerLink="/admin/events" (click)="closeMobileMenu()" class="pmst-mobile-link pmst-mobile-nav-link">Manage Events</a>
+                  <a routerLink="/admin/ticketing" (click)="closeMobileMenu()" class="pmst-mobile-link pmst-mobile-nav-link">Ticketing</a>
+                }
                 <a routerLink="/dashboard" (click)="closeMobileMenu()" class="pmst-mobile-link">
                   {{ currentUser()?.displayName || currentUser()?.username }}
                 </a>
@@ -245,10 +258,15 @@ export class HeaderComponent implements OnInit {
   
   private platformId = inject(PLATFORM_ID);
   private authService = inject(AuthService);
+  private settingsService = inject(SettingsService);
   private router = inject(Router);
 
   readonly authenticated = computed(() => this.authService.authenticated());
   readonly currentUser = computed(() => this.authService.user());
+  /** Admin or moderator — can access the event/ticketing management dashboards. */
+  readonly isStaff = computed(() => this.authService.isModerator());
+  /** Public Events menu visibility, controlled by the admin dashboard toggle. */
+  readonly eventsEnabled = computed(() => this.settingsService.eventsEnabled$());
 
   ngOnInit(): void {
     if (isPlatformBrowser(this.platformId)) {

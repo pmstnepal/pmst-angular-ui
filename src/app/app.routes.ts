@@ -1,5 +1,6 @@
 import { Routes } from '@angular/router';
-import { authGuard, adminGuard, redirectIfAuthenticated } from './core/guards/auth.guard';
+import { authGuard, adminGuard, moderatorGuard, redirectIfAuthenticated } from './core/guards/auth.guard';
+import { eventsEnabledGuard } from './core/guards/events-enabled.guard';
 
 export const routes: Routes = [
   {
@@ -63,12 +64,31 @@ export const routes: Routes = [
     canActivate: [adminGuard]
   },
   {
+    // Event management — admin + moderator (creators). Publish/approve gated in-component.
+    path: 'admin/events',
+    loadComponent: () => import('./features/admin/event-management.component').then(m => m.EventManagementComponent),
+    canActivate: [moderatorGuard]
+  },
+  {
+    // Ticketing dashboard — sales overview + ticket-category management.
+    path: 'admin/ticketing',
+    loadComponent: () => import('./features/admin/ticketing-dashboard.component').then(m => m.TicketingDashboardComponent),
+    canActivate: [moderatorGuard]
+  },
+  {
     path: 'spotlight',
     loadComponent: () => import('./features/spotlight/spotlight.component').then(m => m.SpotlightComponent)
   },
   {
+    path: 'events/:slug',
+    loadComponent: () => import('./features/events/event-detail.component').then(m => m.EventDetailComponent),
+    canActivate: [eventsEnabledGuard]
+  },
+  {
     path: 'events',
-    loadComponent: () => import('./features/events/events-list.component').then(m => m.EventsListComponent)
+    loadComponent: () => import('./features/events/events-list.component').then(m => m.EventsListComponent),
+    pathMatch: 'full',
+    canActivate: [eventsEnabledGuard]
   },
   {
     path: '**',

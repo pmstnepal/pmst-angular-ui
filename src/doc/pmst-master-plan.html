@@ -243,10 +243,10 @@
                                 <td class="px-4 py-2">Java 21 Lambda &mdash; Articles, Galleries, Users, Follows, Comments (consolidated) &mdash; <span class="bg-blue-200 text-blue-800 px-1.5 py-0.5 rounded text-xs font-semibold">ACTIVE</span> &nbsp;<code class="bg-blue-100 text-blue-700 px-1 rounded text-xs">feature/initial-setup</code> &nbsp;<code class="bg-gray-100 text-gray-600 px-1 rounded text-xs">:8080</code></td>
                                 <td class="px-4 py-2"><span class="bg-green-100 text-green-700 px-2 py-0.5 rounded-full text-xs">&#127866; Active</span></td>
                             </tr>
-                            <tr class="bg-purple-50">
-                                <td class="px-4 py-2 font-mono font-semibold">pmst-ticketing-service</td>
-                                <td class="px-4 py-2">Java 21 Lambda &mdash; Event ticketing, RSVP, attendee management &mdash; <span class="bg-purple-200 text-purple-800 px-1.5 py-0.5 rounded text-xs font-semibold">PLANNED</span> &nbsp;<code class="bg-gray-100 text-gray-600 px-1 rounded text-xs">:8081</code></td>
-                                <td class="px-4 py-2"><span class="bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full text-xs">&#128309; Planned</span></td>
+                            <tr class="bg-green-50">
+                                <td class="px-4 py-2 font-mono font-semibold"><a href="https://github.com/pmstnepal/pmst-ticketing-service" target="_blank" class="text-indigo-600 hover:underline">pmst-ticketing-service</a></td>
+                                <td class="px-4 py-2">Java 21 Lambda &mdash; Event ticketing, RSVP, attendee management &mdash; <span class="bg-green-200 text-green-800 px-1.5 py-0.5 rounded text-xs font-semibold">ACTIVE</span> &nbsp;<code class="bg-green-100 text-green-700 px-1 rounded text-xs">feature/initial-setup</code> &nbsp;<code class="bg-gray-100 text-gray-600 px-1 rounded text-xs">:8082</code></td>
+                                <td class="px-4 py-2"><span class="bg-green-100 text-green-700 px-2 py-0.5 rounded-full text-xs">&#127866; Active</span></td>
                             </tr>
                             <tr class="bg-gray-50 opacity-60">
                                 <td class="px-4 py-2 font-mono font-semibold line-through text-gray-400">pmst-auth-gateway</td>
@@ -335,7 +335,7 @@
                 </div>
                 <div class="text-right">
                     <div class="text-sm font-mono bg-green-50 p-3 rounded text-green-700">
-                        Frontend: :4201 | Backend: :8080 | DB: :5432
+                        Frontend: :4201 | API: :8080 | Ticketing: :8082 | DB: :5432
                     </div>
                     <button onclick="showTab('local-dev')" class="mt-2 text-indigo-600 hover:text-indigo-800 text-sm font-medium">
                         View Full Details →
@@ -385,7 +385,7 @@
                             <tr class="bg-green-50">
                                 <td class="px-4 py-2 font-semibold">Image URL Mapping</td>
                                 <td class="px-4 py-2"><span class="px-2 py-1 bg-green-100 text-green-800 rounded-full text-xs">✅ Complete</span></td>
-                                <td class="px-4 py-2 text-gray-600">ImageUrlMapperService integrated in all components</td>
+                                <td class="px-4 py-2 text-gray-600">ImageUrlMapperService maps WordPress URLs to local assets and CloudFront tier URLs (thumb/card/hero/master) across components</td>
                             </tr>
                             <tr class="bg-green-50">
                                 <td class="px-4 py-2 font-semibold">Docker Cleanup</td>
@@ -411,6 +411,11 @@
                                 <td class="px-4 py-2 font-semibold">Backend (IntelliJ)</td>
                                 <td class="px-4 py-2"><span class="px-2 py-1 bg-green-100 text-green-800 rounded-full text-xs">✅ Running</span></td>
                                 <td class="px-4 py-2 text-gray-600">Java 21 Spring Boot on :8080</td>
+                            </tr>
+                            <tr class="bg-green-50">
+                                <td class="px-4 py-2 font-semibold">Ticketing Backend</td>
+                                <td class="px-4 py-2"><span class="px-2 py-1 bg-green-100 text-green-800 rounded-full text-xs">✅ Running</span></td>
+                                <td class="px-4 py-2 text-gray-600">pmst-ticketing-service on :8082, shared PostgreSQL :5432</td>
                             </tr>
                             <tr class="bg-green-50">
                                 <td class="px-4 py-2 font-semibold">Frontend (Windsurf)</td>
@@ -457,7 +462,8 @@
                     <div class="text-sm text-green-700 font-mono bg-white p-3 rounded">
                         Frontend: http://localhost:4201<br>
                         Backend API: http://localhost:8080<br>
-                        Database: localhost:5432 (131 articles, 3,337 images)
+                        Ticketing API: http://localhost:8082<br>
+                        Database: localhost:5432 (131 articles, 3,337 images, shared `pmst` schema)
                     </div>
                 </div>
                 
@@ -1095,29 +1101,36 @@ mvn test</code></pre>
                     </div>
 
                     <!-- pmst-ticketing-service -->
-                    <div class="border-2 border-purple-300 rounded-xl p-5 bg-purple-50">
+                    <div class="border-2 border-green-300 rounded-xl p-5 bg-green-50">
                         <div class="flex items-center justify-between mb-3">
                             <div>
-                                <h3 class="font-bold text-purple-900 text-lg">pmst-ticketing-service</h3>
-                                <p class="text-xs text-purple-600">Separate: Event management &amp; ticketing</p>
+                                <h3 class="font-bold text-green-900 text-lg">pmst-ticketing-service</h3>
+                                <p class="text-xs text-green-600">Separate: Event management, ticketing, RSVP &amp; attendee management</p>
                             </div>
-                            <span class="bg-purple-200 text-purple-800 px-2 py-0.5 rounded text-xs font-semibold">PLANNED</span>
+                            <span class="bg-green-200 text-green-800 px-2 py-0.5 rounded text-xs font-semibold">ACTIVE</span>
                         </div>
-                        <ul class="text-xs space-y-1 text-purple-800 mb-4">
-                            <li>&#127914; GET /events &mdash; list events</li>
-                            <li>&#43; POST /events &mdash; create event</li>
-                            <li>&#127915; POST /events/{id}/tickets &mdash; issue tickets</li>
-                            <li>&#128101; GET /events/{id}/attendees</li>
-                            <li>&#10003; POST /events/{id}/rsvp</li>
+                        <ul class="text-xs space-y-1 text-green-800 mb-4">
+                            <li>&#127914; GET /events &mdash; public list of published events</li>
+                            <li>&#128270; GET /events/{id} &mdash; public event detail</li>
+                            <li>&#43; POST /events &mdash; create event (creator/admin)</li>
+                            <li>&#128260; POST /events/{id}/submit &mdash; submit for approval</li>
+                            <li>&#9989; POST /events/{id}/approve · POST /events/{id}/reject · POST /events/{id}/publish &mdash; admin</li>
+                            <li>&#127915; GET /events/{eventId}/categories &mdash; public ticket categories</li>
+                            <li>&#128101; POST /events/{eventId}/categories &mdash; manage categories (creator/admin)</li>
+                            <li>&#127915; POST /events/{eventId}/reservations &mdash; free registration (auth)</li>
+                            <li>&#128504; POST /reservations/{id}/confirm &mdash; confirm free reservation</li>
+                            <li>&#127915; GET /tickets/mine &mdash; my issued tickets</li>
+                            <li>&#10067; GET /ping &mdash; health check</li>
                         </ul>
-                        <div class="text-xs text-gray-500">Repo: <code class="bg-white px-1 rounded">pmst-ticketing-service</code> (to be created)</div>
-                        <div class="text-xs text-gray-500 mt-1">Local: <code class="bg-white px-1 rounded">D:\pmst-services\pmst-ticketing-service\</code> &nbsp;<code class="bg-gray-100 px-1 rounded">:8081</code></div>
+                        <div class="text-xs text-gray-500">Repo: <code class="bg-white px-1 rounded">pmst-ticketing-service</code></div>
+                        <div class="text-xs text-gray-500 mt-1">Local: <code class="bg-white px-1 rounded">D:\pmst-services\pmst-ticketing-service\</code> &nbsp;<code class="bg-gray-100 px-1 rounded">:8082</code></div>
+                        <div class="text-xs text-gray-500 mt-1">Detailed plan: <a href="file:///D:/pmst-services/pmst-ticketing-service/doc/eventplan.md" class="text-indigo-600 hover:underline">eventplan.md</a></div>
                     </div>
                 </div>
 
                 <!-- Rationale -->
                 <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4 text-sm text-blue-800">
-                    <strong>&#128161; Why consolidated?</strong> Articles, galleries, users, follows, and comments share the same PostgreSQL schema and have similar traffic patterns. One JAR = fewer cold starts, simpler CI/CD, lower cost. Ticketing is separate due to distinct scaling needs and potential third-party payment integration.
+                    <strong>&#128161; Why consolidated?</strong> `pmst-api-service` is consolidated: articles, galleries, users, follows, and comments share the same PostgreSQL schema and have similar traffic patterns. One JAR = fewer cold starts, simpler CI/CD, lower cost. `pmst-ticketing-service` is a separate Lambda because it has distinct `tk_` tables, its own Flyway history, and potential third-party payment integration.
                 </div>
 
                 <!-- Local run -->
@@ -1126,6 +1139,9 @@ mvn test</code></pre>
                     <div>cd D:\pmst-services\pmst-api-service</div>
                     <div>docker compose up -d &nbsp;&nbsp;<span class="text-gray-500"># start local PostgreSQL :5432</span></div>
                     <div>mvn spring-boot:run &nbsp;&nbsp;&nbsp;&nbsp;<span class="text-gray-500"># http://localhost:8080</span></div>
+                    <div class="mt-2 text-gray-400"># Run pmst-ticketing-service locally (same DB, port 8082)</div>
+                    <div>cd D:\pmst-services\pmst-ticketing-service</div>
+                    <div>mvn spring-boot:run &nbsp;&nbsp;&nbsp;&nbsp;<span class="text-gray-500"># http://localhost:8082</span></div>
                     <div class="mt-2 text-gray-400"># Build Lambda JAR</div>
                     <div>mvn package -DskipTests &nbsp;<span class="text-gray-500"># target/*-lambda.jar</span></div>
                 </div>
@@ -1212,7 +1228,7 @@ mvn test</code></pre>
                         <div class="bg-white rounded-lg p-4">
                             <h4 class="font-semibold mb-2 text-sm">Two-Table Approach (WordPress-style)</h4>
                             <ul class="text-xs space-y-1 text-gray-600">
-                                <li><code class="bg-gray-100 px-1 rounded">users</code> table: Auth data (id, cognito_id, email, username, role, status)</li>
+                                <li><code class="bg-gray-100 px-1 rounded">users</code> table: Auth data (id UUID, cognito_id, email, username, role, status, created_at, updated_at) — read-only view for <code class="bg-gray-100 px-1 rounded">pmst-ticketing-service</code></li>
                                 <li><code class="bg-gray-100 px-1 rounded">user_profiles</code> table: Profile data (user_id FK, display_name, bio, avatar_url, cover_photo_url)</li>
                             </ul>
                         </div>
@@ -1407,13 +1423,13 @@ mvn test</code></pre>
                         </div>
                         <div class="bg-white p-3 rounded-lg shadow text-center">
                             <i data-lucide="calendar" class="w-6 h-6 text-red-600 mx-auto mb-1"></i>
-                            <div class="font-semibold">events</div>
-                            <div class="text-xs text-gray-500">↔ users (organizer)</div>
+                            <div class="font-semibold">tk_event</div>
+                            <div class="text-xs text-gray-500">pmst-ticketing-service</div>
                         </div>
                         <div class="bg-white p-3 rounded-lg shadow text-center">
                             <i data-lucide="calendar-check" class="w-6 h-6 text-indigo-600 mx-auto mb-1"></i>
-                            <div class="font-semibold">event_registrations</div>
-                            <div class="text-xs text-gray-500">↔ events, users</div>
+                            <div class="font-semibold">tk_ticket_category</div>
+                            <div class="text-xs text-gray-500">↔ tk_event</div>
                         </div>
                         <div class="bg-white p-3 rounded-lg shadow text-center">
                             <i data-lucide="thumbs-up" class="w-6 h-6 text-teal-600 mx-auto mb-1"></i>
@@ -1430,14 +1446,14 @@ mvn test</code></pre>
                         <table class="w-full text-sm">
                             <thead class="bg-gray-50"><tr><th class="px-4 py-2 text-left">Column</th><th class="px-4 py-2 text-left">Type</th><th class="px-4 py-2 text-left">Notes</th></tr></thead>
                             <tbody class="divide-y">
-                                <tr><td class="px-4 py-2 font-mono">id</td><td class="px-4 py-2">UUID</td><td class="px-4 py-2 text-gray-500">PK, matches Cognito sub</td></tr>
+                                <tr><td class="px-4 py-2 font-mono">id</td><td class="px-4 py-2">UUID</td><td class="px-4 py-2 text-gray-500">PK, generated UUID</td></tr>
+                                <tr><td class="px-4 py-2 font-mono">cognito_id</td><td class="px-4 py-2">VARCHAR(128)</td><td class="px-4 py-2 text-gray-500">Cognito sub (unique, indexed)</td></tr>
                                 <tr><td class="px-4 py-2 font-mono">email</td><td class="px-4 py-2">VARCHAR(255)</td><td class="px-4 py-2 text-gray-500">Unique</td></tr>
                                 <tr><td class="px-4 py-2 font-mono">username</td><td class="px-4 py-2">VARCHAR(50)</td><td class="px-4 py-2 text-gray-500">Unique, URL-friendly</td></tr>
-                                <tr><td class="px-4 py-2 font-mono">display_name</td><td class="px-4 py-2">VARCHAR(100)</td><td class="px-4 py-2 text-gray-500">Shown publicly</td></tr>
-                                <tr><td class="px-4 py-2 font-mono">bio</td><td class="px-4 py-2">TEXT</td><td class="px-4 py-2 text-gray-500">Nullable</td></tr>
-                                <tr><td class="px-4 py-2 font-mono">avatar_url</td><td class="px-4 py-2">VARCHAR(500)</td><td class="px-4 py-2 text-gray-500">S3 URL</td></tr>
-                                <tr><td class="px-4 py-2 font-mono">role</td><td class="px-4 py-2">ENUM</td><td class="px-4 py-2 text-gray-500">reader, contributor, admin</td></tr>
+                                <tr><td class="px-4 py-2 font-mono">role</td><td class="px-4 py-2">VARCHAR(32)</td><td class="px-4 py-2 text-gray-500">user, admin, moderator</td></tr>
+                                <tr><td class="px-4 py-2 font-mono">status</td><td class="px-4 py-2">VARCHAR(32)</td><td class="px-4 py-2 text-gray-500">active | inactive | suspended</td></tr>
                                 <tr><td class="px-4 py-2 font-mono">created_at</td><td class="px-4 py-2">TIMESTAMP</td><td class="px-4 py-2 text-gray-500"></td></tr>
+                                <tr><td class="px-4 py-2 font-mono">updated_at</td><td class="px-4 py-2">TIMESTAMP</td><td class="px-4 py-2 text-gray-500"></td></tr>
                             </tbody>
                         </table>
                     </div>
@@ -1551,8 +1567,9 @@ mvn test</code></pre>
                             <span class="font-semibold text-sm">mage-eventpress</span>
                             <span class="bg-green-100 text-green-700 px-2 py-0.5 rounded text-xs">Rebuild</span>
                         </div>
-                        <p class="text-xs text-gray-500 mb-2">Events & ticketing</p>
-                        <div class="text-xs"><span class="text-gray-400">→</span> EventsList, EventDetail</div>
+                        <p class="text-xs text-gray-500 mb-2">Events & ticketing — rebuilt as <code class="bg-gray-100 px-1 rounded">pmst-ticketing-service</code></p>
+                        <div class="text-xs"><span class="text-gray-400">→</span> EventsList, EventManagement, TicketingDashboard</div>
+                        <div class="mt-1 text-xs text-green-600">✓ Public visibility toggle (admin dashboard / site_settings)</div>
                     </div>
 
                     <div class="plugin-card border rounded-lg p-4" data-category="rebuild" data-name="contributor-dashboard">
@@ -1625,13 +1642,6 @@ mvn test</code></pre>
                                     <span class="text-xs bg-blue-100 text-blue-700 px-1.5 rounded">author-profile</span>
                                 </div>
                             </div>
-                            <div class="kanban-card bg-white p-3 rounded-lg shadow cursor-pointer" data-component="event-detail" data-status="todo" onclick="moveCard(this)">
-                                <div class="font-medium text-sm">EventDetailComponent</div>
-                                <div class="text-xs text-gray-500">features/events/</div>
-                                <div class="mt-2 flex gap-1">
-                                    <span class="text-xs bg-red-100 text-red-700 px-1.5 rounded">mage-eventpress</span>
-                                </div>
-                            </div>
                         </div>
                     </div>
 
@@ -1642,64 +1652,6 @@ mvn test</code></pre>
                             In Progress
                         </h3>
                         <div class="space-y-2" id="inProgressColumn">
-                            <div class="kanban-card bg-white p-3 rounded-lg shadow cursor-pointer" data-component="follow-button" data-status="inprogress" onclick="moveCard(this)">
-                                <div class="font-medium text-sm">FollowButtonComponent</div>
-                                <div class="text-xs text-gray-500">shared/components/follow-button</div>
-                                <div class="mt-2 flex gap-1">
-                                    <span class="text-xs bg-pink-100 text-pink-700 px-1.5 rounded">follow-plugin</span>
-                                </div>
-                            </div>
-                            <div class="kanban-card bg-white p-3 rounded-lg shadow cursor-pointer" data-component="submit-content" data-status="inprogress" onclick="moveCard(this)">
-                                <div class="font-medium text-sm">SubmitContentComponent</div>
-                                <div class="text-xs text-gray-500">features/user/submit-content</div>
-                                <div class="mt-2 flex gap-1">
-                                    <span class="text-xs bg-orange-100 text-orange-700 px-1.5 rounded">user-submit</span>
-                                </div>
-                            </div>
-                            <div class="kanban-card bg-white p-3 rounded-lg shadow cursor-pointer" data-component="submit-gallery" data-status="inprogress" onclick="moveCard(this)">
-                                <div class="font-medium text-sm">SubmitGalleryComponent</div>
-                                <div class="text-xs text-gray-500">features/user/submit-gallery</div>
-                                <div class="mt-2 flex gap-1">
-                                    <span class="text-xs bg-orange-100 text-orange-700 px-1.5 rounded">gallery-submit</span>
-                                </div>
-                            </div>
-                            <div class="kanban-card bg-white p-3 rounded-lg shadow cursor-pointer" data-component="events-list" data-status="inprogress" onclick="moveCard(this)">
-                                <div class="font-medium text-sm">EventsListComponent</div>
-                                <div class="text-xs text-gray-500">features/events/</div>
-                                <div class="mt-2 flex gap-1">
-                                    <span class="text-xs bg-red-100 text-red-700 px-1.5 rounded">mage-eventpress</span>
-                                </div>
-                            </div>
-                            <div class="kanban-card bg-white p-3 rounded-lg shadow cursor-pointer" data-component="profile-header" data-status="done" onclick="moveCard(this)">
-                                <div class="font-medium text-sm">ProfileHeaderComponent</div>
-                                <div class="text-xs text-gray-500">shared/components/</div>
-                                <div class="mt-2 flex gap-1">
-                                    <span class="text-xs bg-indigo-100 text-indigo-700 px-1.5 rounded">user-profile</span>
-                                </div>
-                            </div>
-                            <div class="kanban-card bg-white p-3 rounded-lg shadow cursor-pointer" data-component="dashboard" data-status="done" onclick="moveCard(this)">
-                                <div class="font-medium text-sm">DashboardComponent</div>
-                                <div class="text-xs text-gray-500">features/user/</div>
-                                <div class="mt-2 flex gap-1 flex-wrap">
-                                    <span class="text-xs bg-orange-100 text-orange-700 px-1.5 rounded">approve-btn</span>
-                                    <span class="text-xs bg-red-100 text-red-700 px-1.5 rounded">delete-icon</span>
-                                    <span class="text-xs bg-blue-100 text-blue-700 px-1.5 rounded">pagination</span>
-                                </div>
-                            </div>
-                            <div class="kanban-card bg-white p-3 rounded-lg shadow cursor-pointer" data-component="profile" data-status="done" onclick="moveCard(this)">
-                                <div class="font-medium text-sm">ProfileComponent</div>
-                                <div class="text-xs text-gray-500">features/user/</div>
-                                <div class="mt-2 flex gap-1">
-                                    <span class="text-xs bg-green-100 text-green-700 px-1.5 rounded">own-vs-other-view</span>
-                                </div>
-                            </div>
-                            <div class="kanban-card bg-white p-3 rounded-lg shadow cursor-pointer" data-component="profile-edit" data-status="done" onclick="moveCard(this)">
-                                <div class="font-medium text-sm">ProfileEditComponent</div>
-                                <div class="text-xs text-gray-500">features/user/</div>
-                                <div class="mt-2 flex gap-1">
-                                    <span class="text-xs bg-green-100 text-green-700 px-1.5 rounded">edit-form</span>
-                                </div>
-                            </div>
                         </div>
                     </div>
 
@@ -1754,6 +1706,78 @@ mvn test</code></pre>
                                 <div class="text-xs text-gray-500">shared/components/gallery-carousel/</div>
                                 <div class="mt-1 flex gap-1 flex-wrap"><span class="text-xs bg-blue-100 text-blue-700 px-1.5 rounded">isPlatformBrowser</span><span class="text-xs bg-blue-100 text-blue-700 px-1.5 rounded">prerender</span></div>
                                 <div class="mt-1 text-xs text-green-600">✓ May 31, 2026 — window guard prevents SSR crash</div>
+                            </div>
+                            <div class="kanban-card bg-white p-3 rounded-lg shadow opacity-75" data-component="follow-button" data-status="done">
+                                <div class="font-medium text-sm line-through">FollowButtonComponent</div>
+                                <div class="text-xs text-gray-500">shared/components/follow-button</div>
+                                <div class="mt-1 flex gap-1"><span class="text-xs bg-pink-100 text-pink-700 px-1.5 rounded">follow-plugin</span></div>
+                                <div class="mt-1 text-xs text-green-600">✓ Completed</div>
+                            </div>
+                            <div class="kanban-card bg-white p-3 rounded-lg shadow opacity-75" data-component="submit-content" data-status="done">
+                                <div class="font-medium text-sm line-through">SubmitContentComponent</div>
+                                <div class="text-xs text-gray-500">features/user/submit-content</div>
+                                <div class="mt-1 flex gap-1"><span class="text-xs bg-orange-100 text-orange-700 px-1.5 rounded">user-submit</span></div>
+                                <div class="mt-1 text-xs text-green-600">✓ Completed</div>
+                            </div>
+                            <div class="kanban-card bg-white p-3 rounded-lg shadow opacity-75" data-component="submit-gallery" data-status="done">
+                                <div class="font-medium text-sm line-through">SubmitGalleryComponent</div>
+                                <div class="text-xs text-gray-500">features/user/submit-gallery</div>
+                                <div class="mt-1 flex gap-1"><span class="text-xs bg-orange-100 text-orange-700 px-1.5 rounded">gallery-submit</span></div>
+                                <div class="mt-1 text-xs text-green-600">✓ Completed</div>
+                            </div>
+                            <div class="kanban-card bg-white p-3 rounded-lg shadow opacity-75" data-component="events-list" data-status="done">
+                                <div class="font-medium text-sm line-through">EventsListComponent</div>
+                                <div class="text-xs text-gray-500">features/events/</div>
+                                <div class="mt-1 flex gap-1"><span class="text-xs bg-red-100 text-red-700 px-1.5 rounded">mage-eventpress</span></div>
+                                <div class="mt-1 text-xs text-green-600">✓ Completed — wired to live API</div>
+                            </div>
+                            <div class="kanban-card bg-white p-3 rounded-lg shadow opacity-75" data-component="event-detail" data-status="done">
+                                <div class="font-medium text-sm line-through">EventDetailComponent</div>
+                                <div class="text-xs text-gray-500">features/events/</div>
+                                <div class="mt-1 flex gap-1"><span class="text-xs bg-red-100 text-red-700 px-1.5 rounded">mage-eventpress</span></div>
+                                <div class="mt-1 text-xs text-green-600">✓ Free registration + ticket display</div>
+                            </div>
+                            <div class="kanban-card bg-white p-3 rounded-lg shadow opacity-75" data-component="profile-header" data-status="done">
+                                <div class="font-medium text-sm line-through">ProfileHeaderComponent</div>
+                                <div class="text-xs text-gray-500">shared/components/</div>
+                                <div class="mt-1 flex gap-1"><span class="text-xs bg-indigo-100 text-indigo-700 px-1.5 rounded">user-profile</span></div>
+                                <div class="mt-1 text-xs text-green-600">✓ Completed</div>
+                            </div>
+                            <div class="kanban-card bg-white p-3 rounded-lg shadow opacity-75" data-component="dashboard" data-status="done">
+                                <div class="font-medium text-sm line-through">DashboardComponent</div>
+                                <div class="text-xs text-gray-500">features/user/</div>
+                                <div class="mt-1 flex gap-1 flex-wrap"><span class="text-xs bg-orange-100 text-orange-700 px-1.5 rounded">approve-btn</span><span class="text-xs bg-red-100 text-red-700 px-1.5 rounded">delete-icon</span><span class="text-xs bg-blue-100 text-blue-700 px-1.5 rounded">pagination</span></div>
+                                <div class="mt-1 text-xs text-green-600">✓ Completed</div>
+                            </div>
+                            <div class="kanban-card bg-white p-3 rounded-lg shadow opacity-75" data-component="profile" data-status="done">
+                                <div class="font-medium text-sm line-through">ProfileComponent</div>
+                                <div class="text-xs text-gray-500">features/user/</div>
+                                <div class="mt-1 flex gap-1"><span class="text-xs bg-green-100 text-green-700 px-1.5 rounded">own-vs-other-view</span></div>
+                                <div class="mt-1 text-xs text-green-600">✓ Completed</div>
+                            </div>
+                            <div class="kanban-card bg-white p-3 rounded-lg shadow opacity-75" data-component="profile-edit" data-status="done">
+                                <div class="font-medium text-sm line-through">ProfileEditComponent</div>
+                                <div class="text-xs text-gray-500">features/user/</div>
+                                <div class="mt-1 flex gap-1"><span class="text-xs bg-green-100 text-green-700 px-1.5 rounded">edit-form</span></div>
+                                <div class="mt-1 text-xs text-green-600">✓ Completed</div>
+                            </div>
+                            <div class="kanban-card bg-white p-3 rounded-lg shadow opacity-75" data-component="admin-dashboard" data-status="done">
+                                <div class="font-medium text-sm line-through">AdminDashboardComponent</div>
+                                <div class="text-xs text-gray-500">features/admin/</div>
+                                <div class="mt-1 flex gap-1"><span class="text-xs bg-purple-100 text-purple-700 px-1.5 rounded">admin</span></div>
+                                <div class="mt-1 text-xs text-green-600">✓ Completed</div>
+                            </div>
+                            <div class="kanban-card bg-white p-3 rounded-lg shadow opacity-75" data-component="event-management" data-status="done">
+                                <div class="font-medium text-sm line-through">EventManagementComponent</div>
+                                <div class="text-xs text-gray-500">features/admin/</div>
+                                <div class="mt-1 flex gap-1 flex-wrap"><span class="text-xs bg-red-100 text-red-700 px-1.5 rounded">admin</span><span class="text-xs bg-purple-100 text-purple-700 px-1.5 rounded">events</span></div>
+                                <div class="mt-1 text-xs text-green-600">✓ Completed</div>
+                            </div>
+                            <div class="kanban-card bg-white p-3 rounded-lg shadow opacity-75" data-component="ticketing-dashboard" data-status="done">
+                                <div class="font-medium text-sm line-through">TicketingDashboardComponent</div>
+                                <div class="text-xs text-gray-500">features/admin/</div>
+                                <div class="mt-1 flex gap-1 flex-wrap"><span class="text-xs bg-red-100 text-red-700 px-1.5 rounded">admin</span><span class="text-xs bg-purple-100 text-purple-700 px-1.5 rounded">ticketing</span></div>
+                                <div class="mt-1 text-xs text-green-600">✓ Completed</div>
                             </div>
                         </div>
                     </div>
@@ -2077,11 +2101,12 @@ mvn test</code></pre>
                         <div class="bg-red-50 rounded-lg p-4">
                             <h4 class="font-semibold text-red-800 mb-2">Events System</h4>
                             <ul class="text-sm space-y-1 text-gray-600">
-                                <li>• Event listing / detail pages</li>
-                                <li>• Registration system</li>
-                                <li>• Capacity tracking</li>
-                                <li>• Organizer profiles</li>
+                                <li>✓ Event listing / detail pages (live API, free registration)</li>
+                                <li>🟡 Registration system (free tickets; paid Stripe pending)</li>
+                                <li>✓ Capacity tracking (inventory via tk_ticket + pessimistic lock)</li>
+                                <li>🟡 Organizer profiles (basic organizer field on tk_event)</li>
                             </ul>
+                            <div class="mt-2 text-xs text-gray-500">Details: <a href="file:///D:/pmst-services/pmst-ticketing-service/doc/eventplan.md" class="text-indigo-600 hover:underline">eventplan.md</a></div>
                         </div>
                     </div>
                 </div>
@@ -3244,7 +3269,7 @@ Protected (writes, /auth/me, /users/**): COGNITO_USER_POOLS</div>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-gray-100">
-                        <tr><td class="px-4 py-2 text-gray-500">5</td><td class="px-4 py-2"><code>environment.prod.ts</code> missing <code>ticketingUrl</code></td><td class="px-4 py-2"><span class="bg-amber-100 text-amber-700 px-2 py-0.5 rounded text-xs font-medium">Pending</span></td></tr>
+                        <tr><td class="px-4 py-2 text-gray-500">5</td><td class="px-4 py-2"><code>environment.prod.ts</code> includes <code>ticketingUrl</code></td><td class="px-4 py-2"><span class="bg-green-100 text-green-700 px-2 py-0.5 rounded text-xs font-medium">Done</span></td></tr>
                         <tr><td class="px-4 py-2 text-gray-500">6</td><td class="px-4 py-2">No CI/CD pipeline for <code>pmst-api-service</code> Lambda</td><td class="px-4 py-2"><span class="bg-amber-100 text-amber-700 px-2 py-0.5 rounded text-xs font-medium">Pending</span></td></tr>
                         <tr><td class="px-4 py-2 text-gray-500">7</td><td class="px-4 py-2"><code>user_profiles</code> schema drift — new columns not in <code>init.sql</code></td><td class="px-4 py-2"><span class="bg-amber-100 text-amber-700 px-2 py-0.5 rounded text-xs font-medium">Pending</span></td></tr>
                         <tr><td class="px-4 py-2 text-gray-500">8</td><td class="px-4 py-2"><code>init.sql</code> never runs on prod RDS — no DB migration mechanism</td><td class="px-4 py-2"><span class="bg-amber-100 text-amber-700 px-2 py-0.5 rounded text-xs font-medium">Pending</span></td></tr>
@@ -4231,6 +4256,43 @@ Protected (writes, /auth/me, /users/**): COGNITO_USER_POOLS</div>
                 </div>
             </div>
 
+            <!-- Session: Jul 13, 2026 -->
+            <div class="bg-white border border-gray-200 rounded-xl shadow-sm mb-6 overflow-hidden">
+                <div class="bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-6 py-4 flex items-center justify-between">
+                    <div>
+                        <h3 class="font-bold text-lg flex items-center gap-2"><i data-lucide="ticket" class="w-5 h-5"></i> Jul 13, 2026 — Free Event Registration Slice (Phase 2)</h3>
+                        <p class="text-indigo-100 text-sm mt-0.5">Backend + minimal Angular UI for free ticket booking</p>
+                    </div>
+                    <span class="bg-white/20 px-3 py-1 rounded-full text-sm font-medium">✅ In Code</span>
+                </div>
+                <div class="p-6">
+                    <div class="grid md:grid-cols-2 gap-4 text-sm">
+                        <div class="border border-gray-100 rounded-lg p-4">
+                            <h4 class="font-semibold text-gray-800 mb-2">Backend changes</h4>
+                            <ul class="text-gray-600 space-y-0.5">
+                                <li>• Reservation / Ticket / ReservationStatus / TicketStatus</li>
+                                <li>• Pessimistic-lock inventory + free-ticket creation</li>
+                                <li>• Endpoints: POST /events/{id}/reservations, POST /reservations/{id}/confirm, GET /tickets/mine</li>
+                            </ul>
+                        </div>
+                        <div class="border border-gray-100 rounded-lg p-4">
+                            <h4 class="font-semibold text-gray-800 mb-2">Frontend changes</h4>
+                            <ul class="text-gray-600 space-y-0.5">
+                                <li>• New EventDetailComponent at /events/:slug</li>
+                                <li>• Free category picker + registration + ticket QR display</li>
+                                <li>• EventsListComponent register links to detail</li>
+                            </ul>
+                        </div>
+                    </div>
+                    <div class="mt-4 text-xs text-gray-500">
+                        <strong>Docs:</strong> <code>eventplan.md</code> updated · <code>pmst-development-workflow.md</code> cross-linked · this dashboard updated. Stripe/PDF/email/scanning remain out of scope for this slice.
+                    </div>
+                    <div class="mt-4 bg-amber-50 border border-amber-200 rounded-lg p-4 text-xs text-amber-800">
+                        <strong>Known issue — deferred:</strong> <code>npm run build:prod</code> fails with <code>ReferenceError: localStorage is not defined</code> because <code>AuthService</code> touches <code>localStorage</code> in its constructor and <code>effect()</code> without <code>isPlatformBrowser()</code> guards. This blocks the SSR/prerender build but does not affect the static S3 deployment. Fix scheduled for the dedicated SSR phase.
+                    </div>
+                </div>
+            </div>
+
             <!-- Placeholder for future sessions -->
             <div class="bg-gray-50 border border-dashed border-gray-300 rounded-xl p-6 text-center text-gray-400">
                 <i data-lucide="plus-circle" class="w-8 h-8 mx-auto mb-2 opacity-50"></i>
@@ -4262,7 +4324,7 @@ Protected (writes, /auth/me, /users/**): COGNITO_USER_POOLS</div>
         document.addEventListener('DOMContentLoaded', function() {
             lucide.createIcons();
             mermaid.initialize({ startOnLoad: false });
-            document.getElementById('lastUpdated').textContent = new Date('2026-06-28').toLocaleDateString('en-US', { 
+            document.getElementById('lastUpdated').textContent = new Date('2026-07-13').toLocaleDateString('en-US', { 
                 year: 'numeric', month: 'short', day: 'numeric' 
             });
             loadProgress();

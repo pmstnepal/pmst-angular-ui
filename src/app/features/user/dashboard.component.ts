@@ -4,6 +4,7 @@ import { RouterLink } from '@angular/router';
 import { AuthService } from '../../core/services/auth.service';
 import { ArticleService } from '../../core/services/article.service';
 import { GalleryService } from '../../core/services/gallery.service';
+import { SettingsService } from '../../core/services/settings.service';
 
 @Component({
   selector: 'pmst-dashboard',
@@ -32,6 +33,25 @@ import { GalleryService } from '../../core/services/gallery.service';
             </a>
           </div>
         </div>
+
+        <!-- Feature toggles -->
+        @if (isAdmin()) {
+          <div class="bg-white rounded-lg shadow p-6 mb-8 flex items-center justify-between">
+            <div>
+              <p class="text-sm font-semibold text-gray-900">Public Events</p>
+              <p class="text-xs text-gray-500">Show the Events menu and pages to visitors</p>
+            </div>
+            <button (click)="toggleEventsEnabled()" [disabled]="settingsLoading()"
+                    role="switch" [attr.aria-checked]="eventsEnabled()"
+                    class="relative inline-flex h-6 w-11 items-center rounded-full transition-colors"
+                    [class.bg-indigo-600]="eventsEnabled()"
+                    [class.bg-gray-300]="!eventsEnabled()">
+              <span class="inline-block h-4 w-4 transform rounded-full bg-white transition-transform"
+                    [class.translate-x-6]="eventsEnabled()"
+                    [class.translate-x-1]="!eventsEnabled()"></span>
+            </button>
+          </div>
+        }
 
         <!-- Stats Cards -->
         <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
@@ -371,8 +391,11 @@ export class DashboardComponent implements OnInit {
   private authService = inject(AuthService);
   private articleService = inject(ArticleService);
   private galleryService = inject(GalleryService);
+  private settingsService = inject(SettingsService);
 
   readonly isAdmin = computed(() => this.authService.isAdmin());
+  readonly eventsEnabled = computed(() => this.settingsService.eventsEnabled$());
+  readonly settingsLoading = computed(() => this.settingsService.loading$());
 
   stats = signal({ articles: 0, galleries: 0 });
   loading = signal(true);
@@ -433,6 +456,10 @@ export class DashboardComponent implements OnInit {
 
   ngOnInit(): void {
     this.loadDashboardData();
+  }
+
+  toggleEventsEnabled(): void {
+    this.settingsService.updateEventsEnabled(!this.eventsEnabled()).subscribe();
   }
 
   goToPage(page: number): void {

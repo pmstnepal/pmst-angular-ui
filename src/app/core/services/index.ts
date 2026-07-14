@@ -7,3 +7,5 @@ export * from './api.service';
 export * from './auth.service';
 export * from './article.service';
 export * from './gallery.service';
+export * from './ticketing.service';
+export * from './settings.service';

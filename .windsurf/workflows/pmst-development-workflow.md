@@ -34,7 +34,7 @@ Complete development guide for migrating from WordPress to AWS serverless archit
 | Lambda Cold Start | SnapStart + Provisioned Concurrency | ✅ Strategy |
 | Database | PostgreSQL (RDS) | ✅ Decided |
 | Comments System | Replaces Messaging | ✅ Scope Updated |
-| Events System | From mage-eventpress | ✅ Identified |
+| Events System | From mage-eventpress — see [`eventplan.md`](file:///D:/pmst-services/pmst-ticketing-service/doc/eventplan.md) for status | 🟡 In Progress |
 | Follow System | Custom DB table (pmst_follows) | ✅ Identified |
 | Infrastructure | Terraform IaC | ✅ Implemented |
 | CI/CD | GitHub Actions + OIDC | ✅ Implemented |
@@ -46,6 +46,16 @@ Complete development guide for migrating from WordPress to AWS serverless archit
 
 > **AWS Setup, Known Bugs & Session Logs:** [`src/doc/aws-setup-guide.md`](../src/doc/aws-setup-guide.md) — includes Terraform fix history, SSR/prerender patterns, API Gateway URL rules, and dated session logs for each deployment session.
 
+### Status Sources of Truth
+
+| Area | Where to check / update |
+|------|--------------------------|
+| **Events & ticketing** (roadmap, status, Phase 2+ features, reservation/ticket flows) | [`D:/pmst-services/pmst-ticketing-service/doc/eventplan.md`](file:///D:/pmst-services/pmst-ticketing-service/doc/eventplan.md) |
+| **Visual combined dashboard** (components, timeline, dependencies, repo status) | [`src/doc/pmst-master-plan.html`](file:///D:/pmstmigrate/src/doc/pmst-master-plan.html) |
+| **General migration workflow, repos, CI/CD, standards** | this file (`pmst-development-workflow.md`) |
+
+> **Sync rule:** When changing event/ticketing status or adding a new event feature, update `eventplan.md` first, then refresh `pmst-master-plan.html` (component status, timeline, API cards). Keep the three documents cross-linked.
+
 ---
 
 ## GitHub Repositories (pmstnepal org)
@@ -56,7 +66,7 @@ Complete development guide for migrating from WordPress to AWS serverless archit
 | **pmst-terraform-infra** | AWS infrastructure as code (Terraform) | 🟢 Active |
 | **pmst-data-migration** | WordPress → PostgreSQL migration scripts | 🟢 Active — `feature/migration-scripts` |
 | **pmst-api-service** | Java 21 Lambda — Articles, Galleries, Users, Follows, Comments (consolidated) | 🟢 Active — `feature/initial-setup` |
-| **pmst-ticketing-service** | Java 21 Lambda — Event ticketing (separate service) | 🔵 Planned |
+| **pmst-ticketing-service** | Java 21 Lambda — Event ticketing, RSVP, attendee management (separate service) | 🟢 Active — `feature/initial-setup` |
 | ~~**pmst-auth-gateway**~~ | Archived — AWS Cognito User Pool used directly; repo exists but inactive | ⚠️ Archive |
 | **pmst-youtube-automation** | Python — YouTube playlist automation (Nepali Music + Movies Trailers), private repo | 🟢 Active |
 | **postautomation** | Python — Nepali news scraper + AI processor + Blogger/PMST poster, hourly CI | 🟡 In Progress |
@@ -270,7 +280,7 @@ User → Cognito Hosted UI / Amplify → Cognito User Pool → JWT Tokens
 
 **User Profile Architecture:**
 - **Two-table approach** (matches WordPress pattern):
-  - `users` table: Auth data (id, cognito_id, email, username, role, status)
+  - `users` table: Auth data (id UUID, cognito_id, email, username, role, status, created_at, updated_at) — read-only view for `pmst-ticketing-service`
   - `user_profiles` table: Profile data (user_id FK, display_name, bio, avatar_url, cover_photo_url)
 - **Why separate tables:**
   - Clean separation of concerns (Cognito handles auth, PostgreSQL handles profile)
@@ -322,7 +332,7 @@ User → Cognito Hosted UI / Amplify → Cognito User Pool → JWT Tokens
 | pmst-rankmath-keywords-to-tags | SEO to tags sync | SeoService | SeoService |
 | pmst-rankmath-seo-sync-v1.1 | SEO sync | SeoService | SeoService |
 | pmst-password-policy-enhanced-1 | Password rules | Auth validation | Cognito policies |
-| mage-eventpress | Events & ticketing | EventsListComponent, EventDetailComponent | EventService |
+| mage-eventpress | Events & ticketing | EventsListComponent, EventDetailComponent, EventManagementComponent, TicketingDashboardComponent | TicketingService, ReservationService |
 
 ### Contributor Dashboard Categories
 The contributor dashboard limits posts to these categories:
@@ -363,7 +373,7 @@ CREATE TABLE pmst_follows (
 | um-recaptcha | ❌ Remove | Google reCAPTCHA v3 integration |
 | code-snippets | ❌ Remove | Native Angular/Java code |
 | wpuf-media-library-selector | ❌ Remove | Custom S3 media picker |
-| mage-eventpress | 🔄 Rebuild | EventService Lambda |
+| mage-eventpress | 🔄 Rebuild | `pmst-ticketing-service` Lambda |
 
 ---
 
@@ -484,7 +494,7 @@ frontend/src/app/
 | pmst-post-carousel | PostCarouselComponent | ✅ Created |
 | pmst-social-embed-allow | Built into NewsDetailComponent | ✅ Built |
 | pmst-custom-single-post-template | NewsDetailComponent (WP replica) | ✅ Built |
-| mage-eventpress | EventsListComponent | ✅ Created |
+| mage-eventpress | EventsListComponent, EventDetailComponent, EventManagementComponent, TicketingDashboardComponent | ✅ Created |
 | wpDiscuz | CommentSectionComponent | ✅ Created |
 | contributor-dashboard-v3 | DashboardComponent | ✅ Built — approve/delete/pagination |
 | N/A | SubmitContentComponent | ✅ Created |
@@ -524,7 +534,7 @@ frontend/src/app/
 | Service | Repo | Local Path | Port | Branch |
 |---|---|---|---|---|
 | pmst-api-service | `pmst-api-service` | `D:\pmst-services\pmst-api-service\` | 8080 | `feature/initial-setup` |
-| pmst-ticketing-service | `pmst-ticketing-service` | `D:\pmst-services\pmst-ticketing-service\` | 8081 | `feature/initial-setup` |
+| pmst-ticketing-service | `pmst-ticketing-service` | `D:\pmst-services\pmst-ticketing-service\` | 8082 | `feature/initial-setup` |
 
 **Run locally (no AWS needed):**
 ```bash
@@ -534,7 +544,9 @@ docker compose up -d
 # 2. Seed cognito-local with User Pool + 3 test users (one-time, idempotent)
 ./scripts/seed-cognito-local.ps1
 
-# 3. Run Spring Boot
+# 3. Run Spring Boot (from the repo you want to start)
+#    pmst-api-service: http://localhost:8080
+#    pmst-ticketing-service: http://localhost:8082
 mvn spring-boot:run
 
 # 4. Run tests
@@ -546,7 +558,7 @@ mvn package -DskipTests
 
 **Local PostgreSQL:**
 - pmst-api-service → `localhost:5432`
-- pmst-ticketing-service → `localhost:5433`
+- pmst-ticketing-service → `localhost:5432` (shared `pmst` database; separate `tk_` tables and `flyway_schema_history_ticketing`)
 
 ### Part 5.2: Local Authentication (Cognito Emulator)
 
@@ -625,13 +637,20 @@ API Gateway
     │     GET/PUT  /users/{id}/profile
     │     POST/DELETE /users/{id}/follow
     │     GET/POST/DELETE /comments
-    └── pmst-ticketing-service (Java Lambda) → Event creation, ticketing, RSVP
-          GET/POST /events
-          POST /events/{id}/tickets
-          GET  /events/{id}/attendees
+    └── pmst-ticketing-service (Java Lambda) → Event creation, ticketing, RSVP, attendee management
+          GET /ping
+          GET /events, GET /events/{id}, GET /events/slug/{slug}
+          POST /events, PUT /events/{id}, DELETE /events/{id}
+          POST /events/{id}/submit, POST /events/{id}/approve, POST /events/{id}/reject, POST /events/{id}/publish
+          GET /events/{eventId}/categories
+          POST /events/{eventId}/categories (admin/creator)
+          POST /events/{eventId}/reservations (auth)
+          POST /reservations/{id}/confirm (auth)
+          GET /reservations/{id}, GET /reservations/mine (auth)
+          GET /tickets/mine (auth)
 ```
 
-> **Why consolidated?** Articles, galleries, users, follows, and comments all share the same PostgreSQL schema, have low-to-medium traffic, and benefit from shared connection pooling via RDS Proxy. A single JAR simplifies deployment, reduces cold starts, and lowers cost. Ticketing is separate because it has distinct scaling needs and may integrate with third-party payment/ticketing providers.
+> **Why consolidated?** `pmst-api-service` is consolidated: articles, galleries, users, follows, and comments all share the same PostgreSQL schema, have low-to-medium traffic, and benefit from shared connection pooling via RDS Proxy. A single JAR simplifies deployment, reduces cold starts, and lowers cost. `pmst-ticketing-service` is a **separate** Lambda because it has distinct scaling needs, uses its own `tk_` tables/Flyway history, and may integrate with third-party payment/ticketing providers.
 
 ### Authentication Flow
 
@@ -886,33 +905,13 @@ CREATE TABLE comment_likes (
 );
 ```
 
-**Events (from mage-eventpress):**
-```sql
-CREATE TABLE events (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    organizer_id UUID REFERENCES users(id),
-    title VARCHAR(500) NOT NULL,
-    slug VARCHAR(500) UNIQUE NOT NULL,
-    description TEXT,
-    location TEXT,
-    event_date TIMESTAMP NOT NULL,
-    end_date TIMESTAMP,
-    featured_image TEXT,
-    ticket_price DECIMAL(10,2),
-    max_attendees INT,
-    status VARCHAR(20) DEFAULT 'published',
-    created_at TIMESTAMP DEFAULT NOW()
-);
+**Events (from mage-eventpress):** Rebuilt in `pmst-ticketing-service` (`src/main/resources/db/migration/V1__init.sql`):
+- `tk_event` — BigSerial PK, `slug`, `title`, `status` (DRAFT/PENDING_APPROVAL/PUBLISHED/REJECTED/ARCHIVED), `format`, `venue_name`, `location`, `timezone`, `starts_at`, `ends_at`, `currency_code`, `created_by_sub`, `pmst_article_id`, `organizer`, `image_url`, `created_at`, `updated_at`.
+- `tk_ticket_category` — pricing tiers per event (`price_cts`, `max_tickets`, `bounded`, `access_restricted`, `access_type`, `checkin_strategy`, `sales_start`, `sales_end`).
+- Phase 2 in progress: `tk_reservation` + `tk_ticket` now have live entities/repos/services for free registration (pessimistic-lock inventory, reservation → confirm → ticket issue). Phase 2+ tables still stubs: `tk_promo_code`, `tk_payment`, `tk_payment_provider_config`, `tk_sponsor`.
+- Detailed roadmap and status: [`eventplan.md`](file:///D:/pmst-services/pmst-ticketing-service/doc/eventplan.md).
 
-CREATE TABLE event_registrations (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    event_id UUID REFERENCES events(id),
-    user_id UUID REFERENCES users(id),
-    status VARCHAR(20) DEFAULT 'registered',
-    created_at TIMESTAMP DEFAULT NOW(),
-    UNIQUE (event_id, user_id)
-);
-```
+The `pmst-ticketing-service` uses the same PostgreSQL `pmst` database as `pmst-api-service` but with its own `tk_` tables and `flyway_schema_history_ticketing`.
 
 ---
 
@@ -968,6 +967,12 @@ npm run build:prod
 # - dist/pmst-angular-ui/browser/    → Deployed to S3 (current)
 # - dist/pmst-angular-ui/server/   → NOT deployed (SSR - requires Lambda@Edge)
 ```
+
+#### Known Issue: `npm run build:prod` (SSR prerender) fails
+- **Symptom:** `ReferenceError: localStorage is not defined` during `ng build --configuration production`.
+- **Root cause:** `AuthService` calls `localStorage.getItem/setItem/removeItem` directly in its constructor and in an `effect()` without `isPlatformBrowser()` guards.
+- **Impact:** Production build / CI blocked until `AuthService` is made SSR-safe. Runtime static-S3 deployment is unaffected.
+- **Fix plan:** Guard `localStorage` access with `isPlatformBrowser()` (same pattern already used in `gallery-carousel.component.ts`). Defer to the dedicated SSR phase post-launch.
 
 #### Current Deployment (GitHub Actions)
 ```yaml
@@ -1750,7 +1755,8 @@ aws cloudfront create-invalidation --distribution-id <ID> --paths "/*"
 **What was broken:** `if (false && issuerUri != null ...)` hardcoded JWT validation OFF permanently — even in prod.
 
 **Fix:** Removed `false &&`. JWT validation now activates automatically when `COGNITO_ISSUER_URI` is set:
-- **Local dev** (no `COGNITO_ISSUER_URI` in `application-local.properties`) → JWT disabled, dev works as before
+- **Local dev** (no `COGNITO_ISSUER_URI` set) → JWT disabled, dev works without Cognito
+- **Local dev** (`COGNITO_ISSUER_URI` set in `application-local.properties` to `http://localhost:9229/<pool>`) → JWT validated against cognito-local ✅
 - **Prod Lambda** (`COGNITO_ISSUER_URI` set via env) → JWT validated against Cognito JWKS ✅
 
 Also added `GET /users/username/**` and `GET /users/*/profile` to `.permitAll()` so the profile page loads without a token.
@@ -1852,7 +1858,7 @@ These will not break prod immediately but should be resolved before public launc
 
 | # | Item | Status |
 |---|---|---|
-| 5 | `environment.prod.ts` missing `ticketingUrl` | ⬜ Pending |
+| 5 | `environment.prod.ts` includes `ticketingUrl` | ✅ Done |
 | 6 | No CI/CD pipeline for `pmst-api-service` backend Lambda | ⬜ Pending |
 | 7 | `user_profiles` schema drift — new columns not in `init.sql` | ⬜ Pending |
 | 8 | `init.sql` never runs on prod RDS — no migration mechanism | ⬜ Pending |
@@ -2195,7 +2201,7 @@ For detailed root-cause analysis of past pipeline failures and their fixes, see 
 
 > **Goal:** Deploy to a test CloudFront URL first, verify everything works, then cutover to pmstusnepal.com
 
-### Phase 0: Prerequisites (Must Have Before Starting)
+### Phase 0: Prerequisites
 
 | # | Item | Status | Notes |
 |---|------|--------|-------|
@@ -2205,7 +2211,7 @@ For detailed root-cause analysis of past pipeline failures and their fixes, see 
 | 0.4 | Strong DB password ready | ⬜ | 16+ chars, upper+lower+number+symbol |
 | 0.5 | Local builds working | ⬜ | `npm run build:prod` and `mvn package -DskipTests` |
 
-### Phase 1: Bootstrap Terraform Backend + OIDC (Run Once)
+### Phase 1: Bootstrap
 
 | # | Task | Command | Status |
 |---|------|---------|--------|
@@ -2652,6 +2658,16 @@ terraform apply \
 ---
 
 ### DEPLOY (Create Infrastructure + Migrate Data)
+
+#### Phase 0: Prerequisites
+
+| # | Item | Status |
+|---|------|--------|
+| 0.1 | AWS Account ID (12-digit) | ⬜ |
+| 0.2 | AWS CLI installed and configured | ⬜ |
+| 0.3 | GitHub access to all 3 repos | ⬜ |
+| 0.4 | Strong DB password ready | ⬜ |
+| 0.5 | Local builds working | ⬜ |
 
 #### Phase 1: Bootstrap AWS (One-Time)
 ```powershell
