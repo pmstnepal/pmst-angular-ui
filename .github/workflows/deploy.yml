@@ -71,7 +71,7 @@ jobs:
       - name: Configure AWS credentials (OIDC)
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/pmst-github-actions-deploy
+          role-to-assume: arn:aws:iam::602301275673:role/pmst-github-actions-deploy
           aws-region: ${{ steps.cfg.outputs.region }}
 
       - name: Deploy to S3
