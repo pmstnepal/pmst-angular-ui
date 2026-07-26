@@ -9,6 +9,7 @@ test:
   envFile: src/environments/environment.test.ts
   production: false
   apiUrl: "https://t529isqhyc.execute-api.us-east-1.amazonaws.com/test/api"
+  ticketingUrl: "https://t529isqhyc.execute-api.us-east-1.amazonaws.com/test/tickets"
   cfDomain: "https://d3p3q3lvpevw39.cloudfront.net"
   region: us-east-1
 
@@ -17,6 +18,7 @@ prod:
   buildConfiguration: production
   envFile: src/environments/environment.prod.ts
   production: true
-  apiUrl: "https://api.pmstusnepal.com/v1/api"
-  cfDomain: "https://pmstusnepal.com"
+  apiUrl: "https://q9zxosk8f9.execute-api.us-east-1.amazonaws.com/prod/api"
+  ticketingUrl: "https://q9zxosk8f9.execute-api.us-east-1.amazonaws.com/prod/tickets"
+  cfDomain: "https://d2f5kzshaq1nf6.cloudfront.net"
   region: us-east-1

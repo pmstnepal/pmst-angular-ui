@@ -37,6 +37,7 @@ jobs:
           echo "envFile=$(yq -r ".$ENV.envFile" deploy/environments.yaml)" >> "$GITHUB_OUTPUT"
           echo "production=$(yq -r ".$ENV.production" deploy/environments.yaml)" >> "$GITHUB_OUTPUT"
           echo "apiUrl=$(yq -r ".$ENV.apiUrl" deploy/environments.yaml)" >> "$GITHUB_OUTPUT"
+          echo "ticketingUrl=$(yq -r ".$ENV.ticketingUrl" deploy/environments.yaml)" >> "$GITHUB_OUTPUT"
           echo "cfDomain=$(yq -r ".$ENV.cfDomain" deploy/environments.yaml)" >> "$GITHUB_OUTPUT"
           echo "region=$(yq -r ".$ENV.region" deploy/environments.yaml)" >> "$GITHUB_OUTPUT"
 
@@ -46,6 +47,7 @@ jobs:
           export const environment = {
             production: ${{ steps.cfg.outputs.production }},
             apiUrl: '${{ steps.cfg.outputs.apiUrl }}',
+            ticketingUrl: '${{ steps.cfg.outputs.ticketingUrl }}',
             appName: 'PMST US-Nepal',
             cfDomain: '${{ steps.cfg.outputs.cfDomain }}'
           };

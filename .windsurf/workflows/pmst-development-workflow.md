@@ -16,7 +16,7 @@ Complete development guide for migrating from WordPress to AWS serverless archit
 - **Media:** S3 (two buckets: frontend + media) + CloudFront CDN
 - **Image Pipeline:** S3 → SQS → Python Lambda (ECR container) + SSM config
 - **Secrets:** AWS Secrets Manager (DB creds) + SSM Parameter Store (config)
-- **State:** S3 (Terraform state) + DynamoDB (state lock)
+- **State:** S3 (Terraform state) native lockfile (`use_lockfile`)
 - **Observability:** CloudWatch Logs (Lambda + RDS)
 - **Infrastructure:** AWS (Lambda, API Gateway, Cognito, S3, CloudFront, SQS, ECR, RDS, VPC)
 - **IaC:** Terraform (modular, multi-environment)
@@ -41,7 +41,7 @@ Complete development guide for migrating from WordPress to AWS serverless archit
 | Image Pipeline | SQS + Python Lambda (ECR) + SSM | ✅ Implemented |
 | Media CDN | S3 + CloudFront (2 distributions) | ✅ Implemented |
 | Secrets | Secrets Manager (DB) + SSM (config) | ✅ Implemented |
-| State Backend | S3 + DynamoDB lock table | ✅ Implemented |
+| State Backend | S3 native lockfile (`use_lockfile`) | ✅ Implemented |
 | Observability | CloudWatch Logs (30d retention prod) | ✅ Implemented |
 
 > **AWS Setup, Known Bugs & Session Logs:** [`src/doc/aws-setup-guide.md`](../src/doc/aws-setup-guide.md) — includes Terraform fix history, SSR/prerender patterns, API Gateway URL rules, and dated session logs for each deployment session.
@@ -53,6 +53,7 @@ Complete development guide for migrating from WordPress to AWS serverless archit
 | **Events & ticketing** (roadmap, status, Phase 2+ features, reservation/ticket flows) | [`D:/pmst-services/pmst-ticketing-service/doc/eventplan.md`](file:///D:/pmst-services/pmst-ticketing-service/doc/eventplan.md) |
 | **Visual combined dashboard** (components, timeline, dependencies, repo status) | [`src/doc/pmst-master-plan.html`](file:///D:/pmstmigrate/src/doc/pmst-master-plan.html) |
 | **General migration workflow, repos, CI/CD, standards** | this file (`pmst-development-workflow.md`) |
+| **Production deployment & domain cutover runbook** | [`pmst-production-deployment.md`](pmst-production-deployment.md) |
 
 > **Sync rule:** When changing event/ticketing status or adding a new event feature, update `eventplan.md` first, then refresh `pmst-master-plan.html` (component status, timeline, API cards). Keep the three documents cross-linked.
 
@@ -166,21 +167,23 @@ Before DNS cutover to AWS:
 - [ ] Test all 12 routes on CloudFront domain
 - [ ] Migrate all 3,337 images to S3
 - [ ] Validate PostgreSQL data migration (articles, users, comments)
-- [ ] Configure Cognito user pool with custom domain
+- [ ] Configure Cognito user pool email sender (COGNITO_DEFAULT or SES Phase 2b)
 - [ ] Set up RDS Proxy for database connections
 - [ ] Configure Lambda functions with proper environment variables
 
-### DNS Cutover Plan
+### DNS Cutover Plan (Route 53 Delegation)
 
-| Step | Action | TTL | Rollback Time |
-|------|--------|-----|---------------|
-| 1 | Lower DNS TTL to 300s | 24h before | - |
-| 2 | Update A record to CloudFront | Cutover day | 5 min |
-| 3 | Update AAAA record to CloudFront | Cutover day | 5 min |
-| 4 | Monitor for 24 hours | Post-cutover | 5 min |
-| 5 | Decommission Hostinger | After 1 week stability | N/A |
+| Step | Action | Timing | Rollback Time |
+|------|--------|--------|---------------|
+| 1 | Create Route 53 public hosted zone for `pmstusnepal.com`; copy all Hostinger records (MX, SPF, DKIM, DMARC, subdomains) | 24 h before | - |
+| 2 | Request ACM certificate (DNS validation) in `us-east-1` for `pmstusnepal.com` and `www.pmstusnepal.com` | 24 h before | - |
+| 3 | Replace Hostinger registrar nameservers with the 4 Route 53 NS records | Cutover day | 1–24 h |
+| 4 | Add apex `pmstusnepal.com` A + AAAA alias → CloudFront | After NS delegation | minutes |
+| 5 | Add `www.pmstusnepal.com` A + AAAA alias → CloudFront | After NS delegation | minutes |
+| 6 | Monitor for 24 hours | Post-cutover | minutes |
+| 7 | Decommission Hostinger | After 1 week stability | N/A |
 
-**Rollback:** Switch A/AAAA records back to 46.202.182.16 within 5 minutes if issues arise.
+**Rollback:** Revert registrar nameservers to `ns1.dns-parking.com` / `ns2.dns-parking.com` (Hostinger) if issues arise.
 
 ### Live Site Structure
 **Navigation:** HOME → SPOTLIGHT (dropdown: ENTERTAINMENTS, NEWS) → SHOWCASE → LOGIN
@@ -267,16 +270,17 @@ User → Cognito Hosted UI / Amplify → Cognito User Pool → JWT Tokens
 1. User authenticates via Cognito (or social provider)
 2. Cognito returns `id_token` + `access_token` (JWT)
 3. Angular stores token, sends in `Authorization: Bearer <token>` header
-4. API Gateway Lambda Authorizer validates JWT signature against Cognito public keys
+4. API Gateway's native `COGNITO_USER_POOLS` authorizer validates the JWT signature against the Cognito user pool
 5. Lambda receives `cognito:username`, `cognito:groups` in context
 
 **User Migration Strategy:**
-- **Recommended:** Password reset approach
+- **Decided:** Password reset approach for all migrated users
   1. Export WordPress users (email, username)
-  2. Import to Cognito with `FORCE_CHANGE_PASSWORD` status
+  2. Bulk create Cognito users with `FORCE_CHANGE_PASSWORD` status
   3. Users receive "set your password" email on first login
   4. No password hash migration needed (simpler, more secure)
-- **Alternative:** Seamless migration with Lambda trigger (validates old WP hash on first login)
+  5. A new super-admin `pmstusnepal@gmail.com` (role `admin`) is created separately in Cognito and the `users`/`user_profiles` tables; it is not in the WordPress export
+- **Not used/legacy:** Seamless migration with Lambda trigger that validates old WP phpass hash on first login
 
 **User Profile Architecture:**
 - **Two-table approach** (matches WordPress pattern):
@@ -301,7 +305,7 @@ User → Cognito Hosted UI / Amplify → Cognito User Pool → JWT Tokens
 **Implementation Phases:**
 - Week 1: Cognito User Pool setup, App Client configuration
 - Week 2: Angular Cognito integration (AWS Amplify SDK)
-- Week 2: API Gateway Lambda Authorizer (Java)
+- Week 2: Cognito → SES email sender setup (Phase 2b)
 - Week 3: User migration script (password reset approach)
 
 ---
@@ -365,7 +369,7 @@ CREATE TABLE pmst_follows (
 | litespeed-cache | ❌ Remove | CloudFront CDN + SSR caching |
 | wordfence | ❌ Remove | AWS WAF + Shield |
 | akismet | ❌ Remove | Custom spam filter Lambda |
-| wp-mail-smtp | ❌ Remove | AWS SES |
+| wp-mail-smtp | ❌ Remove | AWS SES configured as Cognito `DEVELOPER` sender (Phase 2b) |
 | google-site-kit | ❌ Remove | GTM + custom analytics |
 | image-optimization | ❌ Remove | Lambda image processing + CloudFront |
 | media-sync | ❌ Remove | S3 media management |
@@ -620,7 +624,7 @@ COGNITO_ISSUER_URI=https://cognito-idp.us-east-1.amazonaws.com/us-east-1_XXXXXXX
 All injected via SSM Parameter Store → Lambda env vars (see Part 6.5).
 
 **WP user migration (deferred — pre-launch):**
-Existing WordPress users will be migrated transparently via a Cognito `UserMigration_Authentication` Lambda trigger that validates legacy phpass hashes on first login. No user action required. Not built yet — Phase 5 task before go-live.
+Existing WordPress users will be created in Cognito with `FORCE_CHANGE_PASSWORD` status and must set a new password on first login. No phpass Lambda trigger is used. The new super-admin `pmstusnepal@gmail.com` is created separately in Cognito and the `users`/`user_profiles` tables with `role='admin'`.
 
 **Lambda handler classes:**
 - `com.pmst.api.LambdaHandler`
@@ -630,7 +634,7 @@ Existing WordPress users will be migrated transparently via a Cognito `UserMigra
 
 ```
 API Gateway
-    ├── Lambda Authorizer (Cognito JWT validation)
+    ├── COGNITO_USER_POOLS authorizer (Cognito JWT validation)
     ├── pmst-api-service (Java Lambda)      → Articles, Galleries, Users, Follows, Comments
     │     GET/POST /articles
     │     GET/POST /galleries
@@ -650,6 +654,8 @@ API Gateway
           GET /tickets/mine (auth)
 ```
 
+> **Ticketing routes & production routing:** All `pmst-ticketing-service` endpoints are mounted under `/tickets/**` on the same API Gateway as the API service. Production uses the API Gateway **invoke URL** (`https://<api-id>.execute-api.us-east-1.amazonaws.com/prod`) with `/prod/api` for `pmst-api-service` and `/prod/tickets` for `pmst-ticketing-service`; no API custom domain is configured.
+>
 > **Why consolidated?** `pmst-api-service` is consolidated: articles, galleries, users, follows, and comments all share the same PostgreSQL schema, have low-to-medium traffic, and benefit from shared connection pooling via RDS Proxy. A single JAR simplifies deployment, reduces cold starts, and lowers cost. `pmst-ticketing-service` is a **separate** Lambda because it has distinct scaling needs, uses its own `tk_` tables/Flyway history, and may integrate with third-party payment/ticketing providers.
 
 ### Authentication Flow
@@ -671,49 +677,15 @@ AppClient:
   - Sign-out URLs: https://pmstusnepal.com/
 ```
 
-**2. API Gateway Lambda Authorizer:**
-```java
-// Validates JWT from Cognito
-public class CognitoAuthorizer implements RequestHandler<TokenAuthorizerEvent, AuthResponse> {
-    
-    private final String userPoolId = System.getenv("COGNITO_USER_POOL_ID");
-    private final String region = System.getenv("AWS_REGION");
-    
-    @Override
-    public AuthResponse handleRequest(TokenAuthorizerEvent event, Context context) {
-        String token = event.getAuthorizationToken().replace("Bearer ", "");
-        
-        try {
-            // Verify JWT against Cognito JWKS
-            DecodedJWT jwt = JWT.decode(token);
-            String keyId = jwt.getKeyId();
-            RSAPublicKey publicKey = getCognitoPublicKey(keyId);
-            
-            Algorithm algorithm = Algorithm.RSA256(publicKey, null);
-            JWTVerifier verifier = JWT.require(algorithm)
-                .withIssuer("https://cognito-idp." + region + ".amazonaws.com/" + userPoolId)
-                .build();
-            verifier.verify(token);
-            
-            // Extract claims
-            String userId = jwt.getSubject(); // Cognito 'sub'
-            String email = jwt.getClaim("email").asString();
-            String username = jwt.getClaim("cognito:username").asString();
-            
-            // Return policy allowing access
-            return new AuthResponse("user", 
-                new PolicyDocument("Allow", event.getMethodArn()),
-                Map.of("userId", userId, "email", email, "username", username)
-            );
-            
-        } catch (JWTVerificationException e) {
-            return new AuthResponse("user", 
-                new PolicyDocument("Deny", event.getMethodArn()),
-                null
-            );
-        }
-    }
-}
+**2. API Gateway Native `COGNITO_USER_POOLS` Authorizer:**
+
+The API Gateway is configured with a built-in `COGNITO_USER_POOLS` authorizer (see `modules/api-gateway/main.tf`). It validates JWT signatures automatically and passes `cognito:username` and `cognito:groups` claims in the Lambda context. No custom Lambda authorizer code is deployed; the old `CognitoAuthorizer` Java class is legacy/removed.
+
+```hcl
+# modules/api-gateway/main.tf
+authorizer_type  = "COGNITO_USER_POOLS"
+identity_source  = "method.request.header.Authorization"
+provider_arns    = [aws_cognito_user_pool.main.arn]
 ```
 
 **3. Angular Integration (AWS Amplify):**
@@ -939,7 +911,7 @@ infrastructure/
 │   └── prod/
 ├── bootstrap/
 │   └── README.md               # One-time: S3 state backend + OIDC roles setup
-├── backend.tf                  # S3 + DynamoDB state
+├── backend.tf                  # S3 state with native lockfile (use_lockfile)
 └── variables.tf
 ```
 
@@ -2219,7 +2191,7 @@ For detailed root-cause analysis of past pipeline failures and their fixes, see 
 | 1.2 | Enable S3 versioning | `aws s3api put-bucket-versioning --bucket pmst-terraform-state --versioning-configuration Status=Enabled` | ⬜ |
 | 1.3 | Enable S3 encryption | `aws s3api put-bucket-encryption --bucket pmst-terraform-state --server-side-encryption-configuration '{"Rules":[{"ApplyServerSideEncryptionByDefault":{"SSEAlgorithm":"AES256"}}]}'` | ⬜ |
 | 1.4 | Block S3 public access | `aws s3api put-public-access-block --bucket pmst-terraform-state --public-access-block-configuration "BlockPublicAcls=true,IgnorePublicAcls=true,BlockPublicPolicy=true,RestrictPublicBuckets=true"` | ⬜ |
-| 1.5 | Create DynamoDB lock table | `aws dynamodb create-table --table-name pmst-terraform-locks --attribute-definitions AttributeName=LockID,AttributeType=S --key-schema AttributeName=LockID,KeyType=HASH --billing-mode PAY_PER_REQUEST --region us-east-1` | ⬜ |
+| 1.5 | Enable S3 native lockfile | `# S3 native lockfile is enabled via backend.tf (use_lockfile = true); no DynamoDB table needed` | ⬜ |
 | 1.6 | Create OIDC provider | `aws iam create-open-id-connect-provider --url https://token.actions.githubusercontent.com --client-id-list sts.amazonaws.com --thumbprint-list 6938fd4d98bab03faadb97b34396831e3780aea1` | ⬜ |
 
 ### Phase 2: Create IAM Roles for GitHub Actions
@@ -2379,17 +2351,18 @@ terraform apply \
   -var="acm_certificate_arn=arn:aws:acm:us-east-1:ACCOUNT:certificate/REAL_ARN"
 ```
 
-**Step 7.4: Lower DNS TTL (24 hours before cutover)**
-In Hostinger DNS: Set TTL to 300 seconds on all A/AAAA/CNAME records.
+**Step 7.4: Create Route 53 Zone and Copy Hostinger DNS Records (24 hours before cutover)**
+In Route 53: Create a public hosted zone for pmstusnepal.com, copy all Hostinger records (MX, SPF, DKIM, DMARC, subdomains), and note the 4 NS records for the registrar change.
 
-**Step 7.5: DNS Cutover**
-| Record | Old Value | New Value |
-|--------|-----------|-----------|
-| A (pmstusnepal.com) | 46.202.182.16 | CloudFront domain |
-| AAAA (pmstusnepal.com) | 2a02:4780:2b:1870:0:1137:670d:d | CloudFront IPv6 |
-| CNAME (www) | pmstusnepal.com | CloudFront domain |
+**Step 7.5: DNS Cutover (Route 53 Delegation)**
 
-**Rollback:** Switch back to Hostinger IP within 5 minutes if issues arise.
+| Record / Setting | Old Value | New Value |
+|---|---|---|
+| Registrar nameservers (Hostinger) | `ns1.dns-parking.com`, `ns2.dns-parking.com` | 4 Route 53 NS records from the new `pmstusnepal.com` hosted zone |
+| Route 53 apex alias | — | `pmstusnepal.com` A + AAAA alias → CloudFront distribution |
+| Route 53 www alias | — | `www.pmstusnepal.com` A + AAAA alias → CloudFront distribution |
+
+**Rollback:** Revert registrar nameservers back to `ns1.dns-parking.com` / `ns2.dns-parking.com` (Hostinger) within 5 minutes if issues arise.
 
 ---
 
@@ -2428,12 +2401,12 @@ aws s3api put-bucket-versioning --bucket pmst-terraform-state --versioning-confi
 # 1.3: Block public access
 aws s3api put-public-access-block --bucket pmst-terraform-state --public-access-block-configuration "BlockPublicAcls=true,IgnorePublicAcls=true,BlockPublicPolicy=true,RestrictPublicBuckets=true"
 
-# 1.4: Create DynamoDB lock table
-aws dynamodb create-table --table-name pmst-terraform-locks --attribute-definitions AttributeName=LockID,AttributeType=S --key-schema AttributeName=LockID,KeyType=HASH --billing-mode PAY_PER_REQUEST --region us-east-1
+# 1.4: Enable S3 native lockfile
+# S3 native lockfile is enabled via backend.tf (use_lockfile = true); no DynamoDB table needed
 
 # 1.5: Verify
 aws s3 ls s3://pmst-terraform-state
-aws dynamodb describe-table --table-name pmst-terraform-locks --query 'Table.TableStatus'
+aws s3api get-bucket-versioning --bucket pmst-terraform-state
 # Checkpoint: Both succeed
 ```
 
@@ -2635,8 +2608,8 @@ terraform apply \
   -var="db_password=PASSWORD" \
   -var="acm_certificate_arn=arn:aws:acm:us-east-1:ACCOUNT:certificate/REAL_ARN"
 
-# 9.6: Lower DNS TTL to 300s (24h before cutover)
-# 9.7: DNS cutover: Update A/AAAA records to CloudFront domain
+# 9.6: Create Route 53 zone and copy Hostinger DNS records (24h before cutover)
+# 9.7: DNS cutover: Change Hostinger registrar NS to Route 53 and add apex/www alias to CloudFront
 ```
 
 ---
@@ -2676,8 +2649,8 @@ aws s3 mb s3://pmst-terraform-state --region us-east-1
 aws s3api put-bucket-versioning --bucket pmst-terraform-state --versioning-configuration Status=Enabled
 aws s3api put-public-access-block --bucket pmst-terraform-state --public-access-block-configuration "BlockPublicAcls=true,IgnorePublicAcls=true,BlockPublicPolicy=true,RestrictPublicBuckets=true"
 
-# 1.2: Create DynamoDB lock table
-aws dynamodb create-table --table-name pmst-terraform-locks --attribute-definitions AttributeName=LockID,AttributeType=S --key-schema AttributeName=LockID,KeyType=HASH --billing-mode PAY_PER_REQUEST --region us-east-1
+# 1.2: Enable S3 native lockfile
+# S3 native lockfile is enabled via backend.tf (use_lockfile = true); no DynamoDB table needed
 
 # 1.3: Create OIDC provider
 aws iam create-open-id-connect-provider --url https://token.actions.githubusercontent.com --client-id-list sts.amazonaws.com --thumbprint-list 6938fd4d98bab03faadb97b34396831e3780aea1
@@ -3027,8 +3000,8 @@ aws cloudfront list-invalidations --distribution-id <CF_DIST_ID> --query 'Invali
 
 | Test | Command / URL | Expected |
 |------|--------------|----------|
-| API health | `curl https://api.pmstusnepal.com/articles` | 200 + JSON |
-| Public gallery | `curl https://api.pmstusnepal.com/galleries` | 200 + JSON |
+| API health | `curl https://<api-id>.execute-api.us-east-1.amazonaws.com/prod/api/articles` | 200 + JSON |
+| Public gallery | `curl https://<api-id>.execute-api.us-east-1.amazonaws.com/prod/api/galleries` | 200 + JSON |
 | Frontend loads | Open `https://pmstusnepal.com` in browser | Homepage renders |
 | CloudFront cache | Check `X-Cache: Hit from cloudfront` header | On 2nd request |
 | Flyway applied | Check CloudWatch for `Successfully applied N migrations` | No errors |
@@ -3041,7 +3014,7 @@ aws cloudfront list-invalidations --distribution-id <CF_DIST_ID> --query 'Invali
 | Lambda crash (5xx) | `aws lambda update-function-code --function-name pmst-api-prod --s3-key <previous-jar>` | 2 min |
 | Angular blank page | Re-upload previous `dist/` to S3 + CF invalidation | 3 min |
 | Terraform destroy detected | `git revert` commit + re-run CI | 5 min |
-| DNS issue | Switch A/AAAA back to `46.202.182.16` (Hostinger) | 5 min |
+| DNS issue | Revert registrar nameservers to `ns1.dns-parking.com` / `ns2.dns-parking.com` (Hostinger) | 5 min |
 | Flyway migration failed | Fix migration SQL, redeploy Lambda (Flyway retries on next cold start) | 10 min |
 
 > **Flyway rollback note:** Flyway Community Edition does not support automatic rollback. If a migration fails, fix the SQL and redeploy — Flyway will retry the failed version. Never manually delete rows from `flyway_schema_history` in prod.
