@@ -59,7 +59,7 @@ Deploy the full PMST stack (Angular frontend, `pmst-api-service`, and `pmst-tick
 | G4 | `cfDomain` placeholder in `environment.prod.ts`. | Phase 4: set to prod CloudFront/domain before build. |
 | G5 | SES sandbox limits bulk email. | Phase 2b: request production access early (~24 h). |
 | G6 | Hard-coded secrets in `scripts/config.py`. | Phase 0: rotate/remove; read from `.env`. |
-| G7 | Image source assumed at `D:\pmstmigrate\src\assets\images`. | Phase 6: confirm source images exist (or pull from Hostinger first). |
+| G7 | Image source assumed at `D:\pmstmigrate\src\assets\images`. | ✅ Confirmed 3,764 images. `SOURCE_IMAGES_DIR` env override added to scripts; default stays at the confirmed path. |
 | G8 | RDS is private in prod. | Phase 5: use SSM port-forward via a small bastion or temporary public toggle. |
 | G9 | WAF/Shield referenced in docs but not in Terraform. | Optional post-launch. |
 | G10 | `contributor` role mismatch with frontend `User.role` type. | Optional: align type + role checks later. |
@@ -127,6 +127,15 @@ Both services share **one** API Gateway (`/api` → api-service, `/tickets` → 
    - `apiUrl = https://<api-id>.execute-api.us-east-1.amazonaws.com/prod/api`
    - `ticketingUrl = https://<api-id>.execute-api.us-east-1.amazonaws.com/prod/tickets`
 3. Confirm Lambda `PMST_CORS_ALLOWED_ORIGINS` includes `https://pmstusnepal.com` + `https://www.pmstusnepal.com`.
+4. **Verify API Gateway CORS preflight:**
+   ```powershell
+   curl.exe -X OPTIONS -s -D - -o NUL `
+     -H "Origin: https://pmstusnepal.com" `
+     -H "Access-Control-Request-Method: POST" `
+     -H "Access-Control-Request-Headers: content-type,authorization" `
+     https://q9zxosk8f9.execute-api.us-east-1.amazonaws.com/prod/api/articles
+   ```
+   Expected: `HTTP/1.1 200 OK` with `Access-Control-Allow-Origin: https://pmstusnepal.com` and `Access-Control-Allow-Credentials: true`.
 
 ## Phase 4 — Deploy Backends & Frontend (GitHub Actions on `main`)
 
@@ -150,16 +159,53 @@ Both services share **one** API Gateway (`/api` → api-service, `/tickets` → 
 
 ## Phase 6 — Image Migration
 
-1. Confirm source images at `D:\pmstmigrate\src\assets\images` (WP media pulled down) and Pillow installed.
-2. Dry run then apply:
+> Source images verified: `3,764` files under `D:\pmstmigrate\src\assets\images` (year folders `2019/2023/2024/2025`, plus `gallery/`, `logo/`, `ultimatemember/` and loose root files).
+
+### .env settings required for image migration
+```
+DB_HOST=<rds-endpoint>
+DB_PASSWORD=<github-secret>
+CF_DOMAIN=https://<cloudfront-domain>
+MEDIA_BUCKET=pmst-prod-media
+SOURCE_IMAGES_DIR=D:/pmstmigrate/src/assets/images
+```
+
+### Image pipeline order (critical)
+`04_migrate_articles.py` stores the raw `_thumbnail_id` (an integer) in `articles.featured_image`. The S3 upload script backfills `image_key` by matching the **filename** (`LIKE '%filename%'`), which won't match a bare ID. Therefore:
+
+1. **Resolve featured-image attachment IDs → real URLs**:
    ```powershell
    cd d:\pmst-migration\scripts
-   python 14_process_and_upload_images.py                 # dry run
+   python fix_featured_images_v3.py
+   ```
+2. **Resolve any remaining `attachment:XXXX` gallery references** to local paths:
+   ```powershell
+   python download_missing_gallery_images.py   # or python fix_gallery_rest_api.py
+   ```
+3. **Dry-run the S3 upload + image_key backfill**:
+   ```powershell
+   python 14_process_and_upload_images.py            # safe preview
+   ```
+4. **Apply the upload** (8 derivative objects per source image: thumb/card/hero/master × WebP+JPEG):
+   ```powershell
    python 14_process_and_upload_images.py --apply --workers 4
    ```
-   - Produces 4 tiers (`thumb/card/hero/master`) × WebP+JPEG under `media/{yyyy}/{mm}/{basename}/` in `pmst-prod-media`.
-   - Backfills `articles.image_key` and `gallery_images.image_key`.
-3. Spot-check a few images via CloudFront media URL; run `verify_image_files.py` / `check_image_status.py`.
+
+### Alternative: one-shot data + images
+If data migration completed successfully, you can run the entire data + image pipeline in one command:
+```powershell
+python run_all_migrations.py --with-images
+```
+This automatically runs `fix_featured_images_v3.py`, then `14_process_and_upload_images.py --apply --workers 4`.
+
+### Verification
+- S3 object count should approach `source_images × 8`:
+  ```powershell
+  aws s3 ls s3://pmst-prod-media --recursive | measure
+  ```
+- Run `check_image_status.py` to confirm no remote `pmstusnepal.com` URLs remain.
+- Run `verify_image_files.py` to validate generated S3 URLs.
+- Spot-check a few images via `https://<cloudfront-domain>/media/{yyyy}/{mm}/{basename}/hero.webp`.
 
 ## Phase 7 — Users, Admin & Login Cutover
 
@@ -173,6 +219,15 @@ Both services share **one** API Gateway (`/api` → api-service, `/tickets` → 
 3. **Link Cognito ↔ DB:** implement `11_link_user_profiles_to_cognito.py` (list Cognito users, match by email, set `users.cognito_id = sub`). Run it.
 4. **First-login flow:** migrated users receive Cognito reset/temporary-password email and set a new password (no WP hash migration).
 5. Verify login end-to-end for `pmstusnepal@gmail.com` (admin dashboard access) and one standard migrated user.
+
+## Pre-Prod Gate (before DNS cutover)
+
+Do not cut over DNS until:
+
+- [ ] `OPTIONS` preflight returns `200` with allow-listed `Access-Control-Allow-Origin` for both `/api` and `/tickets` paths.
+- [ ] Login and at least one authenticated write operation (e.g., comment, follow, article submission) succeed without CORS errors in the browser.
+- [ ] Home, `/spotlight`, `/news`, `/all-models`, article detail, gallery detail, and `/tickets` (events) load correctly from the CloudFront URL.
+- [ ] YouTube playlists load on the home page and videos play without API errors.
 
 ## Phase 8 — DNS Cutover (Route 53 delegation)
 
