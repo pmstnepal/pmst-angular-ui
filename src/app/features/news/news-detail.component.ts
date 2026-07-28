@@ -52,7 +52,7 @@ import { UserInterestService } from '../../services/user-interest.service';
           } @else if (article().featuredImage) {
             <div class="pmst-featured-blur"></div>
             <div class="pmst-featured-center">
-              <img [src]="imageMapper.mapUrl(article().featuredImage)" [alt]="article().title" />
+              <img [src]="imageMapper.mapUrl(article().featuredImage, article().imageKey)" [alt]="article().title" />
             </div>
           }
         </div>

@@ -109,57 +109,82 @@ export class ImageUrlMapperService {
   }
 
   /**
-   * Map WordPress URL to local/development URL
-   * Uses manifest-based lookup for unified image resolution
-   * Loads manifest lazily on first call
-   * Handles attachment IDs (e.g., "attachment:26217") by resolving to WordPress URLs
+   * Map WordPress URL or image_key to a usable image URL.
+   * Prefer imageKey when available; otherwise parse a legacy WP URL or image_key string.
    */
-  mapUrl(wpUrl: string | null | undefined): string {
+  mapUrl(wpUrl: string | null | undefined, imageKey?: string | null | undefined, tier: ImageTier = 'card'): string {
     // Trigger lazy manifest load (non-blocking)
     this.loadManifest();
-    
-    if (!wpUrl) {
+
+    const effectiveKey = imageKey || wpUrl;
+    if (!effectiveKey) {
+      return this.fallbackImage;
+    }
+
+    // If we have a bare image_key (media/YYYY/MM/basename), use it directly
+    if (effectiveKey.startsWith('media/')) {
+      return this.getTierUrl(effectiveKey, tier, wpUrl);
+    }
+
+    const resolvedWpUrl = wpUrl || imageKey;
+    if (!resolvedWpUrl) {
       return this.fallbackImage;
     }
 
     // Handle attachment IDs from gallery_images (e.g., "attachment:26217")
-    // These are WordPress attachment IDs that need to be resolved to actual URLs
-    const attachmentMatch = wpUrl.match(/^attachment:(\d+)$/);
+    const attachmentMatch = resolvedWpUrl.match(/^attachment:(\d+)$/);
     if (attachmentMatch) {
       const attachmentId = attachmentMatch[1];
-      // Return WordPress attachment URL format
-      // In production, this would be an S3/CloudFront URL
-      // For now, return the WordPress URL which will work if images aren't local yet
       const wpAttachmentUrl = `https://pmstusnepal.com/?attachment_id=${attachmentId}`;
       console.warn(`[ImageUrlMapper] Attachment ID ${attachmentId} - using WordPress URL`);
       return wpAttachmentUrl;
     }
 
-    // Check non-year patterns first (ultimatemember, woocommerce)
+    // In production, rewrite WP media URLs to CloudFront processed images
+    if (this.cfDomain && this.isWordPressUrl(resolvedWpUrl)) {
+      const stem = (name: string) => name.replace(/\.[^/.]+$/, '');
+
+      const yearMonthMatch = resolvedWpUrl.match(/wp-content\/uploads\/(\d{4})\/(\d{2})\/([^/]+?\.[^.]+)$/);
+      if (yearMonthMatch) {
+        const [, year, month, filename] = yearMonthMatch;
+        return `${this.cfDomain}/media/${year}/${month}/${stem(filename)}/${tier}.webp`;
+      }
+
+      const folderMatch = resolvedWpUrl.match(/wp-content\/uploads\/([^/]+)\/([^/]+?\.[^.]+)$/);
+      if (folderMatch) {
+        const [, , filename] = folderMatch;
+        // Non-year folders (ultimatemember, logo, woocommerce-placeholder, etc.)
+        // were uploaded to the default media/2024/01 prefix by the migration script
+        return `${this.cfDomain}/media/2024/01/${stem(filename)}/${tier}.webp`;
+      }
+
+      const rootMatch = resolvedWpUrl.match(/wp-content\/uploads\/([^/]+?\.[^.]+)$/);
+      if (rootMatch) {
+        const [, filename] = rootMatch;
+        return `${this.cfDomain}/media/2024/01/${stem(filename)}/${tier}.webp`;
+      }
+
+      return resolvedWpUrl;
+    }
+
+    // Development / local fallback behavior
     for (const pattern of this.patterns) {
-      if (wpUrl.includes(pattern.match)) {
-        return wpUrl.replace(pattern.match, pattern.replace);
+      if (resolvedWpUrl.includes(pattern.match)) {
+        return resolvedWpUrl.replace(pattern.match, pattern.replace);
       }
     }
 
-    // Extract filename from WordPress uploads URL
-    // Pattern: https://pmstusnepal.com/wp-content/uploads/YYYY/MM/filename.ext
-    const uploadsMatch = wpUrl.match(/wp-content\/uploads\/\d{4}\/\d{2}\/([^/]+\.[^.]+)$/);
+    const uploadsMatch = resolvedWpUrl.match(/wp-content\/uploads\/\d{4}\/\d{2}\/([^/]+\.[^.]+)$/);
     if (uploadsMatch) {
       const filename = uploadsMatch[1];
-
-      // Use manifest for fast lookup if loaded
       if (this.manifestLoaded && this.imageManifest.has(filename)) {
         return this.imageManifest.get(filename)!;
       }
-
-      // Fallback: Try to construct path (will 404 if not found, that's ok)
-      // For development, we can try a few common patterns
       return `/assets/images/2023/${filename}`;
     }
 
     // If no pattern matches, return as-is (might be external URL)
-    return wpUrl;
+    return resolvedWpUrl;
   }
   
   /**

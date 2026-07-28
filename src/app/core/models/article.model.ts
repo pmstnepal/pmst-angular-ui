@@ -10,6 +10,7 @@ export interface Article {
   excerpt: string;
   content?: string;
   featuredImage?: string;
+  imageKey?: string;
   youtubeLink?: string;
   embedCode?: string;
   galleryImages?: string[];
@@ -26,6 +27,7 @@ export interface NewsArticle {
   slug: string;
   excerpt: string;
   featuredImage?: string;
+  imageKey?: string;
   youtubeLink?: string;
   embedCode?: string;
   galleryImages?: string[];
@@ -41,6 +43,7 @@ export interface ArticleDetail {
   content: string;
   excerpt: string;
   featuredImage?: string;
+  imageKey?: string;
   youtubeLink?: string;
   embedCode?: string;
   galleryImages?: string[] | string; // Can be array or JSON string
@@ -64,5 +67,6 @@ export interface RelatedArticle {
   slug: string;
   title: string;
   featuredImage?: string;
+  imageKey?: string;
   publishedAt: string;
 }

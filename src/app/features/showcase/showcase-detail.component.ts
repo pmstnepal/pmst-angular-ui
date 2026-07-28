@@ -40,7 +40,7 @@ import { ImageUrlMapperService } from '../../services/image-url-mapper.service';
             <!-- Feature Image -->
             <div class="pmst-feature-image">
               @if (gallery()!.featuredImage) {
-                <div class="pmst-feature-image-bg" [style.background-image]="'url(' + imageMapper.mapUrl(gallery()!.featuredImage) + ')'">
+                <div class="pmst-feature-image-bg" [style.background-image]="'url(' + imageMapper.mapUrl(gallery()!.featuredImage, gallery()!.imageKey) + ')'">
                 </div>
               } @else {
                 <div class="pmst-feature-image-placeholder"></div>
@@ -77,7 +77,7 @@ import { ImageUrlMapperService } from '../../services/image-url-mapper.service';
                   class="gallery-item bg-gray-100"
                   (click)="openLightbox(i)">
                   <img 
-                    [src]="imageMapper.mapUrl(image.imageUrl)" 
+                    [src]="imageMapper.mapUrl(image.imageUrl, image.imageKey)" 
                     [alt]="image.caption || gallery()!.title"
                     class="w-full h-full object-cover">
                   <div class="gallery-overlay">
@@ -103,7 +103,7 @@ import { ImageUrlMapperService } from '../../services/image-url-mapper.service';
             <button class="lightbox-close" (click)="closeLightbox()">&times;</button>
             
             <img 
-              [src]="imageMapper.mapUrl(gallery()!.images[activeImageIndex()].imageUrl)" 
+              [src]="imageMapper.mapUrl(gallery()!.images[activeImageIndex()].imageUrl, gallery()!.images[activeImageIndex()].imageKey)" 
               [alt]="gallery()!.images[activeImageIndex()].caption || gallery()!.title"
               class="lightbox-image">
             
@@ -395,7 +395,7 @@ export class ShowcaseDetailComponent implements OnInit {
     this.meta.updateTag({ property: 'og:description', content: this.stripHtml(description).substring(0, 160) });
     this.meta.updateTag({ property: 'og:type', content: 'website' });
     if (gallery.featuredImage) {
-      this.meta.updateTag({ property: 'og:image', content: this.imageMapper.mapUrl(gallery.featuredImage) });
+      this.meta.updateTag({ property: 'og:image', content: this.imageMapper.mapUrl(gallery.featuredImage, gallery.imageKey) });
     }
 
     // Twitter Card tags
@@ -403,7 +403,7 @@ export class ShowcaseDetailComponent implements OnInit {
     this.meta.updateTag({ name: 'twitter:title', content: pageTitle });
     this.meta.updateTag({ name: 'twitter:description', content: this.stripHtml(description).substring(0, 160) });
     if (gallery.featuredImage) {
-      this.meta.updateTag({ name: 'twitter:image', content: this.imageMapper.mapUrl(gallery.featuredImage) });
+      this.meta.updateTag({ name: 'twitter:image', content: this.imageMapper.mapUrl(gallery.featuredImage, gallery.imageKey) });
     }
   }
 
