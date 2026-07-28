@@ -8,7 +8,6 @@ interface GalleryItem {
   title: string;
   slug: string;
   featuredImage?: string;
-  imageKey?: string;
   authorName?: string;
 }
 
@@ -24,7 +23,7 @@ interface GalleryItem {
           <div
             class="pmst-model-slide"
             [class.active]="i === currentIndex()"
-            [style.background-image]="'url(' + (item.featuredImage ? imageMapper.mapUrl(item.featuredImage, item.imageKey) : '') + ')'"
+            [style.background-image]="'url(' + (item.featuredImage ? imageMapper.mapUrl(item.featuredImage) : '') + ')'"
           >
             <div class="pmst-slide-overlay">
               <h2>{{ item.title }}</h2>
@@ -45,7 +44,7 @@ interface GalleryItem {
           >
             <a [routerLink]="['/showcase', item.slug]">
               @if (item.featuredImage) {
-                <img [src]="imageMapper.mapUrl(item.featuredImage, item.imageKey)" [alt]="item.title">
+                <img [src]="imageMapper.mapUrl(item.featuredImage)" [alt]="item.title">
               } @else {
                 <div class="pmst-thumbnail-fallback"></div>
               }

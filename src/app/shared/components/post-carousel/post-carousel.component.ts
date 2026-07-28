@@ -8,7 +8,6 @@ interface CarouselItem {
   title: string;
   excerpt: string;
   imageUrl: string;
-  imageKey?: string;
   category: string;
   slug: string;
   date: string;
@@ -41,7 +40,7 @@ interface CarouselItem {
               <a [routerLink]="['/news', item.slug]" class="block">
                 <div class="pmst-post-image">
                   @if (item.imageUrl) {
-                    <img [src]="imageMapper.mapUrl(item.imageUrl, item.imageKey)" [alt]="item.title">
+                    <img [src]="imageMapper.mapUrl(item.imageUrl)" [alt]="item.title">
                   } @else {
                     <div class="w-full h-full flex items-center justify-center text-gray-400">
                       <svg class="w-12 h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24">

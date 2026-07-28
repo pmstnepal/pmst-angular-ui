@@ -6,7 +6,6 @@
 export interface GalleryImage {
   id: string;
   imageUrl: string;
-  imageKey?: string;
   caption?: string;
   sortOrder: number;
 }
@@ -17,7 +16,6 @@ export interface Gallery {
   slug: string;
   description?: string;
   featuredImage?: string;
-  imageKey?: string;
   images: GalleryImage[];
   status: string;
   createdAt: string;
@@ -34,6 +32,5 @@ export interface GallerySummary {
   title: string;
   slug: string;
   featuredImage?: string;
-  imageKey?: string;
   authorName?: string;
 }

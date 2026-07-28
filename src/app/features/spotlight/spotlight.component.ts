@@ -71,7 +71,7 @@ import { NewsArticle } from '../../core/models';
                 <a [routerLink]="['/news', item.slug]" class="block">
                   <div class="pmst-grid-item pmst-card-glow">
                     @if (item.featuredImage) {
-                      <img [src]="imageMapper.mapUrl(item.featuredImage, item.imageKey)" [alt]="item.title">
+                      <img [src]="imageMapper.mapUrl(item.featuredImage)" [alt]="item.title">
                     } @else {
                       <div class="pmst-image-fallback"></div>
                     }

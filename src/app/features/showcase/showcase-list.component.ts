@@ -52,7 +52,7 @@ import { ImageUrlMapperService } from '../../services/image-url-mapper.service';
             <a [routerLink]="['/showcase', gallery.slug]" class="block">
               <div class="pmst-grid-item pmst-card-glow">
                 @if (gallery.featuredImage) {
-                  <img [src]="imageMapper.mapUrl(gallery.featuredImage, gallery.imageKey)" [alt]="gallery.title">
+                  <img [src]="imageMapper.mapUrl(gallery.featuredImage)" [alt]="gallery.title">
                 } @else {
                   <div class="pmst-image-fallback"></div>
                 }

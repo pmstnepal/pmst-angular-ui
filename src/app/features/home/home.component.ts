@@ -194,7 +194,6 @@ export class HomeComponent implements OnInit {
     title: article.title,
     excerpt: article.excerpt,
     imageUrl: article.featuredImage || '',
-    imageKey: article.imageKey || '',
     category: article.category,
     slug: article.slug,
     date: article.publishedAt,
@@ -207,7 +206,6 @@ export class HomeComponent implements OnInit {
     title: gallery.title,
     slug: gallery.slug,
     featuredImage: gallery.featuredImage || '',
-    imageKey: gallery.imageKey || '',
     authorName: gallery.authorName
   }));
 
