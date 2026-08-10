@@ -51,8 +51,8 @@ import { ImageUrlMapperService } from '../../services/image-url-mapper.service';
           @for (gallery of filteredItems(); track gallery.id) {
             <a [routerLink]="['/showcase', gallery.slug]" class="block">
               <div class="pmst-grid-item pmst-card-glow">
-                @if (gallery.featuredImage) {
-                  <img [src]="imageMapper.mapUrl(gallery.featuredImage)" [alt]="gallery.title">
+                @if (gallery.featuredImage || gallery.imageKey) {
+                  <img [src]="imageMapper.mapUrl(gallery.featuredImage, gallery.imageKey, 'card')" [alt]="gallery.title">
                 } @else {
                   <div class="pmst-image-fallback"></div>
                 }

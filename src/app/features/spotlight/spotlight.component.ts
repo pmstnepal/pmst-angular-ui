@@ -16,14 +16,14 @@ import { NewsArticle } from '../../core/models';
       <!-- Category Tabs -->
       <div class="pmst-category-tabs">
         <button
-          (click)="setCategory('Entertainment')"
-          [class.active]="selectedCategory() === 'Entertainment'"
+          (click)="setCategory('entertainment')"
+          [class.active]="selectedCategory() === 'entertainment'"
           class="pmst-tab-btn">
           Entertainment
         </button>
         <button
-          (click)="setCategory('Nepal News')"
-          [class.active]="selectedCategory() === 'Nepal News'"
+          (click)="setCategory('nepal news')"
+          [class.active]="selectedCategory() === 'nepal news'"
           class="pmst-tab-btn">
           Nepal News
         </button>
@@ -70,8 +70,8 @@ import { NewsArticle } from '../../core/models';
               @for (item of filteredItems(); track item.id) {
                 <a [routerLink]="['/news', item.slug]" class="block">
                   <div class="pmst-grid-item pmst-card-glow">
-                    @if (item.featuredImage) {
-                      <img [src]="imageMapper.mapUrl(item.featuredImage)" [alt]="item.title">
+                    @if (item.featuredImage || item.imageKey) {
+                      <img [src]="imageMapper.mapUrl(item.featuredImage, item.imageKey, 'card')" [alt]="item.title">
                     } @else {
                       <div class="pmst-image-fallback"></div>
                     }
@@ -112,7 +112,7 @@ export class SpotlightComponent implements OnInit {
   loading = signal(true);
   articles = signal<NewsArticle[]>([]);
   totalPages = signal(1);
-  selectedCategory = signal('Entertainment');
+  selectedCategory = signal('entertainment');
 
   constructor(
     private articleService: ArticleService,

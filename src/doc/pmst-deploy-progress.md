@@ -94,3 +94,11 @@ Commit these before/at deploy so nothing is lost:
 - Phase 7: Users. Create NEW super-admin `pmstusnepal@gmail.com` fresh in Cognito pool `us-east-1_1dEqFgYNR` + DB row with `role='admin'` (there is no separate super-admin role in code — `admin` governs privileges). Migrated WP users login via Cognito password-reset on first sign-in.
 - Phase 8: DNS cutover — change Hostinger registrar nameservers to the 4 Route 53 NS above; add apex + www A/AAAA alias → CloudFront in Route 53. Copy all live Hostinger records (MX, SPF, DKIM, DMARC, www, WP A) into the zone BEFORE switching.
 - Phase 9: Verify on `https://pmstusnepal.com`, monitor 24h, then decommission Hostinger after ~1 week stable.
+
+## 2026-08-09 Hotfix — CloudFront tiered images + YouTube API key
+- Re-applied `imageKey` → CloudFront tier URLs (`card`/`thumb` for lists/thumbnails, `hero` for detail/meta, `master` for lightbox).
+- Updated `home`, `spotlight`, `news-detail`, `showcase-detail`, `showcase-list`, `post-carousel`, and `gallery-carousel` to pass `imageKey` and the correct tier.
+- Lower-cased category query for `entertainment` and `nepal news` in `home` and `spotlight`.
+- Built prod bundle, synced `dist/pmst-angular-ui/browser` to `s3://pmst-prod-frontend`, and invalidated CloudFront `ECN0HO6STY22O`.
+- Added `youtube_api_key` to `secrets.auto.tfvars` and ran `terraform apply -target="module.lambda"` to inject `PMST_YT_API_KEY` into `pmst-prod-pmst-api-service` and `pmst-prod-ticketing-service`.
+- Smoke tests: CloudFront `card.webp`/`hero.webp` 200 image/webp; API `/articles` returns `imageKey`; API `/youtube/playlists` returns 3 videos.

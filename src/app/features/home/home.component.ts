@@ -194,6 +194,7 @@ export class HomeComponent implements OnInit {
     title: article.title,
     excerpt: article.excerpt,
     imageUrl: article.featuredImage || '',
+    imageKey: article.imageKey || '',
     category: article.category,
     slug: article.slug,
     date: article.publishedAt,
@@ -206,6 +207,7 @@ export class HomeComponent implements OnInit {
     title: gallery.title,
     slug: gallery.slug,
     featuredImage: gallery.featuredImage || '',
+    imageKey: gallery.imageKey || '',
     authorName: gallery.authorName
   }));
 
@@ -216,7 +218,7 @@ export class HomeComponent implements OnInit {
 
   ngOnInit(): void {
     // Load 12 Entertainment articles for carousel (with caching via ArticleService)
-    this.articleService.getArticles(0, 12, 'Entertainment', 'publishedAt,desc').subscribe({
+    this.articleService.getArticles(0, 12, 'entertainment', 'publishedAt,desc').subscribe({
       next: res => { this.latestNews.set(res.content); this.newsLoading.set(false); },
       error: () => this.newsLoading.set(false)
     });

@@ -52,7 +52,7 @@ import { UserInterestService } from '../../services/user-interest.service';
           } @else if (article().featuredImage) {
             <div class="pmst-featured-blur"></div>
             <div class="pmst-featured-center">
-              <img [src]="imageMapper.mapUrl(article().featuredImage)" [alt]="article().title" />
+              <img [src]="imageMapper.mapUrl(article().featuredImage, article().imageKey, 'hero')" [alt]="article().title" />
             </div>
           }
         </div>
@@ -92,7 +92,7 @@ import { UserInterestService } from '../../services/user-interest.service';
                 <div 
                   class="pmst-gallery-item"
                   (click)="openLightbox($index)">
-                  <img [src]="img" alt="Gallery image {{ $index + 1 }}" loading="lazy" />
+                  <img [src]="img.thumb" alt="Gallery image {{ $index + 1 }}" loading="lazy" />
                   <div class="pmst-gallery-overlay">
                     <svg class="pmst-zoom-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7"/>
@@ -111,7 +111,7 @@ import { UserInterestService } from '../../services/user-interest.service';
               <button class="pmst-lightbox-close" (click)="closeLightbox()">&times;</button>
               
               <img 
-                [src]="galleryUrls()[activeImageIndex()]" 
+                [src]="galleryUrls()[activeImageIndex()].master" 
                 alt="Gallery image"
                 class="pmst-lightbox-image">
               
@@ -589,29 +589,29 @@ export class NewsDetailComponent implements OnInit {
     return this.sanitizer.bypassSecurityTrustResourceUrl(embedUrl);
   }
 
-  galleryUrls(): string[] {
+  galleryUrls(): { thumb: string; master: string }[] {
     const raw = this.article().galleryImages;
     const featuredImage = this.article().featuredImage;
-    
+
     if (!raw) return [];
-    
-    let urls: string[] = [];
-    
+
+    let source: string[] = [];
+
     // Parse the gallery images data
     if (Array.isArray(raw)) {
-      urls = raw;
+      source = raw;
     } else if (typeof raw === 'string') {
       try {
         const parsed = JSON.parse(raw);
-        urls = Array.isArray(parsed) ? parsed : [];
+        source = Array.isArray(parsed) ? parsed : [];
       } catch {
         return [];
       }
     }
-    
+
     // Filter out empty/null, featured image, and duplicates
     const seen = new Set<string>();
-    return urls
+    return source
       .filter((u: string) => {
         if (!u || u.trim() === '') return false;
         // Skip if this is the featured image
@@ -623,8 +623,15 @@ export class NewsDetailComponent implements OnInit {
         seen.add(u);
         return true;
       })
-      .map((u: string) => this.imageMapper.mapUrl(u))
-      .filter((u: string) => u && !u.startsWith('attachment:')) // Remove unresolvable attachments
+      .filter((u: string) => !u.startsWith('attachment:')) // Remove unresolvable attachments
+      .map((u: string) => {
+        const key = u.startsWith('media/') ? u : undefined;
+        const legacy = key ? undefined : u;
+        return {
+          thumb: key ? this.imageMapper.mapUrl(undefined, key, 'thumb') : this.imageMapper.mapUrl(legacy, undefined, 'thumb'),
+          master: key ? this.imageMapper.mapUrl(undefined, key, 'master') : this.imageMapper.mapUrl(legacy, undefined, 'master')
+        };
+      })
       .slice(0, 6);
   }
 
@@ -690,7 +697,7 @@ export class NewsDetailComponent implements OnInit {
       mainEntityOfPage: window.location.href,
       headline: data.title,
       description: data.excerpt,
-      image: data.featuredImage ? { '@type': 'ImageObject', url: data.featuredImage } : undefined,
+      image: data.featuredImage || data.imageKey ? { '@type': 'ImageObject', url: this.imageMapper.mapUrl(data.featuredImage, data.imageKey, 'hero') } : undefined,
       author: { '@type': 'Organization', name: 'PMST US-Nepal' },
       publisher: {
         '@type': 'Organization',
