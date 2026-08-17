@@ -628,7 +628,7 @@ export class NewsDetailComponent implements OnInit {
         const key = u.startsWith('media/') ? u : undefined;
         const legacy = key ? undefined : u;
         return {
-          thumb: key ? this.imageMapper.mapUrl(undefined, key, 'thumb') : this.imageMapper.mapUrl(legacy, undefined, 'thumb'),
+          thumb: key ? this.imageMapper.mapUrl(undefined, key, 'card') : this.imageMapper.mapUrl(legacy, undefined, 'card'),
           master: key ? this.imageMapper.mapUrl(undefined, key, 'master') : this.imageMapper.mapUrl(legacy, undefined, 'master')
         };
       })

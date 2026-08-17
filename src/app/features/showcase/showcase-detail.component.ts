@@ -39,7 +39,7 @@ import { ImageUrlMapperService } from '../../services/image-url-mapper.service';
           <div class="pmst-model-single-top">
             <!-- Feature Image -->
             <div class="pmst-feature-image">
-              @if (gallery()!.featuredImage) {
+              @if (gallery()!.featuredImage || gallery()!.imageKey) {
                 <div class="pmst-feature-image-bg" [style.background-image]="'url(' + imageMapper.mapUrl(gallery()!.featuredImage, gallery()!.imageKey, 'hero') + ')'">
                 </div>
               } @else {
@@ -77,7 +77,7 @@ import { ImageUrlMapperService } from '../../services/image-url-mapper.service';
                   class="gallery-item bg-gray-100"
                   (click)="openLightbox(i)">
                   <img 
-                    [src]="imageMapper.mapUrl(image.imageUrl, image.imageKey, 'thumb')" 
+                    [src]="imageMapper.mapUrl(image.imageUrl, image.imageKey, 'card')" 
                     [alt]="image.caption || gallery()!.title"
                     class="w-full h-full object-cover">
                   <div class="gallery-overlay">
