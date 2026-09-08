@@ -50,6 +50,7 @@ Complete development guide for migrating from WordPress to AWS serverless archit
 
 | Area | Where to check / update |
 |------|--------------------------|
+| **🔴 Live production status + open defect queue (T1–T10)** — **read this first on any deploy, infra, or bug task** | [`src/doc/pmst-deploy-progress.md`](file:///D:/pmstmigrate/src/doc/pmst-deploy-progress.md) |
 | **Events & ticketing** (roadmap, status, Phase 2+ features, reservation/ticket flows) | [`D:/pmst-services/pmst-ticketing-service/doc/eventplan.md`](file:///D:/pmst-services/pmst-ticketing-service/doc/eventplan.md) |
 | **Visual combined dashboard** (components, timeline, dependencies, repo status) | [`src/doc/pmst-master-plan.html`](file:///D:/pmstmigrate/src/doc/pmst-master-plan.html) |
 | **General migration workflow, repos, CI/CD, standards** | this file (`pmst-development-workflow.md`) |
@@ -272,6 +273,13 @@ User → Cognito Hosted UI / Amplify → Cognito User Pool → JWT Tokens
 3. Angular stores token, sends in `Authorization: Bearer <token>` header
 4. API Gateway's native `COGNITO_USER_POOLS` authorizer validates the JWT signature against the Cognito user pool
 5. Lambda receives `cognito:username`, `cognito:groups` in context
+
+**CORS Preflight (OPTIONS) at API Gateway:**
+- API Gateway resources `/api/{proxy+}` and `/tickets/{proxy+}` have explicit `OPTIONS` methods with `authorization = NONE` and `MOCK` integrations.
+- The `OPTIONS` preflight never reaches Lambda; API Gateway responds directly with the required CORS headers.
+- Allowed origins are restricted to `https://pmstusnepal.com` and `https://www.pmstusnepal.com` (any other origin falls back to the apex domain).
+- Allowed methods: `GET,POST,PUT,PATCH,DELETE,OPTIONS`; allowed headers: `Content-Type,Authorization,Idempotency-Key`; `Access-Control-Allow-Credentials: true`.
+- Real `GET`/`POST`/etc. requests remain protected by the Cognito authorizer and Spring Security.
 
 **User Migration Strategy:**
 - **Decided:** Password reset approach for all migrated users
@@ -659,6 +667,32 @@ API Gateway
 > **Why consolidated?** `pmst-api-service` is consolidated: articles, galleries, users, follows, and comments all share the same PostgreSQL schema, have low-to-medium traffic, and benefit from shared connection pooling via RDS Proxy. A single JAR simplifies deployment, reduces cold starts, and lowers cost. `pmst-ticketing-service` is a **separate** Lambda because it has distinct scaling needs, uses its own `tk_` tables/Flyway history, and may integrate with third-party payment/ticketing providers.
 
 ### Authentication Flow
+
+> ### 🔴 This flow does NOT work in production as of 2026-09-08
+>
+> Login is impossible for every user. The design below is sound; the **deployment wiring** is
+> not. Four independent blockers sit in series — fixing any one alone leaves login broken:
+>
+> 1. **API Gateway rejects the login call before Lambda.** `/api/{proxy+}` declares only
+>    `GET`/`NONE` and `OPTIONS`/`NONE` explicitly; everything else falls to `ANY` +
+>    `COGNITO_USER_POOLS`. So `POST /api/auth/login` demands the very token it exists to
+>    issue. Verified: returns `401 {"message":"Unauthorized"}`.
+> 2. **No `gateway_response` resources**, so that 401 has no CORS headers and the browser
+>    reports a CORS failure — pointing debugging at the wrong layer entirely.
+> 3. **Auth-flow mismatch.** `AuthService.java:52` uses `ADMIN_USER_PASSWORD_AUTH`;
+>    `modules/cognito/main.tf:94-98` never granted `ALLOW_ADMIN_USER_PASSWORD_AUTH`.
+> 4. **`COGNITO_CLIENT_ID` is never injected** into the Lambda env, so the client id is `""`;
+>    and the Lambda role has **no `cognito-idp:*` permissions** at all.
+>
+> **Lesson worth keeping:** a correct architecture diagram and a correct `SecurityConfig`
+> proved nothing here — nothing had exercised an unauthenticated POST against the deployed
+> stack. Any auth change must be smoke-tested against the real gateway, not just locally,
+> where the embedded Tomcat has no authorizer in front of it.
+>
+> Full detail and fix ordering: **T1** in `src/doc/pmst-deploy-progress.md`.
+> Note also that password reset (`/auth/forgot-password`, `/auth/reset-password`) is
+> permitted in Spring but **not implemented** — migrated WordPress users were expected to
+> sign in via reset, so this blocks the user-migration story too.
 
 **1. Cognito User Pool Configuration:**
 ```yaml
@@ -1161,7 +1195,7 @@ resource "aws_lambda_function" "api" {
 
 | Secret | Pattern | Local | Prod (planned) |
 |--------|---------|-------|----------------|
-| `PMST_YT_API_KEY` | YouTube Data API v3 | `application-local.properties` | SSM `/pmst/prod/youtube-api-key` |
+| `PMST_YT_API_KEY` | YouTube Data API v3 | `application-local.properties` | Lambda env var `PMST_YT_API_KEY` via `TF_VAR_youtube_api_key` (sourced from `application-local.properties`) |
 | `MEDIA_BUCKET` | S3 image upload bucket | `application-local.properties` → `local-dev-stub` | Lambda env var → `pmst-prod-media` |
 | Cognito Client Secret | Auth | TBD | SSM `/pmst/prod/cognito-client-secret` |
 | RDS Password | DB | docker-compose env | SSM `/pmst/prod/rds-password` |

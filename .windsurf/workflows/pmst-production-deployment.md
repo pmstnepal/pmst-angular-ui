@@ -43,26 +43,34 @@ Deploy the full PMST stack (Angular frontend, `pmst-api-service`, and `pmst-tick
 | Infra CI/CD (GitHub OIDC, branch-driven) | Ready (`.github/workflows/deploy.yml`) |
 | API service CI/CD + `deploy/environments.yaml` | Ready |
 | Frontend CI/CD + `deploy/environments.yaml` | Ready |
-| **Ticketing CI/CD** | **MISSING** — no `.github/` in `pmst-ticketing-service` |
+| **Ticketing CI/CD** | ✅ Created in Phase 1 — `.github/workflows/deploy-ticketing-service.yml` + `deploy/environments.yaml` |
 | Migration scripts (content/users/follows/comments) | Ready (`pmst-migration/scripts/01..13`) |
 | Image processing → S3 | Ready (`scripts/14_process_and_upload_images.py`) |
 | Cognito user-link script | **Placeholder** (`scripts/11_link_user_profiles_to_cognito.py`) |
-| Hard-coded secrets in migration repo | **Risk** — `scripts/config.py` (DB host/pw), `pmst-deploy_accessKeys.csv` |
+| Hard-coded secrets in migration repo | ✅ `scripts/config.py` now reads from `.env`. ⚠️ The plaintext `pmst-deploy_accessKeys*.csv` files still sit in `src/doc/` (gitignored + untracked) — delete locally and rotate the keys. |
 
-## Gaps to Resolve (G1–G10)
+## Gaps to Resolve (G1–G14)
 
-| # | Gap | Fix |
-|---|---|---|
-| G1 | No API Gateway custom domain configured. | **Use API Gateway invoke URL** — no custom domain. |
-| G2 | API path/stage mismatch (frontend expects `/v1/api` and a separate `tickets.` host). | Update `environment.prod.ts` and `deploy/environments.yaml` to `/prod/api` and `/prod/tickets` on the single API Gateway. |
-| G3 | No bulk Cognito user-import script. | Phase 7: add `create_cognito_users.py` and implement `11_link_user_profiles_to_cognito.py`. |
-| G4 | `cfDomain` placeholder in `environment.prod.ts`. | Phase 4: set to prod CloudFront/domain before build. |
-| G5 | SES sandbox limits bulk email. | Phase 2b: request production access early (~24 h). |
-| G6 | Hard-coded secrets in `scripts/config.py`. | Phase 0: rotate/remove; read from `.env`. |
-| G7 | Image source assumed at `D:\pmstmigrate\src\assets\images`. | ✅ Confirmed 3,764 images. `SOURCE_IMAGES_DIR` env override added to scripts; default stays at the confirmed path. |
-| G8 | RDS is private in prod. | Phase 5: use SSM port-forward via a small bastion or temporary public toggle. |
-| G9 | WAF/Shield referenced in docs but not in Terraform. | Optional post-launch. |
-| G10 | `contributor` role mismatch with frontend `User.role` type. | Optional: align type + role checks later. |
+> Status reviewed 2026-09-08 (post-launch audit). G11–G14 were found on the **live** site
+> after cutover — full detail, root causes and file references live in
+> `src/doc/pmst-deploy-progress.md` → `Post-Launch Open Items (TODO)`.
+
+| # | Gap | Status | Fix |
+|---|---|---|---|
+| G1 | No API Gateway custom domain configured. | ✅ Resolved | **Use API Gateway invoke URL** — no custom domain. |
+| G2 | API path/stage mismatch (frontend expects `/v1/api` and a separate `tickets.` host). | ✅ Resolved | Updated `environment.prod.ts` + `deploy/environments.yaml` to `/prod/api` and `/prod/tickets`. |
+| G3 | No bulk Cognito user-import script. | ⏳ Open | Phase 7: add `create_cognito_users.py` and implement `11_link_user_profiles_to_cognito.py`. |
+| G4 | `cfDomain` placeholder in `environment.prod.ts`. | ✅ Resolved | Set to `https://d2f5kzshaq1nf6.cloudfront.net`. |
+| G5 | SES sandbox limits bulk email. | ⏳ Open | Phase 2b: request production access early (~24 h). Blocks password-reset mail — see G11. |
+| G6 | Hard-coded secrets in `scripts/config.py`. | ✅ Resolved | Reads from `.env`; raises if missing. |
+| G7 | Image source assumed at `D:\pmstmigrate\src\assets\images`. | ✅ Resolved | Confirmed 3,764 images; `SOURCE_IMAGES_DIR` env override added. |
+| G8 | RDS is private in prod. | ⏳ Open | Still `db_publicly_accessible=false`. Needed for the G14/T7 row-count reconciliation. |
+| G9 | WAF/Shield referenced in docs but not in Terraform. | ⏳ Open | Optional post-launch. |
+| G10 | `contributor` role mismatch with frontend `User.role` type. | ⏳ Open | Optional: align type + role checks later. |
+| **G11** | **Login is impossible in prod.** `POST /api/auth/login` is rejected by the Cognito authorizer before Lambda; plus 3 more blockers behind it (auth-flow mismatch, unwired `COGNITO_CLIENT_ID`, no `cognito-idp:*` IAM). | 🔴 **P0 live** | See **T1**. All four must ship together. Review **T10** in the same change. |
+| **G12** | **Public Events API returns 401.** `/tickets/{proxy+}` has no public-GET method; the Angular page swallows the error and renders an empty state that looks static. | 🔴 **P0 live** | See **T2**. Same file as G11 — ship together. |
+| **G13** | **Site assets never reach the build.** `.gitignore:64-65` excludes `src/assets/images/`, so CI's clean checkout has no logo; `deploy.yml` `--delete` also wipes manual S3 uploads. | 🟠 P1 live | See **T4**. |
+| **G14** | **Article body images are stripped at render**, and the migration wrote body image URLs in a shape that 404s on CloudFront. | 🟠 P1 live | See **T3**. |
 
 ## Phase 0 — Prerequisites & Cleanup (one-time)
 
@@ -226,7 +234,12 @@ Do not cut over DNS until:
 
 - [ ] `OPTIONS` preflight returns `200` with allow-listed `Access-Control-Allow-Origin` for both `/api` and `/tickets` paths.
 - [ ] Login and at least one authenticated write operation (e.g., comment, follow, article submission) succeed without CORS errors in the browser.
-- [ ] Home, `/spotlight`, `/news`, `/all-models`, article detail, gallery detail, and `/tickets` (events) load correctly from the CloudFront URL.
+- [ ] Home, `/spotlight`, `/showcase`, `/events`, article detail (`/news/:slug`), gallery detail (`/showcase/:id`) load correctly from the CloudFront URL.
+      **Corrected 2026-09-08:** this list previously named `/news`, `/all-models` and `/tickets`.
+      None of those routes exist in `src/app/app.routes.ts` — there is no `/news` list route
+      (only `/news/:slug`), no `/all-models` at all, and events live at `/events`. Because
+      `app.routes.ts` ends in a `**` → `''` wildcard, all three silently redirected to the
+      homepage, so this gate "passed" on three routes that were never checked.
 - [ ] YouTube playlists load on the home page and videos play without API errors.
 
 ## Phase 8 — DNS Cutover (Route 53 delegation)
@@ -248,9 +261,20 @@ Do not cut over DNS until:
 
 ## Phase 9 — Verify & Decommission
 
-1. Smoke test on `https://pmstusnepal.com`: home, `/spotlight`, `/news`, `/all-models`, article detail, gallery detail, `/tickets` (events), login, submit forms, comments, follow.
+1. Smoke test on `https://pmstusnepal.com` — **real routes only** (see `src/app/app.routes.ts`;
+   the `**` wildcard means a wrong path redirects to home and looks like a pass):
+   `/`, `/spotlight` (**both tabs** — Entertainment *and* Nepal News, see T6), `/showcase`,
+   `/showcase/:id`, `/news/:slug`, `/events`, `/events/:slug`, `/login`, `/register`,
+   `/dashboard`, `/submit/article`, `/submit/gallery`, `/admin`, plus comments and follow.
+   Verify the header logo actually renders (T4) and that article bodies show their inline
+   images (T3).
+   > As of 2026-09-08 this smoke test **fails** at `/login` (T1) and `/events` (T2).
 2. Watch CloudWatch logs (Lambda + API GW) and RDS metrics for 24–48 h.
 3. If public access was toggled for migration, set `db_publicly_accessible = false` and re-apply.
+   > **⚠️ UNVERIFIED as of 2026-09-08.** Data migration ran (content is live), so public access
+   > may have been toggled on and never reverted. Confirm before anything else:
+   > `aws rds describe-db-instances --db-instance-identifier pmst-prod-postgres --no-cli-pager --query 'DBInstances[0].PubliclyAccessible'`
+   > must return `false`.
 4. After ~1 week stable, decommission the Hostinger WordPress site (keep email + registrar).
 
 ## What Setup Happens Where

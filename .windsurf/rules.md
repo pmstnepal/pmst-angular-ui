@@ -136,6 +136,7 @@ Create a new function/method ONLY when:
 | No loading indicators | User thinks app is broken | Add skeleton screens |
 | Synchronous file reads in constructor | Blocks entire app | Async loading with fallback |
 | API calls without timeout | Can hang indefinitely | Always set timeout + error handling |
+| **Error handler that blanks a list** — `error: () => this.items.set([])` | A failed fetch becomes indistinguishable from "no results". Infra faults then masquerade as content gaps. Cost us real time: a gateway 401 on `/tickets/events` rendered as "No events found" and was reported as a static-page bug. | Keep a separate `loadError` signal and render a distinct error state. An empty list must mean *the server said zero*. |
 
 ----
 
@@ -259,6 +260,21 @@ When implementing **new logic not in existing workflow**:
 - **SQL injection prevention** — Use JPA/Hibernate parameter binding only
 - **XSS prevention** — Angular sanitizes by default; never use `innerHTML` with user content
 - **CORS** — Whitelist-specific origins only, never `*`
+- **Every public API Gateway path needs its own explicit method.** In REST API Gateway an
+  explicitly declared method beats `ANY`. A resource carrying only `ANY` +
+  `COGNITO_USER_POOLS` silently swallows *all* non-GET traffic — including the very
+  `POST /auth/login` that issues tokens, which makes login unachievable by construction.
+  When adding a public route, declare its method with `authorization = "NONE"` alongside the
+  `ANY` method, and add it to the deployment `triggers`/`depends_on` or the stage will not
+  redeploy. Spring Security stays the second layer — a public gateway method is not a public
+  endpoint.
+- **Always define `aws_api_gateway_gateway_response` for `DEFAULT_4XX` / `UNAUTHORIZED`**
+  with CORS headers. Without it an authorizer's 401 reaches the browser stripped of
+  `Access-Control-Allow-Origin` and is reported as a CORS error, sending you to debug the
+  wrong layer. Both of these cost a production outage — see T1/T2 in `pmst-deploy-progress.md`.
+- **`innerHTML` with migrated content is still XSS-adjacent** — `bypassSecurityTrustHtml` on
+  WordPress-imported HTML disables Angular's sanitizer. Rewrite/validate such content through
+  a dedicated service rather than trusting it wholesale.
 
 ---
 

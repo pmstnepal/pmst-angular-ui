@@ -3270,9 +3270,40 @@ Protected (writes, /auth/me, /users/**): COGNITO_USER_POOLS</div>
                     </thead>
                     <tbody class="divide-y divide-gray-100">
                         <tr><td class="px-4 py-2 text-gray-500">5</td><td class="px-4 py-2"><code>environment.prod.ts</code> includes <code>ticketingUrl</code></td><td class="px-4 py-2"><span class="bg-green-100 text-green-700 px-2 py-0.5 rounded text-xs font-medium">Done</span></td></tr>
-                        <tr><td class="px-4 py-2 text-gray-500">6</td><td class="px-4 py-2">No CI/CD pipeline for <code>pmst-api-service</code> Lambda</td><td class="px-4 py-2"><span class="bg-amber-100 text-amber-700 px-2 py-0.5 rounded text-xs font-medium">Pending</span></td></tr>
-                        <tr><td class="px-4 py-2 text-gray-500">7</td><td class="px-4 py-2"><code>user_profiles</code> schema drift — new columns not in <code>init.sql</code></td><td class="px-4 py-2"><span class="bg-amber-100 text-amber-700 px-2 py-0.5 rounded text-xs font-medium">Pending</span></td></tr>
-                        <tr><td class="px-4 py-2 text-gray-500">8</td><td class="px-4 py-2"><code>init.sql</code> never runs on prod RDS — no DB migration mechanism</td><td class="px-4 py-2"><span class="bg-amber-100 text-amber-700 px-2 py-0.5 rounded text-xs font-medium">Pending</span></td></tr>
+                        <tr><td class="px-4 py-2 text-gray-500">6</td><td class="px-4 py-2">No CI/CD pipeline for <code>pmst-api-service</code> Lambda</td><td class="px-4 py-2"><span class="bg-green-100 text-green-700 px-2 py-0.5 rounded text-xs font-medium">Resolved</span> <span class="text-xs text-gray-500">— <code>.github/workflows/deploy-api-service.yml</code> exists (verified 2026-09-08)</span></td></tr>
+                        <tr><td class="px-4 py-2 text-gray-500">7</td><td class="px-4 py-2"><code>user_profiles</code> schema drift — new columns not in <code>init.sql</code></td><td class="px-4 py-2"><span class="bg-green-100 text-green-700 px-2 py-0.5 rounded text-xs font-medium">Resolved</span> <span class="text-xs text-gray-500">— superseded by Flyway <code>V1</code>–<code>V7</code></span></td></tr>
+                        <tr><td class="px-4 py-2 text-gray-500">8</td><td class="px-4 py-2"><code>init.sql</code> never runs on prod RDS — no DB migration mechanism</td><td class="px-4 py-2"><span class="bg-green-100 text-green-700 px-2 py-0.5 rounded text-xs font-medium">Resolved</span> <span class="text-xs text-gray-500">— Flyway runs on Lambda start; <code>V1__init</code> → <code>V7__create_site_settings</code> applied in prod</span></td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <h3 class="text-lg font-semibold text-gray-700 mt-8 mb-2">🔴 Live Production Defects (audit 2026-09-08)</h3>
+            <p class="text-sm text-gray-600 mb-4">
+                Found by probing the running site after cutover. Full root causes, file references and fix
+                ordering live in <code>src/doc/pmst-deploy-progress.md</code> → <em>Post-Launch Open Items (TODO)</em>.
+                The two P0 items share one root cause and one file — ship them together.
+            </p>
+            <div class="overflow-x-auto">
+                <table class="min-w-full text-sm border border-gray-200 rounded-lg">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-4 py-2 text-left text-gray-600 font-semibold">ID</th>
+                            <th class="px-4 py-2 text-left text-gray-600 font-semibold">Defect</th>
+                            <th class="px-4 py-2 text-left text-gray-600 font-semibold">Root cause</th>
+                            <th class="px-4 py-2 text-left text-gray-600 font-semibold">Severity</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-100">
+                        <tr><td class="px-4 py-2 font-mono text-gray-500">T1</td><td class="px-4 py-2"><strong>Login impossible for every user</strong></td><td class="px-4 py-2">API GW <code>ANY</code>+Cognito swallows <code>POST /auth/login</code>; plus auth-flow mismatch, unwired <code>COGNITO_CLIENT_ID</code>, missing <code>cognito-idp:*</code> IAM. All four must ship together.</td><td class="px-4 py-2"><span class="bg-red-100 text-red-700 px-2 py-0.5 rounded text-xs font-medium">P0 live</span></td></tr>
+                        <tr><td class="px-4 py-2 font-mono text-gray-500">T2</td><td class="px-4 py-2"><strong>Public Events API returns 401</strong> — page looks static</td><td class="px-4 py-2"><code>/tickets/{proxy+}</code> has no public-GET method; the Angular error handler blanks the list, so the 401 renders as "No events found".</td><td class="px-4 py-2"><span class="bg-red-100 text-red-700 px-2 py-0.5 rounded text-xs font-medium">P0 live</span></td></tr>
+                        <tr><td class="px-4 py-2 font-mono text-gray-500">T3</td><td class="px-4 py-2">Article body galleries not rendering</td><td class="px-4 py-2"><code>news-detail.component.ts:578</code> regex-strips every <code>&lt;img&gt;</code>; migrated body URLs also 404 on CloudFront.</td><td class="px-4 py-2"><span class="bg-amber-100 text-amber-700 px-2 py-0.5 rounded text-xs font-medium">P1</span></td></tr>
+                        <tr><td class="px-4 py-2 font-mono text-gray-500">T4</td><td class="px-4 py-2">Site logo missing in production</td><td class="px-4 py-2"><code>.gitignore</code> excludes <code>src/assets/images/</code>, so CI never builds it; <code>--delete</code> sync wipes manual uploads.</td><td class="px-4 py-2"><span class="bg-amber-100 text-amber-700 px-2 py-0.5 rounded text-xs font-medium">P1</span></td></tr>
+                        <tr><td class="px-4 py-2 font-mono text-gray-500">T5</td><td class="px-4 py-2">Dead footer links: <code>/contact</code>, <code>/privacy</code>, <code>/terms</code></td><td class="px-4 py-2">Routes absent; <code>**</code> wildcard silently redirects to home. Register form links unreadable legal docs.</td><td class="px-4 py-2"><span class="bg-gray-100 text-gray-700 px-2 py-0.5 rounded text-xs font-medium">P2</span></td></tr>
+                        <tr><td class="px-4 py-2 font-mono text-gray-500">T6</td><td class="px-4 py-2">Spotlight "Nepal News" tab empty</td><td class="px-4 py-2">Component sends <code>'nepal news'</code>; data uses <code>nepal-news</code>. <em>Needs live click-through confirmation.</em></td><td class="px-4 py-2"><span class="bg-amber-100 text-amber-700 px-2 py-0.5 rounded text-xs font-medium">P1</span></td></tr>
+                        <tr><td class="px-4 py-2 font-mono text-gray-500">T7</td><td class="px-4 py-2">Content shortfall: 131 live vs ~1,446 documented</td><td class="px-4 py-2">Galleries reconcile 13/13; articles do not. Needs a DB row count — prod RDS is private.</td><td class="px-4 py-2"><span class="bg-amber-100 text-amber-700 px-2 py-0.5 rounded text-xs font-medium">P1</span></td></tr>
+                        <tr><td class="px-4 py-2 font-mono text-gray-500">T8</td><td class="px-4 py-2">YouTube API key is Terraform drift</td><td class="px-4 py-2">Works now, but set via CLI outside Terraform — a future <code>apply</code> can silently revert it.</td><td class="px-4 py-2"><span class="bg-gray-100 text-gray-700 px-2 py-0.5 rounded text-xs font-medium">P2</span></td></tr>
+                        <tr><td class="px-4 py-2 font-mono text-gray-500">T9</td><td class="px-4 py-2">Cold-start 504 on first request</td><td class="px-4 py-2">First <code>/api/articles</code> hit returned 504; warm hits ~0.19 s.</td><td class="px-4 py-2"><span class="bg-gray-100 text-gray-700 px-2 py-0.5 rounded text-xs font-medium">P2</span></td></tr>
+                        <tr><td class="px-4 py-2 font-mono text-gray-500">T10</td><td class="px-4 py-2">Mass-assignment hazard on <code>POST /users</code></td><td class="px-4 py-2">Saves a raw entity from the request body. Currently shielded only by the gateway rule T1 removes — <strong>review before T1 ships</strong>.</td><td class="px-4 py-2"><span class="bg-red-100 text-red-700 px-2 py-0.5 rounded text-xs font-medium">Security</span></td></tr>
                     </tbody>
                 </table>
             </div>
@@ -4042,6 +4073,58 @@ Protected (writes, /auth/me, /users/**): COGNITO_USER_POOLS</div>
                     <p class="text-gray-500 text-sm mt-1">Chronological record of development sessions — fixes applied, decisions made, and environments verified.</p>
                 </div>
                 <a href="../src/doc/aws-setup-guide.md" class="text-indigo-600 hover:text-indigo-800 text-sm font-medium flex items-center gap-1"><i data-lucide="external-link" class="w-4 h-4"></i> aws-setup-guide.md</a>
+            </div>
+
+            <!-- Session: September 8, 2026 -->
+            <div class="bg-white border border-gray-200 rounded-xl shadow-sm mb-6 overflow-hidden">
+                <div class="bg-gradient-to-r from-red-600 to-red-700 text-white px-6 py-4 flex items-center justify-between">
+                    <div>
+                        <h3 class="font-bold text-lg flex items-center gap-2"><i data-lucide="search-check" class="w-5 h-5"></i> September 8, 2026 — Post-Launch Audit</h3>
+                        <p class="text-red-100 text-sm mt-1">Live site vs. documented plan · 2 P0 production faults found · docs re-synced to reality</p>
+                    </div>
+                    <span class="bg-white/20 px-3 py-1 rounded-full text-xs font-semibold">Docs only — no fixes shipped</span>
+                </div>
+                <div class="px-6 py-5 space-y-4 text-sm text-gray-700">
+                    <div class="bg-amber-50 border-l-4 border-amber-400 px-4 py-3 rounded">
+                        <p class="font-semibold text-amber-900 mb-1">Headline: the status docs were wrong about the most basic fact.</p>
+                        <p class="text-amber-800">Every document still described the site as pre-cutover (<em>"still live on Hostinger — NOT cut over yet"</em>, <em>"paused before Phase 4"</em>). In reality apex and <code>www</code> have been serving the Angular app from CloudFront since ~2026-08-17. Phases 4, 8 and 9 had all run without being recorded.</p>
+                    </div>
+
+                    <div>
+                        <p class="font-semibold text-gray-800 mb-2">Two P0 faults, one shared root cause</p>
+                        <p class="mb-2">Both trace to a single API Gateway pattern: a resource carrying only an <code>ANY</code> method with <code>COGNITO_USER_POOLS</code>. In REST API Gateway an explicit method beats <code>ANY</code>, and only <code>GET</code>/<code>OPTIONS</code> were declared explicitly — so every POST fell through to the authorizer.</p>
+                        <ul class="list-disc list-inside space-y-1 ml-2">
+                            <li><strong>T1 — nobody can log in.</strong> <code>POST /api/auth/login</code> requires the very Cognito token it exists to issue. Three further blockers sit behind it: the <code>ADMIN_USER_PASSWORD_AUTH</code> flow was never enabled on the app client, <code>COGNITO_CLIENT_ID</code> is never injected into the Lambda (so the client id is <code>""</code>), and the Lambda role has no <code>cognito-idp:*</code> permissions at all.</li>
+                            <li><strong>T2 — the public Events API returns 401.</strong> Reported as "the ticketing page is static". It is not static: the page is fully wired to the API, but the error handler blanks the list, so a gateway 401 renders as "No events found".</li>
+                        </ul>
+                    </div>
+
+                    <div class="bg-gray-50 border border-gray-200 px-4 py-3 rounded">
+                        <p class="font-semibold text-gray-800 mb-1">Why this went unnoticed</p>
+                        <ul class="list-disc list-inside space-y-1 text-gray-600">
+                            <li>No <code>gateway_response</code> resources exist, so the authorizer's 401 reaches the browser without CORS headers and is reported as a <em>CORS error</em> — sending debugging to the wrong layer.</li>
+                            <li>The Pre-Prod Gate smoke list named three routes that do not exist (<code>/news</code>, <code>/all-models</code>, <code>/tickets</code>). The <code>**</code> wildcard redirects unknown paths to the homepage, so those checks "passed" without testing anything.</li>
+                            <li>Local dev runs embedded Tomcat with no authorizer in front of it, so auth worked locally and only ever failed in prod.</li>
+                        </ul>
+                    </div>
+
+                    <div>
+                        <p class="font-semibold text-gray-800 mb-2">Also found</p>
+                        <ul class="list-disc list-inside space-y-1 ml-2">
+                            <li><strong>T3</strong> — article body images are deleted by a leftover local-dev regex (<code>news-detail.component.ts:578</code>); underneath, migrated body URLs point at a CloudFront path shape that was never uploaded, so they 404 regardless.</li>
+                            <li><strong>T4</strong> — the logo 404s because <code>.gitignore</code> excludes <code>src/assets/images/</code>, so CI's clean checkout never has it to build.</li>
+                            <li><strong>T7</strong> — 131 published articles live against ~1,446 documented source rows. Galleries reconcile exactly (13/13); articles do not.</li>
+                            <li><strong>T10</strong> — <code>POST /users</code> saves a raw entity from the request body, shielded only by the gateway rule that fixing T1 removes. Must be reviewed in the same change.</li>
+                        </ul>
+                    </div>
+
+                    <div class="bg-green-50 border-l-4 border-green-400 px-4 py-3 rounded">
+                        <p class="font-semibold text-green-900 mb-1">Corrected during the audit</p>
+                        <p class="text-green-800">An initial pass reported the YouTube integration as broken. That was a bad probe — <code>/youtube/playlists</code> returns 400 when called without its required <code>ids</code>/<code>titles</code> params. With real params it returns 3 playlists and 22 videos. YouTube works; its only issue is that the API key was set via CLI and now drifts from Terraform (T8).</p>
+                    </div>
+
+                    <p class="text-gray-500 text-xs pt-1">Full queue with file references and fix ordering: <code>src/doc/pmst-deploy-progress.md</code> → <em>Post-Launch Open Items (TODO)</em>. Two durable rules were added to <code>rules.md</code> from this session: public API Gateway paths need explicit method declarations, and error handlers must never blank a list silently.</p>
+                </div>
             </div>
 
             <!-- Session: May 31, 2026 -->
