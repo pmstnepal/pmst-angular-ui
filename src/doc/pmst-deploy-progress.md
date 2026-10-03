@@ -3,9 +3,15 @@
 > Resume file for the straight-to-prod AWS migration. Companion to
 > `.windsurf/workflows/pmst-production-deployment.md` (runbook) and
 > `.windsurf/workflows/pmst-development-workflow.md`.
-> Last updated: **2026-09-08 — post-launch audit.** The site is LIVE on AWS.
-> See `## Post-Launch Open Items (TODO)` at the bottom for the current work queue —
-> **login is broken in production (T1)**, read that before starting anything else.
+> Last updated: **2026-10-03 — login cutover complete.** The site is LIVE on AWS and
+> **login now works in production.**
+>
+> Current state: T1, T2, T4, T10 resolved · T8 closed (was a wrong finding) ·
+> T11 partially resolved (one admin exists; bulk user migration still open) ·
+> T3, T5, T6, T7, T9, T12 open. See `## Post-Launch Open Items (TODO)` below.
+>
+> **Highest priority now: [T9]** — Lambda cold start measured **26.7 s** against API
+> Gateway's **29 s** timeout, so the first visitor after an idle period can get a 504.
 
 ## Environment facts
 - AWS account: `602301275673`, region `us-east-1`, CLI identity: IAM user `pmst-deploy`
@@ -170,19 +176,34 @@ On Windows, `curl` needs `--ssl-no-revoke` or it fails with `CRYPT_E_REVOCATION_
 
 ---
 
-## T1 — P0 · Login is impossible for every user · ⏳ FIX WRITTEN, NOT APPLIED
+## T1 — ✅ RESOLVED 2026-10-03 · Login works in production
 
-> **Status 2026-10-03:** all four blockers fixed in `pmstmigrateinfra` commit `fae267f`
-> on branch `feature/infra-rds-update`. `terraform validate` passes; plan against prod
-> state is **16 to add, 7 to change, 1 to destroy**. The destroy is
-> `aws_api_gateway_deployment.main` replaced via `create_before_destroy` to publish the
-> new method set — the REST API id (`q9zxosk8f9`) and invoke URL do not change.
-> The Cognito client updates **in place**, so client id `7vs3hhs2v743l34d1j8jhqbnqk`
-> is preserved and the frontend is unaffected.
+> **Applied and verified.** `pmstmigrateinfra` `fae267f`, applied to prod 2026-10-03:
+> **16 added, 7 changed, 1 destroyed** — exactly as planned. The destroy was
+> `aws_api_gateway_deployment.main` replaced via `create_before_destroy`; deployment
+> `lbqqag` → `7gokfp`. REST API id `q9zxosk8f9` and the invoke URL are unchanged, and the
+> Cognito client updated **in place** so `7vs3hhs2v743l34d1j8jhqbnqk` is preserved.
 >
-> **Not yet applied.** Run the apply + user-creation steps in
-> `.windsurf/workflows/pmst-production-deployment.md` → *Phase 10 — Login Cutover*.
-> **T1 alone does not restore login — see [T11], the pool has zero users.**
+> **End-to-end proof:** `POST /prod/api/auth/login` returns **200** with id/access/refresh
+> tokens (`expiresIn: 3600`) and the user object
+> `{id: 701682d0-…, username: pmstnepal, role: "admin", status: "active"}`.
+> Browser login on `https://pmstusnepal.com/login` → redirects to `/dashboard`, token
+> stored, `/admin` reachable, **zero console errors**.
+>
+> ### Two things worth remembering
+>
+> **Propagation lag is real.** Immediately after the apply, both endpoints still returned
+> the gateway `{"message":"Unauthorized"}` even though `get-method` confirmed
+> `authorizationType: NONE` and the stage was already on the new deployment with caching
+> off. It cleared on its own about a minute later. **Do not conclude the apply failed from
+> a test run seconds after it completes** — verify the method config, then retry.
+>
+> **The error message is the diagnostic.** Once the gateway opened, the pre-user response
+> was `{"error":"LOGIN_FAILED","message":"User does not exist. (Service:
+> CognitoIdentityProvider…)"}`. A *Spring-generated* body proves all four blockers cleared
+> at once: the gateway allowed the POST, the client id resolved (no empty-client error),
+> the admin auth flow was enabled (no `InvalidParameterException`), and IAM worked (no
+> `AccessDeniedException`).
 
 `POST /api/auth/login` never reaches the Lambda. **Four independent blockers sit in series;
 fixing any one alone leaves login broken.**
@@ -230,12 +251,21 @@ returns a Spring-generated 400/401 with a JSON body — **not** `{"message":"Una
 
 ---
 
-## T2 — P0 · Public Events API blocked; the page only *looks* static · ⏳ FIX WRITTEN, NOT APPLIED
+## T2 — ✅ RESOLVED 2026-10-03 · Public Events API returns 200
 
-> **Status 2026-10-03:** fixed in the same commit as T1 (`fae267f`) — `tickets_proxy_get`
-> adds a public `GET` mirroring `api_proxy_get`, and it is registered in the deployment
-> triggers. Ships with the T1 apply. Note the catalog stays empty until at least one event
-> is **PUBLISHED** via `/admin/events`, since `listPublished()` returns only `PUBLISHED`.
+> **Applied and verified.** `GET /prod/tickets/events` now returns
+> **200** `{"content":[],"page":0,"size":20,"totalElements":0,"totalPages":0}` — no auth
+> required. Shipped with the T1 apply (`tickets_proxy_get`).
+>
+> **The empty list is correct, not a regression.** `listPublished()` returns only
+> `PUBLISHED` events and none exist yet. Publish one via `/admin/events` to see content.
+>
+> First call after the apply returned a **504** — ticketing Lambda cold start, same class
+> as [T9]. It succeeded on the next attempt.
+>
+> **Still worth fixing:** `events-list.component.ts:158-161` swallows errors into an empty
+> list, which is what disguised this as a static page for weeks. See the rule added to
+> `.windsurf/rules.md`.
 
 **Correction to an earlier read of this:** the Events page is **not** a static mock. It is
 fully wired to the API — `events-list.component.ts:136,153` injects `TicketingService` and
@@ -325,7 +355,7 @@ the stored URLs are to be corrected at source instead.
 
 ---
 
-## T4 — P1 · Logo missing on live · 🟡 FIXED ON LIVE, BUT NOT DURABLE
+## T4 — ✅ RESOLVED 2026-10-03 · logo renders and is now durable
 
 > **Status 2026-10-03.** The logo now renders. `src/assets/images/logo/pmst-logo.png`
 > (51,356 bytes, 3300×1510, indexed PNG **with a `tRNS` chunk** — real transparency, which
@@ -470,7 +500,13 @@ blame. Reconcile the value into `secrets.auto.tfvars` / the lambda module.
 
 ---
 
-## T9 — P2 · Cold-start 504
+## T9 — 🔴 UPGRADED TO P1 · Cold start is 26.7s against a 29s timeout
+
+> **Measured 2026-10-03, and it is worse than first thought.** After the Lambda redeploy the
+> first `/api/articles` call took **26.7 s** — API Gateway's integration timeout is **29 s**,
+> so cold start is landing within ~2 s of a hard failure. That is why this surfaces as a 504
+> rather than merely a slow page. The ticketing Lambda did return a 504 on its first call
+> after the apply. Any jar growth pushes this over the edge. Treat as P1, not P2.
 
 The first `/api/articles` request of the audit returned **504**; the next three returned 200
 in ~0.19 s. The first visitor after an idle period gets an error page. Needs provisioned
@@ -478,7 +514,24 @@ concurrency, a scheduled warmer, or an accepted-risk note.
 
 ---
 
-## T11 — P0 · The live Cognito pool is EMPTY — nobody exists to log in as
+## T11 — 🟡 PARTIALLY RESOLVED 2026-10-03 · one admin created; bulk migration still open
+
+> **Admin created and working.** Cognito user `pmstnepal@gmail.com`
+> (sub `5418c4a8-9091-704d-40d4-9e2ea32cf984`), status **CONFIRMED**, permanent password
+> set via `admin-set-user-password`. Credentials live in the gitignored
+> `pmstmigrateinfra/deploy/admin-user.local.yml`.
+>
+> **The email-matching theory held.** Login returned the **existing** DB row
+> (`id: 701682d0-76c0-5d85-ba88-116c8ab038d7`, `username: pmstnepal`) with
+> **`role: "admin"` preserved** — `syncFromCognito` matched on email and did not create a
+> second user. `cognitoId` is still `null`, exactly the wart predicted below.
+>
+> ### Still open
+> **Only this one user can log in.** The pool has exactly one member; every other migrated
+> user still has no Cognito identity. Bulk migration remains **G3**, and password reset is
+> still unimplemented, so there is no self-service path for them.
+
+<details><summary>Original finding (the analysis that produced the fix)</summary>
 
 Discovered 2026-10-03 while verifying T1. **Fixing T1 alone will not restore login.**
 
@@ -526,12 +579,37 @@ Steps: `.windsurf/workflows/pmst-production-deployment.md` → *Phase 10 — Log
 **Still open after that:** bulk user migration (G3). Phase 10 creates exactly **one** user.
 Every other migrated user remains unable to log in until G3 and password reset are built.
 
+</details>
+
 ---
 
-## T10 — Security · ✅ FIXED IN CODE — must be DEPLOYED before the T1 apply
+## T12 — P1 · Admin dashboard displays fabricated data
 
-> **Reviewed and fixed 2026-10-03.** `pmst-api-service` commit `3308462`, branch
-> `fix/remove-unsafe-user-create`. `mvn compile` → BUILD SUCCESS.
+Found 2026-10-03 on the first real admin login. `/admin` renders hardcoded placeholders, not
+live data — `admin-dashboard.component.ts:194` and `:202-204`:
+
+| Shown | Reality |
+|---|---|
+| Total Users **1234** (+12 new today) | ~18 migrated users; **1** Cognito identity |
+| Published **45** this month | 131 published articles total |
+| Pending Review 8 · Flagged Comments 3 | not derived from anything |
+| Submissions by "John Doe", "Jane Smith", "Mike Johnson" | fictional names |
+
+Harmless while nobody could log in; now it is the **first screen an administrator sees**,
+and every number on it is false. Either wire the tiles to real endpoints or remove them —
+showing invented moderation queues invites someone to act on data that does not exist.
+
+**Route to:** `pmst-frontend`.
+
+---
+
+## T10 — ✅ RESOLVED 2026-10-03 · deployed to prod before the gateway opened
+
+> **Fixed and deployed.** `pmst-api-service` `3308462` (branch
+> `fix/remove-unsafe-user-create`), `mvn package` → BUILD SUCCESS, jar deployed to
+> `pmst-prod-pmst-api-service` **before** the Terraform apply, so the escalation window
+> never opened. Post-deploy smoke: `/articles`, `/galleries`, `/settings` all 200, still
+> 131 articles.
 >
 > **The risk was real, and worse than first described.** `POST /users` bound the raw `User`
 > entity and called `userRepository.save(user)`. Spring Data `save()` **merges** when an id is

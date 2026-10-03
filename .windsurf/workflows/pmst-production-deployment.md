@@ -51,7 +51,7 @@ Deploy the full PMST stack (Angular frontend, `pmst-api-service`, and `pmst-tick
 
 ## Gaps to Resolve (G1–G15)
 
-> Status reviewed 2026-09-08 (post-launch audit). G11–G14 were found on the **live** site
+> Status reviewed **2026-10-03** (login cutover). G11–G14 were found on the **live** site
 > after cutover — full detail, root causes and file references live in
 > `src/doc/pmst-deploy-progress.md` → `Post-Launch Open Items (TODO)`.
 
@@ -67,11 +67,11 @@ Deploy the full PMST stack (Angular frontend, `pmst-api-service`, and `pmst-tick
 | G8 | RDS is private in prod. | ⏳ Open | Still `db_publicly_accessible=false`. Needed for the G14/T7 row-count reconciliation. |
 | G9 | WAF/Shield referenced in docs but not in Terraform. | ⏳ Open | Optional post-launch. |
 | G10 | `contributor` role mismatch with frontend `User.role` type. | ⏳ Open | Optional: align type + role checks later. |
-| **G11** | **Login is impossible in prod.** `POST /api/auth/login` is rejected by the Cognito authorizer before Lambda; plus 3 more blockers behind it (auth-flow mismatch, unwired `COGNITO_CLIENT_ID`, no `cognito-idp:*` IAM). | ⏳ **Fix written, not applied** | Terraform committed in `fae267f`. Run **Phase 10**. Review **T10** in the same change. |
-| **G12** | **Public Events API returns 401.** `/tickets/{proxy+}` has no public-GET method; the Angular page swallows the error and renders an empty state that looks static. | ⏳ **Fix written, not applied** | Same commit as G11 — ships with the Phase 10 apply. See **T2**. |
-| **G13** | **Site assets never reach the build.** `.gitignore:64-65` excludes `src/assets/images/`, so CI's clean checkout has no logo; `deploy.yml` `--delete` also wipes manual S3 uploads. | 🟡 Patched on live, **not durable** | Logo manually uploaded to S3 and rendering. **Next deploy deletes it** — un-ignore the logo and commit it. See **T4**. |
+| **G11** | **Login is impossible in prod.** `POST /api/auth/login` is rejected by the Cognito authorizer before Lambda; plus 3 more blockers behind it (auth-flow mismatch, unwired `COGNITO_CLIENT_ID`, no `cognito-idp:*` IAM). | ✅ **RESOLVED 2026-10-03** | Applied (16 add / 7 change / 1 destroy). Login verified end-to-end, `role: admin` preserved. See **T1**. |
+| **G12** | **Public Events API returns 401.** `/tickets/{proxy+}` has no public-GET method; the Angular page swallows the error and renders an empty state that looks static. | ✅ **RESOLVED 2026-10-03** | `GET /prod/tickets/events` returns 200. Empty until an event is PUBLISHED. See **T2**. |
+| **G13** | **Site assets never reach the build.** `.gitignore:64-65` excludes `src/assets/images/`, so CI's clean checkout has no logo; `deploy.yml` `--delete` also wipes manual S3 uploads. | ✅ **RESOLVED 2026-10-03** | Logo committed to the repo (`ee7ac51`); the ignore rule now excludes directory *contents* so the negation works. CI will build it. See **T4**. |
 | **G14** | **Article body images are stripped at render**, and the migration wrote body image URLs in a shape that 404s on CloudFront. | 🟡 Narrowed, deferred | Standalone galleries, featured images and the lightbox are fixed. Only in-body galleries remain. See **T3**. |
-| **G15** | **The live Cognito pool has ZERO users**, and every migrated user has `cognitoId: null`. Fixing G11 alone still leaves nobody able to log in. WordPress passwords cannot be imported. | 🔴 **P0 live** | See **T11**. Phase 10 Step 3 creates one admin. Bulk migration remains **G3**. |
+| **G15** | **The live Cognito pool has ZERO users**, and every migrated user has `cognitoId: null`. Fixing G11 alone still leaves nobody able to log in. WordPress passwords cannot be imported. | 🟡 **Partially resolved** | One admin (`pmstnepal@gmail.com`) created and logging in. Every other migrated user still has no Cognito identity — bulk migration remains **G3**. See **T11**. |
 
 ## Phase 0 — Prerequisites & Cleanup (one-time)
 
@@ -278,11 +278,20 @@ Do not cut over DNS until:
    > must return `false`.
 4. After ~1 week stable, decommission the Hostinger WordPress site (keep email + registrar).
 
-## Phase 10 — Login Cutover (T1 + T11) — **NOT YET RUN**
+## Phase 10 — Login Cutover (T1 + T11) — ✅ COMPLETED 2026-10-03
 
-> Login is impossible on prod today. Two independent problems; **both** must be fixed or
-> nothing changes. Terraform for step 2 is written and committed
-> (`pmstmigrateinfra` `fae267f`, branch `feature/infra-rds-update`) but **not applied**.
+> **Executed 2026-10-03. Login works in production.** Apply was 16 added / 7 changed /
+> 1 destroyed, exactly as planned. Admin `pmstnepal@gmail.com` logs in and reaches `/admin`
+> with `role: "admin"` preserved on the existing migrated row.
+>
+> Kept as the reference procedure — re-run Steps 3-4 to add further admins.
+> **Two gotchas worth knowing before you repeat this:**
+> 1. **Propagation lag.** Right after the apply both endpoints still returned the gateway
+>    401 even though the method config and stage were already correct. It cleared in about
+>    a minute. Verify config, then retry — do not assume the apply failed.
+> 2. **Cold start.** The first call to each Lambda after a redeploy can 504 (26.7 s measured
+>    against a 29 s timeout). Retry before investigating.
+>
 > Full root causes: `src/doc/pmst-deploy-progress.md` → T1, T11.
 
 ### Step 1 — Pre-flight
