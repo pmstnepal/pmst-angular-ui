@@ -415,6 +415,87 @@ Expect JSON with `idToken` / `accessToken` and a user object showing **`"role":"
 
 ---
 
+## Reusable: Production DB maintenance via SSM (no public exposure)
+
+> **Use this for ANY task needing direct prod database access** — data repairs, row-count
+> reconciliation, one-off queries. First used 2026-10-03 for the T13 gallery restore.
+>
+> **Do NOT try `db_publicly_accessible = true`.** It cannot work: the DB subnets
+> (`10.2.10.0/24`, `10.2.11.0/24`) have only a `local` route and no internet gateway, so AWS
+> assigns a public IP that nothing can reach. Tried and reverted 2026-10-03.
+
+The infrastructure is already written and **off by default** —
+`pmstmigrateinfra/modules/maintenance-host/`, gated by `enable_maintenance_host`.
+It creates a `t4g.nano` in a private subnet with **no public IP, no inbound security group
+rules, and no SSH key**. Access is outbound-only via SSM Session Manager. Its IAM role has
+`AmazonSSMManagedInstanceCore` and nothing else — deliberately **no** Secrets Manager access,
+so the host never holds credentials. The temporary RDS ingress rule lives in the same module
+and disappears with it.
+
+Prerequisite: `session-manager-plugin` installed locally (`session-manager-plugin --version`).
+
+### 1. Create
+```bash
+cd /d/pmstmigrateinfra
+terraform apply -var-file="deploy/prod.tfvars" -var="enable_maintenance_host=true"
+```
+Expect **6 to add, 0 to change, 0 to destroy**. Note `maintenance_host_id` in the outputs.
+
+### 2. Wait for SSM registration (~10-30 s)
+```bash
+aws ssm describe-instance-information --no-cli-pager \
+  --filters "Key=InstanceIds,Values=<instance-id>" \
+  --query 'InstanceInformationList[0].PingStatus'
+```
+Wait for `Online`. The instance can be `running` well before the agent registers.
+
+### 3. Open the tunnel (background it — it blocks)
+The exact command is printed as the `maintenance_port_forward_command` output:
+```bash
+aws ssm start-session --target <instance-id> \
+  --document-name AWS-StartPortForwardingSessionToRemoteHost \
+  --parameters '{"host":["pmst-prod-postgres.c2rwsbwwhr5u.us-east-1.rds.amazonaws.com"],"portNumber":["5432"],"localPortNumber":["5433"]}'
+```
+Wait for `Waiting for connections...`, then confirm `127.0.0.1:5433` is LISTENING.
+
+### 4. Connect and work
+Credentials come from Secrets Manager (the ARN is on the Lambda as `DB_SECRET_ARN`):
+```bash
+ARN=$(aws lambda get-function-configuration --function-name pmst-prod-pmst-api-service \
+      --no-cli-pager --query 'Environment.Variables.DB_SECRET_ARN' --output text)
+aws secretsmanager get-secret-value --secret-id "$ARN" --no-cli-pager --query SecretString --output text > dbsec.json
+```
+Then connect to **`127.0.0.1:5433`** with `sslmode=require` (psycopg2 is already available).
+**Delete `dbsec.json` when finished.**
+
+Schema notes learned the hard way:
+- `articles.gallery_images` is **`jsonb`**, not text. `LIKE` fails on it — cast with
+  `gallery_images::text LIKE '%media/%'`, and write with `%s::jsonb`.
+- Take a BEFORE count, do the work in a transaction, verify inside the transaction, then
+  commit.
+
+### 5. Destroy — do not skip
+```bash
+terraform apply -var-file="deploy/prod.tfvars"     # flag defaults back to false
+```
+Then verify all five:
+```bash
+aws ec2 describe-instances --filters "Name=instance-state-name,Values=running,pending,stopped" \
+  --query 'length(Reservations[].Instances[])' --no-cli-pager          # 0
+aws ec2 describe-security-groups --group-ids sg-0523a130bdaf1e4d7 \
+  --query 'length(SecurityGroups[0].IpPermissions[].IpRanges[])' --no-cli-pager   # 0
+aws rds describe-db-instances --db-instance-identifier pmst-prod-postgres \
+  --query 'DBInstances[0].PubliclyAccessible' --no-cli-pager            # false
+netstat -ano | grep ":5433"                                            # nothing
+rm -f dbsec.json
+```
+The local `aws ssm start-session` process survives the instance being destroyed — kill it
+explicitly or port 5433 stays bound to a dead tunnel.
+
+Cost: ~$0.004/hour. A full create → work → destroy cycle is a fraction of a cent.
+
+---
+
 ## What Setup Happens Where
 
 - **Hostinger:** only the registrar nameserver change (dns-parking → 4 Route 53 NS records); leave the domain registration in place; later stop the WP site.

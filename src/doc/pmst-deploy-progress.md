@@ -6,18 +6,15 @@
 > Last updated: **2026-10-03 — login cutover complete.** The site is LIVE on AWS and
 > **login now works in production.**
 >
-> Current state: **T1, T2, T4, T10 resolved** · **T6 and T8 closed as wrong findings** ·
-> T11 partially resolved (one admin exists; bulk user migration still open) ·
-> **open: T3, T5, T7, T9, T12, T13.**
+> Current state: **resolved — T1, T2, T4, T10, T13** · **closed as wrong findings — T6, T7, T8** ·
+> T11 partially resolved (one admin; bulk user migration still open) ·
+> **open: T3, T5, T9, T12.**
 >
-> **Highest priority: [T9]** — root cause now identified. SnapStart is configured but
-> **inert**, because API Gateway invokes the unqualified ARN (`$LATEST`) and SnapStart only
-> applies to published versions. Cold start is **26.7 s** against a **29 s** gateway timeout.
-> Fixing it is an alias + qualified-ARN change, not a mystery.
+> **Highest priority: [T9]** — SnapStart is configured but **inert** (API Gateway invokes the
+> unqualified ARN, so `$LATEST` never gets a snapshot). Cold start **26.7 s** against a
+> **29 s** gateway timeout. Fix is an alias + qualified ARN.
 >
-> Nothing currently open is a user-facing outage. T13 (95% of gallery references lost) is the
-> largest content gap and is **fully recoverable** — the SQL is written and the images are
-> verified intact in S3; it only needs DB access.
+> Nothing open is a user-facing outage.
 
 ## Environment facts
 - AWS account: `602301275673`, region `us-east-1`, CLI identity: IAM user `pmst-deploy`
@@ -484,7 +481,30 @@ category matching in the API to tolerate spaces/hyphens/case (fixes the whole cl
 
 ---
 
-## T7 — P1 · Content shortfall: 131 live vs ~1,446 documented
+## T7 — ✅ CLOSED — NOT a shortfall. This finding was wrong.
+
+> **Settled 2026-10-03 by querying the production database directly:**
+>
+> ```
+> draft      1311
+> published   131
+> pending       4
+>           ─────
+>           1446   ← exactly the documented source count
+> ```
+>
+> **Nothing was lost.** All ~1,446 articles migrated. The public API returns only
+> `published` rows, which is why every external probe showed 131 — I treated an API page
+> count as a table count and inferred a 91% data loss that never happened.
+>
+> **The real open question is editorial, not technical:** 1,311 articles sit in `draft`.
+> WordPress `private` posts were mapped to `draft` by `04_migrate_articles.py`, so some
+> portion of those may be intentionally unpublished and some may want publishing. That is a
+> content decision for the site owner, not a migration defect.
+
+<details><summary>Original (incorrect) finding</summary>
+
+### ~~T7 — Content shortfall: 131 live vs ~1,446 documented~~
 
 `/api/articles` reports `totalElements: 131`, all `published`. `pmst-migration/README.md`
 documents the source as **~1,446 `wp_posts`** (publish+private+pending), and
@@ -502,6 +522,8 @@ Category spread live: `entertainment` 120, `nepal-news` 8, `housing-rental` 2, `
 2026-09-08 decision that Spotlight carries Entertainment and Nepal News only.
 
 **Also unverified** (endpoints require auth): `comments` (379 documented) and `follows`.
+
+</details>
 
 ---
 
@@ -638,7 +660,28 @@ Every other migrated user remains unable to log in until G3 and password reset a
 
 ---
 
-## T13 — P1 · Prod lost 95% of article gallery images — fully recoverable, DB-only
+## T13 — ✅ RESOLVED 2026-10-03 · 105 gallery images restored
+
+> **Done and verified on live.** 27 articles updated, 105 image references restored, 0
+> skipped. Live API now returns **27 articles with galleries / 105 images** (was 5 / 5).
+> Browser check on the sampled article: all **6** gallery thumbnails render via
+> `d2f5kzshaq1nf6.cloudfront.net/media/2024/01/gallery_*/card.webp`.
+>
+> **How:** ephemeral SSM maintenance host inside the VPC — created, used, destroyed in one
+> session. Reusable procedure written up in
+> `.windsurf/workflows/pmst-production-deployment.md` → *Reusable: Production DB maintenance
+> via SSM*. Infrastructure is `pmstmigrateinfra/modules/maintenance-host/`, off by default.
+>
+> Teardown verified: 0 EC2 instances, RDS SG back to Lambda-source-only, 0 open CIDRs,
+> `PubliclyAccessible=false`, local tunnel killed, credentials file deleted.
+>
+> **Schema gotcha for next time:** `articles.gallery_images` is **`jsonb`**, not text —
+> `LIKE` errors with `operator does not exist: jsonb ~~ unknown`. Cast with
+> `gallery_images::text` to read and `%s::jsonb` to write.
+
+<details><summary>Original finding and analysis</summary>
+
+### T13 — Prod lost 95% of article gallery images
 
 Found 2026-10-03 by comparing the local migration DB against prod. Local renders six gallery
 images on an article where prod renders none.
@@ -730,6 +773,8 @@ Requires: a t4g.nano in a private subnet, an instance profile with
 `AmazonSSMManagedInstanceCore`, and its SG added to the RDS SG's ingress. Terminate when
 done. This also unblocks **T7** (the 131 vs ~1,446 article reconciliation), which needs the
 same access — worth doing once and using for both.
+
+</details>
 
 ---
 
