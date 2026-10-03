@@ -5,6 +5,7 @@ import { AuthService } from '../../core/services/auth.service';
 import { ArticleService } from '../../core/services/article.service';
 import { GalleryService } from '../../core/services/gallery.service';
 import { SettingsService } from '../../core/services/settings.service';
+import { ImageUrlMapperService } from '../../services/image-url-mapper.service';
 
 @Component({
   selector: 'pmst-dashboard',
@@ -145,8 +146,9 @@ import { SettingsService } from '../../core/services/settings.service';
                 <div class="flex items-center gap-4 p-4 hover:bg-gray-50 transition-colors">
                   <!-- Thumbnail -->
                   <div class="flex-shrink-0 w-14 h-14 rounded-lg overflow-hidden bg-gray-100">
-                    @if (item.featuredImage) {
-                      <img [src]="item.featuredImage" [alt]="item.title"
+                    @if (item.featuredImage || item.imageKey) {
+                      <img [src]="imageMapper.mapUrl(item.featuredImage, item.imageKey, 'thumb')"
+                           [alt]="item.title"
                            class="w-full h-full object-cover">
                     } @else {
                       <div class="w-full h-full flex items-center justify-center text-gray-400">
@@ -392,6 +394,8 @@ export class DashboardComponent implements OnInit {
   private articleService = inject(ArticleService);
   private galleryService = inject(GalleryService);
   private settingsService = inject(SettingsService);
+  // Public: the template maps legacy WordPress URLs to CloudFront tiers through this.
+  public imageMapper = inject(ImageUrlMapperService);
 
   readonly isAdmin = computed(() => this.authService.isAdmin());
   readonly eventsEnabled = computed(() => this.settingsService.eventsEnabled$());
@@ -548,6 +552,7 @@ export class DashboardComponent implements OnInit {
           status: a.status || 'published',
           date: a.createdAt || a.publishedAt || new Date().toISOString(),
           featuredImage: a.featuredImage,
+          imageKey: a.imageKey,
           authorName: a.authorName
         }));
         this.allItems.update(current => [...current, ...mapped]);
@@ -572,6 +577,7 @@ export class DashboardComponent implements OnInit {
           status: g.status || 'pending',
           date: g.createdAt || new Date().toISOString(),
           featuredImage: g.featuredImage,
+          imageKey: g.imageKey,
           authorName: g.authorName
         }));
         this.allItems.update(current => [...current, ...mapped]);
@@ -591,5 +597,12 @@ interface ContentItem {
   status: string;
   date: string;
   featuredImage?: string;
+  /**
+   * S3 object key (`media/YYYY/MM/<name>`). Preferred over featuredImage:
+   * migrated rows still carry legacy pmstusnepal.com/wp-content URLs, which
+   * since the DNS cutover resolve to the Angular index.html (200 text/html)
+   * rather than an image, so binding featuredImage directly renders broken.
+   */
+  imageKey?: string;
   authorName?: string;
 }
