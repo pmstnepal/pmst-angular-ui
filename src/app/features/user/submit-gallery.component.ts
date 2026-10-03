@@ -11,6 +11,16 @@ interface GalleryImageUpload {
   id: string;
   file: File;
   preview: string;
+  /**
+   * S3 object key for an image already stored (`media/YYYY/MM/<name>`).
+   * Required for display: `preview` holds `gallery_images.image_url`, which on
+   * migrated rows is a legacy WordPress *permalink* (e.g.
+   * `https://pmstusnepal.com/img_8643/`) — not a wp-content path, so the URL
+   * mapper cannot derive a tier from it and it resolves to index.html.
+   * The public showcase page renders correctly precisely because it passes
+   * this key alongside the URL.
+   */
+  imageKey?: string;
   caption: string;
 }
 
@@ -80,13 +90,13 @@ interface GalleryImageUpload {
         <div class="hero-left">
           <div class="hero-panel-label">Featured Image <span class="required-star">*</span></div>
           <div class="hero-image-zone"
-               [class.hero-image-zone--error]="submitAttempted() && !featuredImagePreview()"
-               [class.hero-image-zone--filled]="!!featuredImagePreview()"
+               [class.hero-image-zone--error]="submitAttempted() && !featuredImagePreview() && !featuredExistingKey()"
+               [class.hero-image-zone--filled]="!!featuredImagePreview() || !!featuredExistingKey()"
                (click)="featuredImgInput.click()">
-            @if (featuredImagePreview()) {
-              <div class="pmst-featured-blur" [style.background-image]="'url(' + previewSrc(featuredImagePreview(), 'card') + ')'"></div>
+            @if (featuredImagePreview() || featuredExistingKey()) {
+              <div class="pmst-featured-blur" [style.background-image]="'url(' + previewSrc(featuredImagePreview(), 'card', featuredExistingKey()) + ')'"></div>
               <div class="pmst-featured-center">
-                <img [src]="previewSrc(featuredImagePreview(), 'hero')" alt="Featured image preview">
+                <img [src]="previewSrc(featuredImagePreview(), 'hero', featuredExistingKey())" alt="Featured image preview">
               </div>
               <button type="button" class="hero-swap-btn" (click)="$event.stopPropagation(); featuredImgInput.click()">✏️ Swap</button>
               <button type="button" class="hero-clear-btn" (click)="$event.stopPropagation(); clearFeaturedImage()">✕</button>
@@ -99,7 +109,7 @@ interface GalleryImageUpload {
                 <p class="upload-prompt-sub">JPG, PNG, WebP — max 5 MB</p>
               </div>
             }
-            @if (submitAttempted() && !featuredImagePreview()) {
+            @if (submitAttempted() && !featuredImagePreview() && !featuredExistingKey()) {
               <div class="hero-error-badge">⚠ Required</div>
             }
           </div>
@@ -194,7 +204,7 @@ interface GalleryImageUpload {
           <div class="gallery-images-grid">
             @for (image of galleryImages(); track image.id; let i = $index) {
               <div class="gallery-image-item">
-                <img [src]="previewSrc(image.preview, 'card')" alt="Gallery image {{ i + 1 }}">
+                <img [src]="previewSrc(image.preview, 'card', image.imageKey)" alt="Gallery image {{ i + 1 }}">
                 <button type="button" class="gallery-image-remove" (click)="removeGalleryImage(i)">✕</button>
                 <input 
                   type="text" 
@@ -357,10 +367,15 @@ export class SubmitGalleryComponent implements OnInit {
    * Passes `data:`/`blob:` through; maps `media/` keys and legacy wp-content
    * URLs, neither of which resolve to an image on their own after the cutover.
    */
-  previewSrc(value: string | null | undefined, tier: 'thumb' | 'card' | 'hero' | 'master' = 'card'): string {
-    if (!value) return '';
-    if (value.startsWith('data:') || value.startsWith('blob:')) return value;
-    return this.imageMapper.mapUrl(value, undefined, tier);
+  previewSrc(
+    value: string | null | undefined,
+    tier: 'thumb' | 'card' | 'hero' | 'master' = 'card',
+    imageKey?: string | null
+  ): string {
+    if (!value && !imageKey) return '';
+    // A just-picked local file always wins over a key from the loaded record.
+    if (value && (value.startsWith('data:') || value.startsWith('blob:'))) return value;
+    return this.imageMapper.mapUrl(value, imageKey || undefined, tier);
   }
 
   editId = signal<string | null>(null);
@@ -378,6 +393,15 @@ export class SubmitGalleryComponent implements OnInit {
 
   featuredImageFile: File | null = null;
   featuredImagePreview = signal<string>('');
+
+  /**
+   * imageKey of the already-stored featured image, for DISPLAY ONLY.
+   * Migrated galleries carry featuredImage = null with the real reference in
+   * imageKey, so without this the hero renders empty on an existing gallery.
+   * Held separately because the save payload persists featuredImagePreview
+   * verbatim — folding the key into that signal would rewrite stored data.
+   */
+  featuredExistingKey = signal<string>('');
   galleryImages = signal<GalleryImageUpload[]>([]);
 
   isSubmitting = signal(false);
@@ -414,11 +438,16 @@ export class SubmitGalleryComponent implements OnInit {
           this.formData.seoFocusKeyword = gallery.seoFocusKeyword || '';
           this.formData.seoDescription = gallery.seoDescription || '';
           if (gallery.featuredImage) this.featuredImagePreview.set(gallery.featuredImage);
+          // Migrated galleries often have featuredImage = null and carry the real
+          // reference in imageKey. Kept in a separate signal so the save payload
+          // (which persists featuredImagePreview verbatim) is not altered.
+          this.featuredExistingKey.set(gallery.imageKey || '');
           if (gallery.images && gallery.images.length > 0) {
             const imgs: GalleryImageUpload[] = gallery.images.map(img => ({
               id: img.id,
               file: null as any,
               preview: img.imageUrl,
+              imageKey: img.imageKey,
               caption: img.caption || ''
             }));
             this.galleryImages.set(imgs);
@@ -464,6 +493,8 @@ export class SubmitGalleryComponent implements OnInit {
   clearFeaturedImage(): void {
     this.featuredImageFile = null;
     this.featuredImagePreview.set('');
+    // Also drop the stored key, or ✕ leaves the existing image on screen.
+    this.featuredExistingKey.set('');
   }
 
   onDragOver(event: DragEvent): void {
@@ -542,7 +573,10 @@ export class SubmitGalleryComponent implements OnInit {
     this.errorMessage.set('');
 
     // Validation
-    if (!this.featuredImagePreview()) {
+    // An existing gallery already has a featured image (referenced by imageKey
+    // rather than featuredImage), so requiring a *new* upload would block
+    // editing any migrated gallery.
+    if (!this.featuredImagePreview() && !this.featuredExistingKey()) {
       this.errorMessage.set('Featured image is required.');
       return;
     }
