@@ -76,4 +76,29 @@ export class UserService {
   updateRole(id: string, role: 'admin' | 'moderator' | 'user'): Observable<{ message: string; role: string }> {
     return this.http.patch<{ message: string; role: string }>(`${this.apiUrl}/${id}/role`, { role });
   }
+
+  /**
+   * Matches `UserController.updateStatus` (PATCH /users/{id}/status, admin-only).
+   *
+   * Reversible, and the preferred way to remove someone's access: the row
+   * survives so their articles keep showing an author name. Enforcement is at
+   * login — `UserSyncService.activeOnly()` refuses a non-active account, which
+   * matters because the Cognito identity still exists and would otherwise
+   * authenticate fine.
+   */
+  updateStatus(id: string, status: 'active' | 'deactivated'): Observable<{ message: string; status: string }> {
+    return this.http.patch<{ message: string; status: string }>(`${this.apiUrl}/${id}/status`, { status });
+  }
+
+  /**
+   * Matches `UserController.deleteUser` (DELETE /users/{id}, admin-only).
+   *
+   * Permanent. Content is NOT destroyed — articles, galleries and comments are
+   * ON DELETE SET NULL, so they survive but lose their author reference;
+   * profile and follows cascade away with the user. The backend refuses to
+   * delete the caller or the last remaining admin.
+   */
+  deleteUser(id: string): Observable<{ message: string; id: string }> {
+    return this.http.delete<{ message: string; id: string }>(`${this.apiUrl}/${id}`);
+  }
 }

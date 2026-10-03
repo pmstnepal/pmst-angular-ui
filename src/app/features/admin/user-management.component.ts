@@ -59,6 +59,7 @@ type Role = 'admin' | 'moderator' | 'user';
                   <th class="px-4 py-3">Username</th>
                   <th class="px-4 py-3">Display Name</th>
                   <th class="px-4 py-3">Role</th>
+                  <th class="px-4 py-3">Status</th>
                   <th class="px-4 py-3">Action</th>
                 </tr>
               </thead>
@@ -70,18 +71,47 @@ type Role = 'admin' | 'moderator' | 'user';
                     <td class="px-4 py-3">{{ user.displayName || '-' }}</td>
                     <td class="px-4 py-3 capitalize">{{ user.role }}</td>
                     <td class="px-4 py-3">
+                      @if (isActive(user)) {
+                        <span class="px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700">Active</span>
+                      } @else {
+                        <span class="px-2 py-0.5 rounded-full text-xs font-medium bg-gray-200 text-gray-600">Deactivated</span>
+                      }
+                    </td>
+                    <td class="px-4 py-3">
                       @if (user.id === currentUserId()) {
                         <span class="text-xs text-gray-400">(You)</span>
                       } @else {
-                        <select
-                          [ngModel]="user.role"
-                          (ngModelChange)="changeRole(user, $event)"
-                          [disabled]="savingId() === user.id"
-                          class="border border-gray-300 rounded px-2 py-1 text-sm">
-                          <option value="admin">Admin</option>
-                          <option value="moderator">Moderator</option>
-                          <option value="user">User</option>
-                        </select>
+                        <div class="flex items-center gap-2 flex-wrap">
+                          <select
+                            [ngModel]="user.role"
+                            (ngModelChange)="changeRole(user, $event)"
+                            [disabled]="savingId() === user.id"
+                            class="border border-gray-300 rounded px-2 py-1 text-sm">
+                            <option value="admin">Admin</option>
+                            <option value="moderator">Moderator</option>
+                            <option value="user">User</option>
+                          </select>
+
+                          <button type="button"
+                                  (click)="toggleStatus(user)"
+                                  [disabled]="savingId() === user.id"
+                                  class="px-2 py-1 rounded text-xs font-medium border transition-colors disabled:opacity-50"
+                                  [class.border-amber-300]="isActive(user)"
+                                  [class.text-amber-700]="isActive(user)"
+                                  [class.hover:bg-amber-50]="isActive(user)"
+                                  [class.border-green-300]="!isActive(user)"
+                                  [class.text-green-700]="!isActive(user)"
+                                  [class.hover:bg-green-50]="!isActive(user)">
+                            {{ isActive(user) ? 'Deactivate' : 'Reactivate' }}
+                          </button>
+
+                          <button type="button"
+                                  (click)="deleteUser(user)"
+                                  [disabled]="savingId() === user.id"
+                                  class="px-2 py-1 rounded text-xs font-medium border border-red-300 text-red-700 hover:bg-red-50 transition-colors disabled:opacity-50">
+                            Delete
+                          </button>
+                        </div>
                       }
                     </td>
                   </tr>
@@ -158,6 +188,75 @@ export class UserManagementComponent implements OnInit {
       this.actionIsError.set(false);
       this.savingId.set(null);
       setTimeout(() => this.actionMessage.set(''), 3000);
+    });
+  }
+
+  /** Anything other than an explicit 'active' counts as deactivated. */
+  isActive(user: UserDto): boolean {
+    return (user.status || 'active').toLowerCase() === 'active';
+  }
+
+  /**
+   * Deactivate / reactivate. Reversible and preferred over deletion — the row
+   * stays, so the user's articles keep showing an author name. The backend
+   * blocks the account at login.
+   */
+  toggleStatus(user: UserDto): void {
+    const next: 'active' | 'deactivated' = this.isActive(user) ? 'deactivated' : 'active';
+    if (next === 'deactivated' &&
+        !confirm(`Deactivate ${user.email}?\n\nThey will not be able to log in. Their articles and galleries stay published, and you can reactivate them at any time.`)) {
+      return;
+    }
+    this.savingId.set(user.id);
+    this.actionMessage.set('');
+    this.userService.updateStatus(user.id, next).pipe(
+      catchError(err => {
+        this.actionMessage.set(err?.error?.message || 'Failed to change account status.');
+        this.actionIsError.set(true);
+        this.savingId.set(null);
+        return of(null);
+      })
+    ).subscribe(result => {
+      if (!result) return;
+      this.users.update(list => list.map(u => u.id === user.id ? { ...u, status: next } : u));
+      this.actionMessage.set(next === 'active' ? `${user.email} reactivated.` : `${user.email} deactivated.`);
+      this.actionIsError.set(false);
+      this.savingId.set(null);
+      setTimeout(() => this.actionMessage.set(''), 3000);
+    });
+  }
+
+  /**
+   * Permanent deletion. Deliberately spells out the consequence, because the
+   * content survives but loses its author: articles/galleries/comments are
+   * ON DELETE SET NULL, while the profile and follow records cascade away.
+   */
+  deleteUser(user: UserDto): void {
+    const warning =
+      `Permanently delete ${user.email}?\n\n` +
+      `This cannot be undone.\n\n` +
+      `• Their articles and galleries stay published, but lose the author name\n` +
+      `• Their profile and follower connections are removed\n` +
+      `• Their Cognito login is not removed here\n\n` +
+      `To block access reversibly, use Deactivate instead.`;
+    if (!confirm(warning)) return;
+
+    this.savingId.set(user.id);
+    this.actionMessage.set('');
+    this.userService.deleteUser(user.id).pipe(
+      catchError(err => {
+        this.actionMessage.set(err?.error?.message || 'Failed to delete user.');
+        this.actionIsError.set(true);
+        this.savingId.set(null);
+        return of(null);
+      })
+    ).subscribe(result => {
+      if (!result) return;
+      this.users.update(list => list.filter(u => u.id !== user.id));
+      this.actionMessage.set(`${user.email} deleted.`);
+      this.actionIsError.set(false);
+      this.savingId.set(null);
+      setTimeout(() => this.actionMessage.set(''), 4000);
     });
   }
 }
