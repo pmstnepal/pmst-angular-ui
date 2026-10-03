@@ -28,6 +28,36 @@ import { AuthService, RegisterData } from '../../core/services/auth.service';
           }
 
           <div class="space-y-4">
+            <!-- First/last name are REQUIRED attributes on the Cognito pool.
+                 Sign-up is rejected without them and the constraint cannot be
+                 relaxed without replacing the pool. -->
+            <div class="grid grid-cols-2 gap-4">
+              <div>
+                <label for="firstName" class="block text-sm font-medium text-gray-700">First Name</label>
+                <input
+                  id="firstName"
+                  name="firstName"
+                  type="text"
+                  required
+                  [(ngModel)]="data.firstName"
+                  class="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                  placeholder="Ram"
+                >
+              </div>
+              <div>
+                <label for="lastName" class="block text-sm font-medium text-gray-700">Last Name</label>
+                <input
+                  id="lastName"
+                  name="lastName"
+                  type="text"
+                  required
+                  [(ngModel)]="data.lastName"
+                  class="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                  placeholder="Thapa"
+                >
+              </div>
+            </div>
+
             <div class="grid grid-cols-2 gap-4">
               <div>
                 <label for="username" class="block text-sm font-medium text-gray-700">Username</label>
@@ -154,6 +184,8 @@ export class RegisterComponent {
     email: '',
     password: '',
     username: '',
+    firstName: '',
+    lastName: '',
     displayName: ''
   };
 
@@ -169,13 +201,17 @@ export class RegisterComponent {
     this.loading.set(true);
     this.error.set(null);
 
+    // Sign-up no longer returns tokens — the account is UNCONFIRMED until the
+    // emailed code is entered, so send the user to /verify rather than home.
     this.authService.register(this.data).subscribe({
       next: () => {
-        this.router.navigate(['/']);
+        this.router.navigate(['/verify'], { queryParams: { email: this.data.email } });
       },
       error: (err) => {
         this.loading.set(false);
-        this.error.set(err.message || 'Registration failed. Please try again.');
+        // Surface the backend's message (e.g. "already registered, use Forgot
+        // password") rather than the generic HttpErrorResponse.message.
+        this.error.set(err?.error?.message || 'Registration failed. Please try again.');
       }
     });
   }

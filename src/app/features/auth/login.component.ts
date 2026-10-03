@@ -67,7 +67,7 @@ import { AuthService, LoginCredentials } from '../../core/services/auth.service'
             </div>
 
             <div class="text-sm">
-              <a href="#" class="text-indigo-600 hover:text-indigo-500">Forgot your password?</a>
+              <a routerLink="/forgot-password" class="text-indigo-600 hover:text-indigo-500">Forgot your password?</a>
             </div>
           </div>
 
@@ -146,6 +146,13 @@ export class LoginComponent {
       },
       error: (err) => {
         this.loading.set(false);
+        // An account that signed up but never entered the emailed code comes
+        // back as USER_NOT_CONFIRMED. Send them to /verify rather than showing
+        // a dead end — the email is already known, so carry it across.
+        if (err?.error?.error === 'USER_NOT_CONFIRMED') {
+          this.router.navigate(['/verify'], { queryParams: { email: this.credentials.email } });
+          return;
+        }
         // Backend returns { error: "INVALID_CREDENTIALS", message: "..." } in err.error
         const msg = err?.error?.message || err?.message || 'Invalid email or password';
         this.error.set(msg);

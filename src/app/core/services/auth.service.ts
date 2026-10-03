@@ -23,7 +23,20 @@ export interface RegisterData {
   email: string;
   password: string;
   username: string;
+  /**
+   * Required by the Cognito pool, which declares given_name/family_name as
+   * required attributes. Sign-up is rejected without them, and the constraint
+   * cannot be relaxed without replacing the pool.
+   */
+  firstName: string;
+  lastName: string;
   displayName?: string;
+}
+
+/** Sign-up no longer returns tokens — the account must be verified first. */
+export interface SignUpResult {
+  email: string;
+  confirmed: boolean;
 }
 
 /**
@@ -106,12 +119,39 @@ export class AuthService {
     );
   }
 
-  register(data: RegisterData): Observable<User> {
-    return this.http.post<AuthResponse>(`${this.baseUrl}/register`, data).pipe(
-      tap(resp => this.storeTokens(resp)),
-      map(resp => resp.user!),
+  /**
+   * Sign up. Deliberately does NOT store tokens or set the current user —
+   * the backend now creates an UNCONFIRMED Cognito account and emails a code,
+   * so there is nothing to log in with until /verify succeeds.
+   */
+  register(data: RegisterData): Observable<SignUpResult> {
+    return this.http.post<SignUpResult>(`${this.baseUrl}/register`, data).pipe(
       catchError(err => throwError(() => err))
     );
+  }
+
+  /** Confirm sign-up with the 6-digit code from the email. */
+  confirmSignUp(email: string, code: string): Observable<{ message: string }> {
+    return this.http.post<{ message: string }>(`${this.baseUrl}/confirm`, { email, code });
+  }
+
+  /** Re-send the sign-up code. */
+  resendCode(email: string): Observable<{ message: string }> {
+    return this.http.post<{ message: string }>(`${this.baseUrl}/resend`, { email });
+  }
+
+  /**
+   * Request a password-reset code. The backend always returns the same message
+   * whether or not the address has an account, so callers must not treat the
+   * response as proof the email exists.
+   */
+  forgotPassword(email: string): Observable<{ message: string }> {
+    return this.http.post<{ message: string }>(`${this.baseUrl}/forgot-password`, { email });
+  }
+
+  /** Complete the reset with the emailed code and a new password. */
+  resetPassword(email: string, code: string, newPassword: string): Observable<{ message: string }> {
+    return this.http.post<{ message: string }>(`${this.baseUrl}/reset-password`, { email, code, newPassword });
   }
 
   /**

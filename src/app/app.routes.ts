@@ -30,6 +30,21 @@ export const routes: Routes = [
     canActivate: [redirectIfAuthenticated]
   },
   {
+    // Sign-up confirmation. Reached from /register and from /login when the
+    // backend reports USER_NOT_CONFIRMED. No guard: the user is by definition
+    // not authenticated yet.
+    path: 'verify',
+    loadComponent: () => import('./features/auth/verify-email.component').then(m => m.VerifyEmailComponent)
+  },
+  {
+    path: 'forgot-password',
+    loadComponent: () => import('./features/auth/forgot-password.component').then(m => m.ForgotPasswordComponent)
+  },
+  {
+    path: 'reset-password',
+    loadComponent: () => import('./features/auth/reset-password.component').then(m => m.ResetPasswordComponent)
+  },
+  {
     path: 'profile/:username',
     loadComponent: () => import('./features/user/profile.component').then(m => m.ProfileComponent)
   },
