@@ -583,6 +583,62 @@ Every other migrated user remains unable to log in until G3 and password reset a
 
 ---
 
+## T13 — P1 · Prod lost 95% of article gallery images — fully recoverable, DB-only
+
+Found 2026-10-03 by comparing the local migration DB against prod. Local renders six gallery
+images on an article where prod renders none.
+
+| | Articles with galleries | Total gallery images |
+|---|---|---|
+| **Local DB** | 27 | **105** |
+| **Prod DB** | 5 | **5** |
+
+Both databases hold the same 131 articles. **27 articles lost their galleries in prod; 100 of
+105 image references are gone.**
+
+### It is a reference problem, not a data-loss problem
+
+The images themselves migrated fine. Verified against `s3://pmst-prod-media`:
+**105 of 105 present, 0 missing.** Only the `articles.gallery_images` column was written empty.
+
+```
+local  galleryImages : ["/assets/images/gallery/gallery_26217.jpg", ... 6 entries ...]
+prod   galleryImages : [null, null, null, null, null, "media/2025/08/WhatsApp-Image-..."]
+S3                   : media/2024/01/gallery_26217/{thumb,card,hero,master}.{webp,jpg}  ✅
+```
+
+The numbers (`26216`–`26221`) are **WordPress attachment IDs**. Local resolved them to asset
+paths; the prod run wrote `null` instead. Note prod's one surviving entry on that article is
+just a **duplicate of the featured image**, which `news-detail.component.ts:618` correctly
+filters out — so the published gallery renders empty even on the 5 "surviving" articles.
+
+### The repair
+
+Mechanical and reference-only — no re-upload, no reprocessing:
+
+```
+/assets/images/gallery/gallery_26217.jpg   →   media/2024/01/gallery_26217
+```
+
+Generated and committed: **`pmst-migration/restore_article_galleries.sql`** — 27 `UPDATE`
+statements restoring 105 images, wrapped in `BEGIN;` with `COMMIT` left commented out.
+Every key in it was verified to exist in S3 before the file was written.
+
+> **Note the overlap:** `scripts/fix_image_keys_and_gallery.py` was *written* for this job —
+> its docstring says "rewrite articles.gallery_images JSON from attachment:XXXX to S3
+> image_key paths". It evidently did not produce the right result against prod. The SQL is
+> derived from the already-correct local DB and verified against live S3 objects, so it does
+> not depend on `EXPORTS_DIR` CSVs or the local images tree still being intact. Worth
+> understanding why the script failed before trusting it on the next dataset.
+
+### Blocked on
+
+Prod RDS is private (**G8**) and no tunnel tooling exists in the repo. Applying this needs
+either an SSM/bastion port-forward or a short-lived `db_publicly_accessible` toggle with the
+security group narrowed to one IP. That is a security decision, not a technical one.
+
+---
+
 ## T12 — P1 · Admin dashboard displays fabricated data
 
 Found 2026-10-03 on the first real admin login. `/admin` renders hardcoded placeholders, not
