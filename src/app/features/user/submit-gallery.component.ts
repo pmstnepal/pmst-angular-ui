@@ -550,6 +550,17 @@ export class SubmitGalleryComponent implements OnInit {
     return !content || content === '<p><br></p>' || content.trim() === '';
   }
 
+  /**
+   * Replace non-breaking spaces with ordinary ones before saving. Quill returns
+   * every inter-word space as `&nbsp;` when it round-trips existing HTML, which
+   * turns a paragraph into one unbreakable token that cannot wrap and overflows
+   * its container. Same fix as submit-content.component.ts.
+   */
+  private normalizeEditorHtml(html: string): string {
+    if (!html) return html;
+    return html.replace(/&nbsp;/g, ' ').replace(/ /g, ' ');
+  }
+
   private toSlug(str: string): string {
     return str.toLowerCase().replace(/\s+/g, '-').replace(/[^\w-]+/g, '');
   }
@@ -558,7 +569,7 @@ export class SubmitGalleryComponent implements OnInit {
     return {
       title: this.formData.title,
       slug: this.generatedSlug() || this.toSlug(this.formData.title),
-      description: this.isContentEmpty(this.formData.description) ? '' : this.formData.description,
+      description: this.isContentEmpty(this.formData.description) ? '' : this.normalizeEditorHtml(this.formData.description),
       featuredImage: this.featuredImagePreview() || undefined,
       images: this.galleryImages().map(img => img.preview),
       seoFocusKeyword: this.formData.seoFocusKeyword || undefined,

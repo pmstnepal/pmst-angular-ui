@@ -611,6 +611,24 @@ export class SubmitContentComponent implements OnInit {
     return !content || content === '<p><br></p>' || content.trim() === '';
   }
 
+  /**
+   * Replace non-breaking spaces with ordinary ones before saving.
+   *
+   * Quill round-trips existing HTML through its clipboard module and returns
+   * every inter-word space as `&nbsp;`. A migrated article came back with 194
+   * `&nbsp;` and zero normal spaces, which makes each paragraph a single
+   * unbreakable token — the browser cannot wrap it, so the article body
+   * overflows its container horizontally. That is the "layout breaks after I
+   * edit and publish" symptom; untouched articles render fine.
+   *
+   * Applied on save only. Reading is left alone so existing content is not
+   * rewritten just by opening the editor.
+   */
+  private normalizeEditorHtml(html: string): string {
+    if (!html) return html;
+    return html.replace(/&nbsp;/g, ' ').replace(/ /g, ' ');
+  }
+
   private toSlug(str: string): string {
     return str.toLowerCase().replace(/\s+/g, '-').replace(/[^\w-]+/g, '');
   }
@@ -625,7 +643,7 @@ export class SubmitContentComponent implements OnInit {
       title: this.formData.title,
       slug: this.generatedSlug() || this.toSlug(this.formData.title),
       excerpt: this.formData.excerpt,
-      content: this.isContentEmpty(this.formData.content) ? '' : this.formData.content,
+      content: this.isContentEmpty(this.formData.content) ? '' : this.normalizeEditorHtml(this.formData.content),
       category: this.formData.category,
       youtubeLink: this.formData.youtubeLink || undefined,
       embedCode: this.formData.embedCode || undefined,
