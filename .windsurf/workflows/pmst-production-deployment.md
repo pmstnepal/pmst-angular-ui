@@ -293,14 +293,42 @@ git branch --show-current          # expect feature/infra-rds-update
 git status --porcelain             # expect clean
 ```
 
-- [ ] **Review T10 first.** `UserController.java:72-76` is a `@PostMapping` on `/users` that
-      persists a raw entity from the request body (a caller could set `role`). Today the only
-      thing in front of it is the gateway rule step 2 relaxes. Review it in this same change,
-      not after.
+- [x] **T10 reviewed and fixed** (`pmst-api-service` `3308462`). It was a genuine
+      anonymous-to-admin escalation once `/auth/register` goes public — see Step 1b, which
+      **must run before Step 2**.
 - [ ] Confirm `db_publicly_accessible` is `false`:
       `aws rds describe-db-instances --db-instance-identifier pmst-prod-postgres --no-cli-pager --query 'DBInstances[0].PubliclyAccessible'`
 - [ ] `youtube_api_key` is in `secrets.auto.tfvars` — already verified, apply will not wipe
       `PMST_YT_API_KEY` (see T8, closed).
+
+### Step 1b — 🔴 Deploy the API service FIRST (ordering is not optional)
+
+`POST /users` let any authenticated caller overwrite an arbitrary user row — including
+`role="admin"` — because it bound the raw entity and `save()` merges on a supplied id.
+Fixed in `pmst-api-service` `3308462` (branch `fix/remove-unsafe-user-create`), but the fix
+only counts once the **running Lambda** carries it.
+
+Applying step 2 before this is deployed opens an anonymous-to-admin chain, because step 2
+makes `/auth/register` publicly reachable for the first time:
+
+1. `POST /api/auth/register` → anonymous JWT
+2. `GET /users/username/pmstnepal` → the admin row's UUID (public endpoint)
+3. `POST /api/users` with `{"id":"<admin-uuid>","role":"admin"}` → takeover
+
+```bash
+cd /d/pmst-services/pmst-api-service
+mvn package -DskipTests
+aws s3 cp target/*-lambda.jar \
+  s3://pmst-terraform-state/deployments/prod/pmst-api-service-latest.jar --no-cli-pager
+aws lambda update-function-code --function-name pmst-prod-pmst-api-service \
+  --s3-bucket pmst-terraform-state \
+  --s3-key deployments/prod/pmst-api-service-latest.jar --no-cli-pager
+aws lambda wait function-updated --function-name pmst-prod-pmst-api-service
+```
+
+- [ ] Confirm the endpoint is gone **before** step 2. While `/api/users` still sits behind
+      the Cognito authorizer you cannot test it anonymously; verify from the deployed
+      artifact instead — the CloudWatch startup log should no longer map `POST /users`.
 
 ### Step 2 — Apply the Terraform
 

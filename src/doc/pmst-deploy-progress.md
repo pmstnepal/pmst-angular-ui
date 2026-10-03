@@ -339,11 +339,13 @@ the stored URLs are to be corrected at source instead.
 > filename is not content-hashed, so a year-long immutable cache would make any future logo
 > correction nearly impossible to push.
 >
-> ### ⚠️ The next frontend deploy DELETES it
-> `.gitignore:64-65` still excludes `src/assets/images/`, so CI builds without the logo, and
-> `deploy.yml:80-83` syncs with `--delete`. **The durable fix is still outstanding:**
-> add `!src/assets/images/logo/` and `!src/assets/images/logo/*.png` after `.gitignore:65`
-> and commit the single 50 KB PNG, keeping the ~3,700 other images out of git.
+> ### ✅ Now durable — committed 2026-10-03 (`ee7ac51`)
+> The logo is in the repo, so CI builds it and the `--delete` sync can no longer remove it.
+> The ignore rule had to change shape: git never descends into an excluded directory, so a
+> `!` negation under a plain `src/assets/images/` rule can never fire. The rule now excludes
+> the directory *contents* (`src/assets/images/*`) and re-includes only
+> `src/assets/images/logo/*.png`. Verified `git add -An src/assets/images/` stages exactly
+> one file, with `images/2025`, `images/media` and non-png files under `logo/` still ignored.
 >
 > **Correction to the original finding below:** it claimed the file did not exist locally.
 > It does. Glob hides it (the path is gitignored) and the first filesystem probe used the
@@ -526,7 +528,35 @@ Every other migrated user remains unable to log in until G3 and password reset a
 
 ---
 
-## T10 — Security · review BEFORE T1 ships
+## T10 — Security · ✅ FIXED IN CODE — must be DEPLOYED before the T1 apply
+
+> **Reviewed and fixed 2026-10-03.** `pmst-api-service` commit `3308462`, branch
+> `fix/remove-unsafe-user-create`. `mvn compile` → BUILD SUCCESS.
+>
+> **The risk was real, and worse than first described.** `POST /users` bound the raw `User`
+> entity and called `userRepository.save(user)`. Spring Data `save()` **merges** when an id is
+> present, so a caller could supply *any existing user's id* and overwrite that row —
+> including `role="admin"`. Target ids are not secret: `GET /users/username/{username}` is
+> `permitAll` and returns the production admin's UUID in one unauthenticated request.
+>
+> **Correction to the original finding:** I wrote that the gateway rule T1 removes was the
+> only thing protecting this. That was wrong — T1 opens `/api/auth/*`, not `/api/users`, which
+> stays behind `ANY` + Cognito. The actual exposure is a three-step chain that T1 *creates*:
+>
+> 1. `POST /api/auth/register` — public after T1 (it was unreachable before) → anonymous JWT
+> 2. `GET /users/username/pmstnepal` — public → the admin row's UUID
+> 3. `POST /api/users` with that JWT and `{"id":"<admin-uuid>","role":"admin"}` → takeover
+>
+> So the conclusion holds for a different reason: **do not apply T1 until this fix is
+> deployed.** Not merely merged — the running Lambda must carry it.
+>
+> The endpoint was dead code; nothing in the frontend called it. User creation goes through
+> `AuthService.register` → `UserSyncService.createLocalUser`, which sets role explicitly.
+> The three legitimate endpoints are untouched.
+
+<details><summary>Original finding</summary>
+
+### T10 — Security · review BEFORE T1 ships
 
 `UserController.java:72-76` is an unauthenticated-shaped `@PostMapping` on `/users` that
 persists a raw `User` entity straight from the request body — a mass-assignment hazard
@@ -536,3 +566,5 @@ persists a raw `User` entity straight from the request body — a mass-assignmen
 **Fixing login opens this endpoint.** It must be reviewed in the same unit of work, not after.
 
 **Route to:** `pmst-review-risk` (opus).
+
+</details>
