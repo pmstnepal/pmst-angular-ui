@@ -49,7 +49,7 @@ Deploy the full PMST stack (Angular frontend, `pmst-api-service`, and `pmst-tick
 | Cognito user-link script | **Placeholder** (`scripts/11_link_user_profiles_to_cognito.py`) |
 | Hard-coded secrets in migration repo | ✅ `scripts/config.py` now reads from `.env`. ⚠️ The plaintext `pmst-deploy_accessKeys*.csv` files still sit in `src/doc/` (gitignored + untracked) — delete locally and rotate the keys. |
 
-## Gaps to Resolve (G1–G14)
+## Gaps to Resolve (G1–G15)
 
 > Status reviewed 2026-09-08 (post-launch audit). G11–G14 were found on the **live** site
 > after cutover — full detail, root causes and file references live in
@@ -67,10 +67,11 @@ Deploy the full PMST stack (Angular frontend, `pmst-api-service`, and `pmst-tick
 | G8 | RDS is private in prod. | ⏳ Open | Still `db_publicly_accessible=false`. Needed for the G14/T7 row-count reconciliation. |
 | G9 | WAF/Shield referenced in docs but not in Terraform. | ⏳ Open | Optional post-launch. |
 | G10 | `contributor` role mismatch with frontend `User.role` type. | ⏳ Open | Optional: align type + role checks later. |
-| **G11** | **Login is impossible in prod.** `POST /api/auth/login` is rejected by the Cognito authorizer before Lambda; plus 3 more blockers behind it (auth-flow mismatch, unwired `COGNITO_CLIENT_ID`, no `cognito-idp:*` IAM). | 🔴 **P0 live** | See **T1**. All four must ship together. Review **T10** in the same change. |
-| **G12** | **Public Events API returns 401.** `/tickets/{proxy+}` has no public-GET method; the Angular page swallows the error and renders an empty state that looks static. | 🔴 **P0 live** | See **T2**. Same file as G11 — ship together. |
-| **G13** | **Site assets never reach the build.** `.gitignore:64-65` excludes `src/assets/images/`, so CI's clean checkout has no logo; `deploy.yml` `--delete` also wipes manual S3 uploads. | 🟠 P1 live | See **T4**. |
-| **G14** | **Article body images are stripped at render**, and the migration wrote body image URLs in a shape that 404s on CloudFront. | 🟠 P1 live | See **T3**. |
+| **G11** | **Login is impossible in prod.** `POST /api/auth/login` is rejected by the Cognito authorizer before Lambda; plus 3 more blockers behind it (auth-flow mismatch, unwired `COGNITO_CLIENT_ID`, no `cognito-idp:*` IAM). | ⏳ **Fix written, not applied** | Terraform committed in `fae267f`. Run **Phase 10**. Review **T10** in the same change. |
+| **G12** | **Public Events API returns 401.** `/tickets/{proxy+}` has no public-GET method; the Angular page swallows the error and renders an empty state that looks static. | ⏳ **Fix written, not applied** | Same commit as G11 — ships with the Phase 10 apply. See **T2**. |
+| **G13** | **Site assets never reach the build.** `.gitignore:64-65` excludes `src/assets/images/`, so CI's clean checkout has no logo; `deploy.yml` `--delete` also wipes manual S3 uploads. | 🟡 Patched on live, **not durable** | Logo manually uploaded to S3 and rendering. **Next deploy deletes it** — un-ignore the logo and commit it. See **T4**. |
+| **G14** | **Article body images are stripped at render**, and the migration wrote body image URLs in a shape that 404s on CloudFront. | 🟡 Narrowed, deferred | Standalone galleries, featured images and the lightbox are fixed. Only in-body galleries remain. See **T3**. |
+| **G15** | **The live Cognito pool has ZERO users**, and every migrated user has `cognitoId: null`. Fixing G11 alone still leaves nobody able to log in. WordPress passwords cannot be imported. | 🔴 **P0 live** | See **T11**. Phase 10 Step 3 creates one admin. Bulk migration remains **G3**. |
 
 ## Phase 0 — Prerequisites & Cleanup (one-time)
 
@@ -276,6 +277,106 @@ Do not cut over DNS until:
    > `aws rds describe-db-instances --db-instance-identifier pmst-prod-postgres --no-cli-pager --query 'DBInstances[0].PubliclyAccessible'`
    > must return `false`.
 4. After ~1 week stable, decommission the Hostinger WordPress site (keep email + registrar).
+
+## Phase 10 — Login Cutover (T1 + T11) — **NOT YET RUN**
+
+> Login is impossible on prod today. Two independent problems; **both** must be fixed or
+> nothing changes. Terraform for step 2 is written and committed
+> (`pmstmigrateinfra` `fae267f`, branch `feature/infra-rds-update`) but **not applied**.
+> Full root causes: `src/doc/pmst-deploy-progress.md` → T1, T11.
+
+### Step 1 — Pre-flight
+
+```bash
+cd /d/pmstmigrateinfra
+git branch --show-current          # expect feature/infra-rds-update
+git status --porcelain             # expect clean
+```
+
+- [ ] **Review T10 first.** `UserController.java:72-76` is a `@PostMapping` on `/users` that
+      persists a raw entity from the request body (a caller could set `role`). Today the only
+      thing in front of it is the gateway rule step 2 relaxes. Review it in this same change,
+      not after.
+- [ ] Confirm `db_publicly_accessible` is `false`:
+      `aws rds describe-db-instances --db-instance-identifier pmst-prod-postgres --no-cli-pager --query 'DBInstances[0].PubliclyAccessible'`
+- [ ] `youtube_api_key` is in `secrets.auto.tfvars` — already verified, apply will not wipe
+      `PMST_YT_API_KEY` (see T8, closed).
+
+### Step 2 — Apply the Terraform
+
+```bash
+cd /d/pmstmigrateinfra
+terraform plan -var-file="deploy/prod.tfvars"
+terraform apply -var-file="deploy/prod.tfvars"
+```
+
+Expected plan: **16 to add, 7 to change, 1 to destroy.** The single destroy is
+`aws_api_gateway_deployment.main` being replaced through `create_before_destroy` to publish
+the new method set — the REST API id (`q9zxosk8f9`) and invoke URL are unchanged, and the
+Cognito client updates **in place** so client id `7vs3hhs2v743l34d1j8jhqbnqk` is preserved.
+**If you see the Cognito client being replaced, stop** — that would issue a new client id and
+break the frontend.
+
+### Step 3 — Create the admin user
+
+The pool has **zero** users. Create one whose email matches the existing admin row so
+`syncFromCognito` attaches to it and keeps `role: "admin"`.
+
+```bash
+aws cognito-idp admin-create-user \
+  --user-pool-id us-east-1_1dEqFgYNR \
+  --username pmstnepal@gmail.com \
+  --user-attributes Name=email,Value=pmstnepal@gmail.com \
+                    Name=email_verified,Value=true \
+                    Name=preferred_username,Value=pmstnepal \
+  --message-action SUPPRESS --no-cli-pager
+
+aws cognito-idp admin-set-user-password \
+  --user-pool-id us-east-1_1dEqFgYNR \
+  --username pmstnepal@gmail.com \
+  --password '<strong-password>' \
+  --permanent --no-cli-pager
+```
+
+- Password policy: min 8 chars with upper, lower, number, symbol.
+- `--message-action SUPPRESS` matters — SES is still sandboxed (G5), so skip the invite mail.
+- **Do not use `/auth/register` for this email.** It already has a DB row; `register()` calls
+  `createLocalUser()` which unconditionally inserts → duplicate row or constraint failure.
+
+### Step 4 — Verify, in order
+
+```bash
+# 4a — API first. Note the field is `email`, not `username`.
+curl --ssl-no-revoke -X POST \
+  https://q9zxosk8f9.execute-api.us-east-1.amazonaws.com/prod/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email":"pmstnepal@gmail.com","password":"<password>"}'
+```
+
+Expect JSON with `idToken` / `accessToken` and a user object showing **`"role":"admin"`**.
+
+| Symptom | Meaning |
+|---|---|
+| `{"message":"Unauthorized"}` | Gateway still rejecting — the stage did not redeploy. Check the deployment was replaced. |
+| `InvalidParameterException: Auth flow not enabled` | Step 2's Cognito change did not apply. |
+| `AccessDeniedException` | Lambda IAM missing `cognito-idp:*`. |
+| 500 referencing an empty client id | `COGNITO_CLIENT_ID` not injected — check the function's env. |
+
+- [ ] 4b — log in at `https://pmstusnepal.com/login`, confirm `/admin` loads.
+- [ ] 4c — `https://pmstusnepal.com/events` returns data (T2). Still empty until an event is
+      **PUBLISHED** via `/admin/events` — `listPublished()` returns only `PUBLISHED`.
+- [ ] 4d — confirm a 401 from a protected route now carries `Access-Control-Allow-Origin`
+      (the new gateway responses), so failures read as 401s and not CORS errors.
+
+### What Phase 10 does NOT fix
+
+- **Only one user can log in.** Bulk Cognito migration is still **G3**; every other migrated
+  user has `cognitoId: null` and no Cognito identity.
+- **Password reset does not exist** — `/auth/forgot-password` and `/auth/reset-password` are
+  permitted in `SecurityConfig` but unimplemented (404). Blocked on SES too (G5).
+- **WordPress passwords will never work** — phpass hashes cannot be imported into Cognito.
+
+---
 
 ## What Setup Happens Where
 

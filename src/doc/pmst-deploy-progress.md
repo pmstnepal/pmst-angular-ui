@@ -170,7 +170,19 @@ On Windows, `curl` needs `--ssl-no-revoke` or it fails with `CRYPT_E_REVOCATION_
 
 ---
 
-## T1 — P0 · Login is impossible for every user
+## T1 — P0 · Login is impossible for every user · ⏳ FIX WRITTEN, NOT APPLIED
+
+> **Status 2026-10-03:** all four blockers fixed in `pmstmigrateinfra` commit `fae267f`
+> on branch `feature/infra-rds-update`. `terraform validate` passes; plan against prod
+> state is **16 to add, 7 to change, 1 to destroy**. The destroy is
+> `aws_api_gateway_deployment.main` replaced via `create_before_destroy` to publish the
+> new method set — the REST API id (`q9zxosk8f9`) and invoke URL do not change.
+> The Cognito client updates **in place**, so client id `7vs3hhs2v743l34d1j8jhqbnqk`
+> is preserved and the frontend is unaffected.
+>
+> **Not yet applied.** Run the apply + user-creation steps in
+> `.windsurf/workflows/pmst-production-deployment.md` → *Phase 10 — Login Cutover*.
+> **T1 alone does not restore login — see [T11], the pool has zero users.**
 
 `POST /api/auth/login` never reaches the Lambda. **Four independent blockers sit in series;
 fixing any one alone leaves login broken.**
@@ -218,7 +230,12 @@ returns a Spring-generated 400/401 with a JSON body — **not** `{"message":"Una
 
 ---
 
-## T2 — P0 · Public Events API blocked; the page only *looks* static
+## T2 — P0 · Public Events API blocked; the page only *looks* static · ⏳ FIX WRITTEN, NOT APPLIED
+
+> **Status 2026-10-03:** fixed in the same commit as T1 (`fae267f`) — `tickets_proxy_get`
+> adds a public `GET` mirroring `api_proxy_get`, and it is registered in the deployment
+> triggers. Ships with the T1 apply. Note the catalog stays empty until at least one event
+> is **PUBLISHED** via `/admin/events`, since `listPublished()` returns only `PUBLISHED`.
 
 **Correction to an earlier read of this:** the Events page is **not** a static mock. It is
 fully wired to the API — `events-list.component.ts:136,153` injects `TicketingService` and
@@ -248,7 +265,14 @@ must be published via `/admin/events` before the list is non-empty even after th
 
 ---
 
-## T3 — P1 · Article body galleries are deleted before they ever render
+## T3 — P1 · Article body galleries · 🟡 NARROWED — deferred by decision 2026-10-03
+
+> **Scope reduced.** Standalone gallery pages, article featured images, card/thumb tiers and
+> the lightbox are all **confirmed working on live** after the imageKey/CloudFront fixes.
+> What remains is specifically **galleries embedded inside article body HTML**.
+>
+> **Explicitly deferred** — owner is focusing on login (T1/T11) first. Do not start this
+> without re-confirming priority. Everything below remains accurate for whoever picks it up.
 
 `news-detail.component.ts:578`:
 
@@ -301,7 +325,40 @@ the stored URLs are to be corrected at source instead.
 
 ---
 
-## T4 — P1 · Logo missing on live
+## T4 — P1 · Logo missing on live · 🟡 FIXED ON LIVE, BUT NOT DURABLE
+
+> **Status 2026-10-03.** The logo now renders. `src/assets/images/logo/pmst-logo.png`
+> (51,356 bytes, 3300×1510, indexed PNG **with a `tRNS` chunk** — real transparency, which
+> matters because the header is dark navy) was uploaded manually to
+> `s3://pmst-prod-frontend/assets/images/logo/pmst-logo.png` with `Content-Type: image/png`
+> and `Cache-Control: public, max-age=86400`, then CloudFront was invalidated.
+> Verified: live bytes are sha256-identical to the local file, and Chromium confirms the
+> `<img>` loads (naturalWidth 3300, rendered 175×80).
+>
+> **Cache note:** deliberately *not* the pipeline's `max-age=31536000, immutable` — this
+> filename is not content-hashed, so a year-long immutable cache would make any future logo
+> correction nearly impossible to push.
+>
+> ### ⚠️ The next frontend deploy DELETES it
+> `.gitignore:64-65` still excludes `src/assets/images/`, so CI builds without the logo, and
+> `deploy.yml:80-83` syncs with `--delete`. **The durable fix is still outstanding:**
+> add `!src/assets/images/logo/` and `!src/assets/images/logo/*.png` after `.gitignore:65`
+> and commit the single 50 KB PNG, keeping the ~3,700 other images out of git.
+>
+> **Correction to the original finding below:** it claimed the file did not exist locally.
+> It does. Glob hides it (the path is gitignored) and the first filesystem probe used the
+> wrong drive-letter case. The stated root cause — assets excluded from the CI build — was
+> correct.
+>
+> **Related, found while sourcing a replacement:** every logo in the media bucket has lost
+> its transparency. The JPG tiers flattened alpha (one onto slate grey, `newpmstlogo` into a
+> mangled red block) and the WebP tiers are lossy `VP8 ` with no `ALPH` chunk. So the
+> migrated media bucket holds **no usable transparent logo** — a sharper instance of the
+> [T3] pipeline problem that will affect any transparent PNG in the archive.
+
+<details><summary>Original finding</summary>
+
+### T4 — Logo missing on live
 
 `header.component.ts:19` and `news-detail.component.ts:40` (plus JSON-LD `logo.url` at :705)
 reference `/assets/images/logo/pmst-logo.png`.
@@ -323,6 +380,8 @@ a CloudFront URL. (a) is smaller and survives CI.
 Note the footer has no logo at all — plain `<h3>PMST</h3>` (`footer.component.ts:15`).
 
 **Route to:** `pmst-frontend`.
+
+</details>
 
 ---
 
@@ -386,12 +445,26 @@ Category spread live: `entertainment` 120, `nepal-news` 8, `housing-rental` 2, `
 
 ---
 
-## T8 — P2 · YouTube API key is Terraform drift
+## T8 — ✅ CLOSED — NOT drift. This item was wrong.
+
+> **Corrected 2026-10-03.** `youtube_api_key` **is** declared in `secrets.auto.tfvars` and
+> properly plumbed: `variables.tf` → `modules/lambda/variables.tf` → `PMST_YT_API_KEY` in the
+> lambda env block. A `terraform apply` will **not** wipe it. Verified both sides — the
+> variable is declared, and the live function has `PMST_YT_API_KEY` set.
+>
+> The wiring was uncommitted at the time of the audit, which is what made it look like drift.
+> It is now committed in `pmstmigrateinfra` `f7058bb`. No action required.
+
+<details><summary>Original (incorrect) finding</summary>
+
+### ~~T8 — P2 · YouTube API key is Terraform drift~~
 
 The homepage YouTube section **works** — verified 3 playlists / 22 videos. The key was applied
 directly via CLI, so the deployed Lambda environment no longer matches Terraform state. A
 future `terraform apply` can revert it and silently break the homepage with no code change to
 blame. Reconcile the value into `secrets.auto.tfvars` / the lambda module.
+
+</details>
 
 ---
 
@@ -400,6 +473,56 @@ blame. Reconcile the value into `secrets.auto.tfvars` / the lambda module.
 The first `/api/articles` request of the audit returned **504**; the next three returned 200
 in ~0.19 s. The first visitor after an idle period gets an error page. Needs provisioned
 concurrency, a scheduled warmer, or an accepted-risk note.
+
+---
+
+## T11 — P0 · The live Cognito pool is EMPTY — nobody exists to log in as
+
+Discovered 2026-10-03 while verifying T1. **Fixing T1 alone will not restore login.**
+
+```
+pmst-prod-user-pool (us-east-1_1dEqFgYNR)
+EstimatedNumberOfUsers: 0
+UsernameAttributes: ["email"]     ← sign-in is by EMAIL, not username
+```
+
+The migrated WordPress users **are** in Postgres and reachable through the public profile
+endpoint (`GET /prod/api/users/username/<name>`):
+
+| username | email | role | cognitoId |
+|---|---|---|---|
+| `pmstnepal` | `pmstnepal@gmail.com` | **admin** | **null** |
+| `nepaliupdate` | `funkeymedia17@gmail.com` | user | **null** |
+
+`cognitoId` is null on every row. The migration copied profiles and roles but never created
+or linked the Cognito identities — that is gap **G3**, and
+`11_link_user_profiles_to_cognito.py` is still the placeholder it always was.
+
+**WordPress passwords can never work.** WP stores phpass hashes; Cognito cannot import or
+verify them. The documented fallback ("migrated users sign in via password reset") also has
+no code behind it — `/auth/forgot-password` and `/auth/reset-password` are listed in
+`SecurityConfig.java:50-51` as permitted but are **not implemented** (404), and SES is still
+sandboxed (**G5**), so reset mail would not send anyway.
+
+### Why creating one admin by email is enough to get in
+
+`AuthService.login()` calls `UserSyncService.syncFromCognito(email, …)`, which does
+`userRepository.findByEmail(email)` — it links by **email**, not by `cognitoId`. So creating
+a Cognito user with `pmstnepal@gmail.com` attaches to the existing row and **preserves
+`role: "admin"`**; `role: "user"` is only assigned to genuinely new emails.
+
+**Do NOT use `/auth/register` for an email that already has a row.** `register()` calls
+`createLocalUser()`, which unconditionally inserts — you would get a duplicate row or a
+unique-constraint failure. Create the Cognito user directly (see the runbook).
+
+**Known wart:** `syncFromCognito` finds by email but never writes `cognitoId` back, so the
+column stays null even after a successful login. Harmless today since lookup is by email,
+but anything keyed on `cognitoId` will not work.
+
+Steps: `.windsurf/workflows/pmst-production-deployment.md` → *Phase 10 — Login Cutover*.
+
+**Still open after that:** bulk user migration (G3). Phase 10 creates exactly **one** user.
+Every other migrated user remains unable to log in until G3 and password reset are built.
 
 ---
 
