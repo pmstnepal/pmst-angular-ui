@@ -34,6 +34,23 @@ import { AuthService } from '../../core/services/auth.service';
              class="pmst-btn-primary w-full flex justify-center">
             I have a code
           </a>
+
+          <!-- Most PMST accounts were migrated from WordPress and have no login
+               identity yet. A reset for those addresses genuinely sends nothing,
+               and the message above cannot say so without revealing which
+               addresses are registered. Tell everyone the remedy instead. -->
+          <div class="rounded-md bg-amber-50 border border-amber-200 p-4 text-sm text-amber-900">
+            <p class="font-medium mb-1">No code after a few minutes?</p>
+            <p>
+              Check your spam folder first — messages come from
+              <span class="font-mono">no-reply&#64;verificationemail.com</span>.
+            </p>
+            <p class="mt-2">
+              If you had an account on the old site but have never signed in here, you still need to
+              <a routerLink="/register" class="font-medium underline">create your login</a>
+              using that same email address. Your articles and role carry over.
+            </p>
+          </div>
         } @else {
           @if (error()) {
             <div class="rounded-md bg-red-50 border border-red-200 p-4 text-sm text-red-700">{{ error() }}</div>

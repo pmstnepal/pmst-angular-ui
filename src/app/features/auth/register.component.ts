@@ -88,7 +88,13 @@ import { AuthService, RegisterData } from '../../core/services/auth.service';
                 class="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                 placeholder="••••••••"
               >
-              <p class="mt-1 text-xs text-gray-500">Must be at least 8 characters with uppercase, lowercase, and number.</p>
+              <!-- Must match the Cognito pool policy exactly (min 8, upper,
+                   lower, number, symbol). The previous copy omitted the symbol
+                   requirement, so users were rejected by a rule the form never
+                   told them about. -->
+              <p class="mt-1 text-xs text-gray-500">
+                At least 8 characters, with an uppercase letter, a lowercase letter, a number and a symbol.
+              </p>
             </div>
 
             <div class="flex items-center">
