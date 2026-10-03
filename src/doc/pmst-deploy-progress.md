@@ -6,12 +6,18 @@
 > Last updated: **2026-10-03 — login cutover complete.** The site is LIVE on AWS and
 > **login now works in production.**
 >
-> Current state: T1, T2, T4, T10 resolved · T8 closed (was a wrong finding) ·
+> Current state: **T1, T2, T4, T10 resolved** · **T6 and T8 closed as wrong findings** ·
 > T11 partially resolved (one admin exists; bulk user migration still open) ·
-> T3, T5, T6, T7, T9, T12 open. See `## Post-Launch Open Items (TODO)` below.
+> **open: T3, T5, T7, T9, T12, T13.**
 >
-> **Highest priority now: [T9]** — Lambda cold start measured **26.7 s** against API
-> Gateway's **29 s** timeout, so the first visitor after an idle period can get a 504.
+> **Highest priority: [T9]** — root cause now identified. SnapStart is configured but
+> **inert**, because API Gateway invokes the unqualified ARN (`$LATEST`) and SnapStart only
+> applies to published versions. Cold start is **26.7 s** against a **29 s** gateway timeout.
+> Fixing it is an alias + qualified-ARN change, not a mystery.
+>
+> Nothing currently open is a user-facing outage. T13 (95% of gallery references lost) is the
+> largest content gap and is **fully recoverable** — the SQL is written and the images are
+> verified intact in S3; it only needs DB access.
 
 ## Environment facts
 - AWS account: `602301275673`, region `us-east-1`, CLI identity: IAM user `pmst-deploy`
@@ -438,7 +444,27 @@ house style. `angular.json:9-13` mandates `scss` / `standalone` / `OnPush`. New 
 
 ---
 
-## T6 — P1 · Spotlight "Nepal News" tab returns nothing · NEEDS LIVE CONFIRMATION
+## T6 — ✅ CLOSED — NOT a bug. This finding was wrong.
+
+> **Verified on live 2026-10-03.** The Nepal News tab works. Browser check:
+> request `GET /articles?page=0&size=17&sort=publishedAt,desc&category=nepal-news`
+> → **8 article cards rendered**. Entertainment renders 17.
+>
+> **What I missed:** `article.service.ts:50` normalizes the category before sending —
+> `category.toLowerCase().replace(' ', '-')`. So the component passing the label
+> `'nepal news'` is correct by design; the service converts it to `nepal-news`.
+> I probed the API with the raw label, saw 0 results, and concluded the component was
+> broken without checking whether the service transformed it. The owner said twice that
+> the tab was fine; they were right both times.
+>
+> **One genuine latent flaw worth knowing** (not worth fixing today): `.replace(' ', '-')`
+> with a string first argument replaces only the **first** space. A future two-space
+> category — "arts and culture" — would become `arts-and culture` and silently return
+> nothing. Use `.replace(/ /g, '-')` or a slugify helper when a category like that is added.
+
+<details><summary>Original (incorrect) finding</summary>
+
+### ~~T6 — Spotlight "Nepal News" tab returns nothing~~
 
 `spotlight.component.ts:25` sends the literal label `'nepal news'`; `setCategory()` stores it
 and `loadArticles()` passes it straight to `getArticles()` with **no label→slug conversion**.
@@ -453,6 +479,8 @@ Entertainment tab was exercised. Check the Nepal News tab specifically before ch
 
 **Two candidate fixes:** patch the component's label→slug mapping (smaller), or normalize
 category matching in the API to tolerate spaces/hyphens/case (fixes the whole class).
+
+</details>
 
 ---
 
@@ -501,6 +529,33 @@ blame. Reconcile the value into `secrets.auto.tfvars` / the lambda module.
 ---
 
 ## T9 — 🔴 UPGRADED TO P1 · Cold start is 26.7s against a 29s timeout
+
+> ### Root cause found 2026-10-03: SnapStart is configured but **inert**
+>
+> ```
+> SnapStart: { ApplyOn: "PublishedVersions", OptimizationStatus: "Off" }
+> Version:   $LATEST
+> API Gateway integration URI: .../functions/${lambda_arn}/invocations   ← UNQUALIFIED
+> ```
+>
+> SnapStart only ever applies to **published versions**. API Gateway invokes the
+> **unqualified** function ARN, which always resolves to `$LATEST` — and `$LATEST` never
+> receives a snapshot. So the feature is enabled in Terraform, reports `OptimizationStatus:
+> Off` on the live function, and does nothing. Java pays the full JVM + Spring startup on
+> every cold start, which is the 26.7 s.
+>
+> **Fix:** publish a version on deploy, create an alias (e.g. `live`), point the alias at the
+> new version, and change the API Gateway integration URI to the **qualified** ARN
+> (`${lambda_arn}:live`). SnapStart then actually initialises. Typically takes Java cold
+> starts from ~20-30 s to low single digits.
+>
+> **Also worth correcting:** the Lambda `Timeout` is **30 s** while API Gateway's integration
+> timeout is **29 s**. The Lambda is allowed to outlive the gateway's patience, so a slow
+> request becomes a 504 with the invocation still running and billing. Set the function
+> timeout below 29 s.
+>
+> This is a real infrastructure change affecting the invocation path for all traffic —
+> plan and apply it deliberately, not as a drive-by.
 
 > **Measured 2026-10-03, and it is worse than first thought.** After the Lambda redeploy the
 > first `/api/articles` call took **26.7 s** — API Gateway's integration timeout is **29 s**,
@@ -645,6 +700,21 @@ Fully reverted: ingress rule `sgr-0680ed0251cacc240` revoked, flag back to `fals
 `PubliclyAccessible=false` confirmed, retrieved credentials deleted. Cost ≈ two RDS
 modification cycles (~2 min each). The reason is now recorded in `deploy/prod.tfvars` so it
 is not rediscovered.
+
+**Why the earlier migration appeared to use this toggle.** `prod.tfvars` carried the comment
+`# reverted after migration`, implying the flag was the mechanism. It was not.
+`pmst-migration/ssh-tunnel.err` records:
+
+```
+Warning: Permanently added '34.201.146.34' (ED25519) to the list of known hosts.
+Connection to 34.201.146.34 closed by remote host.
+```
+
+That is an **SSH session to a bastion host** at `34.201.146.34` — not the RDS endpoint (RDS
+does not speak SSH, and its public IP during this attempt was `174.129.249.217`). No EC2
+instances exist in the account now, so that bastion was terminated afterwards. The flag was
+flipped and reverted, but a bastion tunnel is what actually carried the migration traffic —
+and only the flag flip got written down.
 
 **✅ Correct route: SSM port-forward.** NAT gateways exist
 (`nat-0d4f0f608631aae7d`, `nat-0a4031794b93589f6`), so a small instance in a private subnet
