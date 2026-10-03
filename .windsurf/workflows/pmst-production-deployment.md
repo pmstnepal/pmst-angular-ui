@@ -64,7 +64,7 @@ Deploy the full PMST stack (Angular frontend, `pmst-api-service`, and `pmst-tick
 | G5 | SES sandbox limits bulk email. | ⏳ Open | Phase 2b: request production access early (~24 h). Blocks password-reset mail — see G11. |
 | G6 | Hard-coded secrets in `scripts/config.py`. | ✅ Resolved | Reads from `.env`; raises if missing. |
 | G7 | Image source assumed at `D:\pmstmigrate\src\assets\images`. | ✅ Resolved | Confirmed 3,764 images; `SOURCE_IMAGES_DIR` env override added. |
-| G8 | RDS is private in prod. | ⏳ Open | Still `db_publicly_accessible=false`. Needed for the G14/T7 row-count reconciliation. |
+| G8 | RDS is private in prod. | ⏳ Open | **The `db_publicly_accessible` toggle does NOT work** — the DB subnets have no internet gateway, so the flag assigns a public IP that nothing can reach. Tried and reverted 2026-10-03. Use an SSM port-forward via a private-subnet instance (NAT exists). Blocks **T7** and **T13**. |
 | G9 | WAF/Shield referenced in docs but not in Terraform. | ⏳ Open | Optional post-launch. |
 | G10 | `contributor` role mismatch with frontend `User.role` type. | ⏳ Open | Optional: align type + role checks later. |
 | **G11** | **Login is impossible in prod.** `POST /api/auth/login` is rejected by the Cognito authorizer before Lambda; plus 3 more blockers behind it (auth-flow mismatch, unwired `COGNITO_CLIENT_ID`, no `cognito-idp:*` IAM). | ✅ **RESOLVED 2026-10-03** | Applied (16 add / 7 change / 1 destroy). Login verified end-to-end, `role: admin` preserved. See **T1**. |

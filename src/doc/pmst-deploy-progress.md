@@ -631,11 +631,35 @@ Every key in it was verified to exist in S3 before the file was written.
 > not depend on `EXPORTS_DIR` CSVs or the local images tree still being intact. Worth
 > understanding why the script failed before trusting it on the next dataset.
 
-### Blocked on
+### Blocked on — and one route is now ruled out
 
-Prod RDS is private (**G8**) and no tunnel tooling exists in the repo. Applying this needs
-either an SSM/bastion port-forward or a short-lived `db_publicly_accessible` toggle with the
-security group narrowed to one IP. That is a security decision, not a technical one.
+**❌ `db_publicly_accessible = true` does not work. Do not retry it.**
+Attempted 2026-10-03. The flag applied cleanly and RDS was assigned a public IP
+(`174.129.249.217`), a `/32` ingress rule was added for the operator's address — and
+connections still timed out. They always will: the DB subnet group uses
+`subnet-0eacb3e0f320d42ae` / `subnet-04aa8362a194e113b`, whose route tables contain **only a
+`local` route**. With no internet gateway there is no path from the internet, regardless of
+the flag or the security group.
+
+Fully reverted: ingress rule `sgr-0680ed0251cacc240` revoked, flag back to `false`,
+`PubliclyAccessible=false` confirmed, retrieved credentials deleted. Cost ≈ two RDS
+modification cycles (~2 min each). The reason is now recorded in `deploy/prod.tfvars` so it
+is not rediscovered.
+
+**✅ Correct route: SSM port-forward.** NAT gateways exist
+(`nat-0d4f0f608631aae7d`, `nat-0a4031794b93589f6`), so a small instance in a private subnet
+can reach SSM and forward to RDS with **no public exposure at any point**:
+
+```
+aws ssm start-session --target <instance-id> \
+  --document-name AWS-StartPortForwardingSessionToRemoteHost \
+  --parameters '{"host":["pmst-prod-postgres.c2rwsbwwhr5u.us-east-1.rds.amazonaws.com"],"portNumber":["5432"],"localPortNumber":["5433"]}'
+```
+
+Requires: a t4g.nano in a private subnet, an instance profile with
+`AmazonSSMManagedInstanceCore`, and its SG added to the RDS SG's ingress. Terminate when
+done. This also unblocks **T7** (the 131 vs ~1,446 article reconciliation), which needs the
+same access — worth doing once and using for both.
 
 ---
 
