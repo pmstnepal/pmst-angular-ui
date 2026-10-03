@@ -64,6 +64,12 @@ export const routes: Routes = [
     canActivate: [adminGuard]
   },
   {
+    // User role management — admin-only (PATCH /users/{id}/role is admin-only server-side too).
+    path: 'admin/users',
+    loadComponent: () => import('./features/admin/user-management.component').then(m => m.UserManagementComponent),
+    canActivate: [adminGuard]
+  },
+  {
     // Event management — admin + moderator (creators). Publish/approve gated in-component.
     path: 'admin/events',
     loadComponent: () => import('./features/admin/event-management.component').then(m => m.EventManagementComponent),

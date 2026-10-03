@@ -1,6 +1,6 @@
-import { Component, signal, ChangeDetectionStrategy } from '@angular/core';
+import { Component, signal, ChangeDetectionStrategy, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { RouterLink } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 
 @Component({
   selector: 'pmst-admin-dashboard',
@@ -133,7 +133,7 @@ import { RouterLink } from '@angular/router';
             <div class="bg-white rounded-lg shadow p-6">
               <h3 class="font-semibold mb-4">Quick Actions</h3>
               <div class="space-y-2">
-                <button class="w-full text-left px-4 py-2 rounded-lg hover:bg-gray-50 flex items-center">
+                <button (click)="goToUserManagement()" class="w-full text-left px-4 py-2 rounded-lg hover:bg-gray-50 flex items-center">
                   <svg class="w-5 h-5 mr-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"/>
                   </svg>
@@ -190,6 +190,8 @@ import { RouterLink } from '@angular/router';
   styles: [``]
 })
 export class AdminDashboardComponent {
+  private router = inject(Router);
+
   stats = signal({
     users: 1234,
     newUsers: 12,
@@ -218,5 +220,9 @@ export class AdminDashboardComponent {
   rejectItem(id: number): void {
     this.pendingSubmissions.update(items => items.filter(item => item.id !== id));
     alert('Item rejected!');
+  }
+
+  goToUserManagement(): void {
+    this.router.navigate(['/admin/users']);
   }
 }

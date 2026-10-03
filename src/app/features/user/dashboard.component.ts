@@ -17,9 +17,17 @@ import { ImageUrlMapperService } from '../../services/image-url-mapper.service';
       <div class="container mx-auto px-4">
         <div class="flex items-center justify-between mb-8">
           <h1 class="text-3xl font-bold text-gray-900">
-            {{ isAdmin() ? 'Admin Dashboard' : 'My Dashboard' }}
+            {{ isAdmin() ? 'Admin Dashboard' : (isModerator() ? 'Moderator Dashboard' : 'My Dashboard') }}
           </h1>
           <div class="flex gap-3">
+            @if (isAdmin()) {
+              <a routerLink="/admin/users" class="pmst-btn-primary flex items-center gap-2">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"/>
+                </svg>
+                Manage Users
+              </a>
+            }
             <a routerLink="/submit/article" class="pmst-btn-primary flex items-center gap-2">
               <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
@@ -58,13 +66,13 @@ import { ImageUrlMapperService } from '../../services/image-url-mapper.service';
         <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
           <div class="bg-white rounded-lg shadow p-6">
             <h3 class="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-1">
-              {{ isAdmin() ? 'Total Articles' : 'My Articles' }}
+              {{ isModerator() ? 'Total Articles' : 'My Articles' }}
             </h3>
             <p class="text-3xl font-bold text-indigo-600">{{ stats().articles }}</p>
           </div>
           <div class="bg-white rounded-lg shadow p-6">
             <h3 class="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-1">
-              {{ isAdmin() ? 'Total Galleries' : 'My Galleries' }}
+              {{ isModerator() ? 'Total Galleries' : 'My Galleries' }}
             </h3>
             <p class="text-3xl font-bold text-pink-600">{{ stats().galleries }}</p>
           </div>
@@ -174,7 +182,7 @@ import { ImageUrlMapperService } from '../../services/image-url-mapper.service';
                             [class.db-badge-gallery]="item.type === 'Gallery'">
                         {{ item.type }}
                       </span>
-                      @if (isAdmin() && item.authorName) {
+                      @if (isModerator() && item.authorName) {
                         <span class="text-xs text-gray-500">by {{ item.authorName }}</span>
                       }
                       <span class="text-xs text-gray-400">{{ item.date | date:'mediumDate' }}</span>
@@ -193,8 +201,8 @@ import { ImageUrlMapperService } from '../../services/image-url-mapper.service';
                   <!-- Action buttons -->
                   <div class="flex-shrink-0 flex items-center gap-2">
 
-                    <!-- Approve button: admin only, pending items -->
-                    @if (isAdmin() && item.status === 'pending') {
+                    <!-- Approve button: admin/moderator, pending items -->
+                    @if (isModerator() && item.status === 'pending') {
                       @if (savingId() === item.id) {
                         <span class="db-approve-btn db-approve-btn-loading" disabled>
                           <svg class="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
@@ -398,6 +406,7 @@ export class DashboardComponent implements OnInit {
   public imageMapper = inject(ImageUrlMapperService);
 
   readonly isAdmin = computed(() => this.authService.isAdmin());
+  readonly isModerator = computed(() => this.authService.isModerator());
   readonly eventsEnabled = computed(() => this.settingsService.eventsEnabled$());
   readonly settingsLoading = computed(() => this.settingsService.loading$());
 
@@ -528,7 +537,7 @@ export class DashboardComponent implements OnInit {
     const user = this.authService.user();
     if (!user) { this.loading.set(false); return; }
 
-    const isAdmin = this.authService.isAdmin();
+    const isModerator = this.authService.isModerator();
     const authorId = user.id;
     let articlesLoaded = false;
     let galleriesLoaded = false;
@@ -537,7 +546,7 @@ export class DashboardComponent implements OnInit {
       if (articlesLoaded && galleriesLoaded) this.loading.set(false);
     };
 
-    const articlesCall$ = isAdmin
+    const articlesCall$ = isModerator
       ? this.articleService.getAllArticles(0, 100)
       : this.articleService.getMyArticles(authorId, 0, 100);
 
@@ -562,7 +571,7 @@ export class DashboardComponent implements OnInit {
       error: () => { articlesLoaded = true; checkDone(); }
     });
 
-    const galleriesCall$ = isAdmin
+    const galleriesCall$ = isModerator
       ? this.galleryService.getAllGalleries(0, 100)
       : this.galleryService.getMyGalleries(authorId, 0, 100);
 

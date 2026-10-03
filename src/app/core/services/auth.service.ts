@@ -89,6 +89,11 @@ export class AuthService {
     return localStorage.getItem(STORAGE_KEYS.ACCESS_TOKEN);
   }
 
+  /** Used by the HTTP interceptor for API Gateway's COGNITO_USER_POOLS authorizer, which expects the ID token. */
+  getIdToken(): string | null {
+    return localStorage.getItem(STORAGE_KEYS.ID_TOKEN);
+  }
+
   getRefreshToken(): string | null {
     return localStorage.getItem(STORAGE_KEYS.REFRESH_TOKEN);
   }
@@ -111,7 +116,8 @@ export class AuthService {
 
   /**
    * Called by HTTP interceptor when an API call returns 401.
-   * Exchanges refresh token for a new access token.
+   * Exchanges refresh token for a new ID token (used to re-authorize the retried request)
+   * and access token (stored for completeness, not sent to the API Gateway authorizer).
    */
   refreshAccessToken(): Observable<string> {
     const refreshToken = this.getRefreshToken();
@@ -124,7 +130,7 @@ export class AuthService {
         localStorage.setItem(STORAGE_KEYS.ACCESS_TOKEN, resp.accessToken);
         // refreshToken stays the same
       }),
-      map(resp => resp.accessToken)
+      map(resp => resp.idToken)
     );
   }
 
