@@ -3,18 +3,24 @@
 > Resume file for the straight-to-prod AWS migration. Companion to
 > `.windsurf/workflows/pmst-production-deployment.md` (runbook) and
 > `.windsurf/workflows/pmst-development-workflow.md`.
-> Last updated: **2026-10-03 — login cutover complete.** The site is LIVE on AWS and
-> **login now works in production.**
+> Last updated: **2026-10-03 — login cutover + role authorization + user management.**
+> The site is LIVE on AWS and is now a working authenticated CMS.
 >
-> Current state: **resolved — T1, T2, T4, T10, T13** · **closed as wrong findings — T6, T7, T8** ·
-> T11 partially resolved (one admin; bulk user migration still open) ·
-> **open: T3, T5, T9, T12.**
+> Current state (end of 2026-10-03): **production is a working authenticated CMS at v2.1.0.**
 >
-> **Highest priority: [T9]** — SnapStart is configured but **inert** (API Gateway invokes the
-> unqualified ARN, so `$LATEST` never gets a snapshot). Cold start **26.7 s** against a
-> **29 s** gateway timeout. Fix is an alias + qualified ARN.
+> **Resolved:** T1 login · T2 events API · T4 logo · T10 security · T13 galleries ·
+> T14 editor layout · T15 article updates · T16 field preservation.
+> **Closed as wrong findings:** T6, T7, T8.
+> **Partial:** T11 — one admin works; bulk user migration still open (G3).
+> **Open:** T3, T5, T9, T12.
 >
-> Nothing open is a user-facing outage.
+> **Highest priority: [T9]** — SnapStart is configured but **inert** (API Gateway invokes
+> the unqualified ARN, so `$LATEST` never receives a snapshot). Cold start **26.7 s**
+> against a **29 s** gateway timeout. It has now interfered with four separate diagnoses —
+> fix is an alias + qualified ARN.
+>
+> Nothing open is a user-facing outage. See `# Session Record — 2026-10-03` below for
+> today's plan, implementation order and scope.
 
 ## Environment facts
 - AWS account: `602301275673`, region `us-east-1`, CLI identity: IAM user `pmst-deploy`
@@ -103,9 +109,15 @@ Confirmed live 2026-09-08 by direct probe, not by log entry:
   → `{"eventsEnabled":true}`, `/prod/api/galleries` → 200. Flyway ran (`V1`–`V7` applied).
 - **Images working.** `https://pmstusnepal.com/media/<key>/card.webp` → `200 image/webp`.
 
-**Phase 5 (data migration) is PARTIALLY complete, not blocked.** Content is in prod:
-131 published articles, 13 galleries. But the documented source is ~1,446 `wp_posts` —
-see **T7**. Galleries reconcile 13/13; articles do not.
+**Phase 5 (data migration) is COMPLETE.** Confirmed against the production database
+2026-10-03: **1,446 articles** (1,311 draft + 131 published + 4 pending) — exactly the
+documented source count — plus 13/13 galleries. Nothing was lost. The earlier "131 live vs
+~1,446" alarm came from reading an API page count as a table count; see **T7**, closed.
+Gallery *image references* were separately lost and have been restored — see **T13**.
+
+The remaining question is editorial, not technical: 1,311 articles sit in `draft` because
+WordPress `private` posts were mapped there. Whether any should be published is the
+owner's call.
 
 **Phase 9 residual:** confirm `db_publicly_accessible` was set back to `false` after the
 migration window. Unverified as of this audit.
@@ -148,6 +160,90 @@ migration window. Unverified as of this audit.
 - Built prod bundle, synced `dist/pmst-angular-ui/browser` to `s3://pmst-prod-frontend`, and invalidated CloudFront `ECN0HO6STY22O`.
 - Added `youtube_api_key` to `secrets.auto.tfvars` and ran `terraform apply -target="module.lambda"` to inject `PMST_YT_API_KEY` into `pmst-prod-pmst-api-service` and `pmst-prod-ticketing-service`.
 - Smoke tests: CloudFront `card.webp`/`hero.webp` 200 image/webp; API `/articles` returns `imageKey`; API `/youtube/playlists` returns 3 videos.
+
+---
+
+# Session Record — 2026-10-03
+
+**27 commits across 5 repos. Production went from "nobody can log in" to a working
+authenticated CMS at v2.1.0.**
+
+## Scope
+
+**In scope (planned):** close the login outage (T1), restore the lost gallery references
+(T13), and implement the role-based authorization plan
+(`~/.claude/plans/actually-we-can-have-eager-harbor.md`).
+
+**In scope (found while working — fixed because each one blocked the next step):**
+T10 security hole, the jsonb write failure, the Quill `&nbsp;` corruption, the
+`applyRequest` field wipe, and three image-rendering defects.
+
+**Explicitly out of scope / deferred:** T3 (in-body article galleries — deferred by owner
+decision), T5 (legal pages — needs real copy), T9 (cold start — root-caused but the fix
+changes the invocation path for all traffic and deserves its own change), T12 (fabricated
+admin dashboard numbers), G3 (bulk Cognito user migration — blocked on SES).
+
+## What shipped
+
+| Area | Outcome |
+|---|---|
+| **Login** | Works. 4 stacked blockers fixed in one Terraform change; admin created in Cognito |
+| **Public Events API** | 200 instead of 401 |
+| **Gallery data** | 105 image references restored across 27 articles |
+| **Article editing** | `PUT` worked for the first time in prod (jsonb fix) |
+| **Authorization** | admin / moderator / user model enforced end-to-end |
+| **User management** | List, change role, deactivate, delete — with login-time status enforcement |
+| **Images** | Logo, dashboard thumbnails, both editors' previews |
+| **Version** | 1.0.0 → **2.1.0** (frontend + api-service) |
+
+## Implementation order (dependencies mattered)
+
+1. **Security first.** `POST /users` (raw-entity mass assignment) was removed and
+   **deployed before** the gateway opened — opening `/auth/register` first would have
+   created an anonymous→admin escalation path.
+2. **Terraform auth fix** — `fae267f`, applied as 16 add / 7 change / 1 destroy.
+3. **Cognito admin** created by email match so `syncFromCognito` attached to the existing
+   `pmstnepal` row and preserved `role: admin`.
+4. **V8 data fix in prod** (`contributor` → `user`, 11 rows) via the SSM maintenance host —
+   Flyway is disabled in prod, so it could never have run automatically.
+5. **Role authorization** deployed, then the frontend.
+
+## New defects found and fixed today
+
+Tracked below as **T14–T16**. All three were discovered *by verification*, not reported —
+which is the argument for running the checks rather than assuming a deploy worked.
+
+## Infrastructure added
+
+`pmstmigrateinfra/modules/maintenance-host/` — an ephemeral, SSM-only EC2 host for prod DB
+work. Off by default, no public IP, no inbound rules, no SSH key, no Secrets Manager access.
+Created and destroyed twice today. Full runbook in
+`.windsurf/workflows/pmst-production-deployment.md`.
+
+## Three of my own findings were wrong
+
+Recorded because the failure mode is instructive: **all three came from probing an API
+without checking how the caller actually used it.**
+
+- **T8** — "YouTube key is Terraform drift." It was declared in `secrets.auto.tfvars` all
+  along; it only looked like drift because the wiring was uncommitted.
+- **T6** — "Spotlight Nepal News tab is broken." `article.service.ts:50` normalizes the
+  label; I tested the API with the raw string and never checked the service.
+- **T7** — "91% of articles lost in migration." The API returns only `published` rows.
+  The database has **1,446** articles (1,311 draft + 131 published + 4 pending) — exactly
+  the documented source count. Nothing was ever lost.
+
+I also caused one regression: a verification `PUT` wiped `seoDescription` and
+`seoFocusKeyword` on a live article (see **T16**). Restored from a snapshot taken before
+the call.
+
+## Verification performed
+
+Login (200, `role: admin`, `cognitoId` backfilled) · anonymous `GET /articles/all`, `/my`,
+`/users` all 401 · same with admin token 200 · `PUT` preserves `imageKey` and all 6 gallery
+entries · self-deactivate 400 · self-delete 400 · anonymous delete 401 · invalid status 400 ·
+deactivate→reactivate round trip · browser checks on login, `/admin`, `/admin/users`,
+both editors, and article wrapping · teardown verified 5 ways after each SSM session.
 
 ---
 
@@ -775,6 +871,82 @@ done. This also unblocks **T7** (the 131 vs ~1,446 article reconciliation), whic
 same access — worth doing once and using for both.
 
 </details>
+
+---
+
+## T14 — ✅ RESOLVED 2026-10-03 · Quill turned every space into `&nbsp;`, breaking layout
+
+Reported as "when I update any post the layout breaks — only when I edit and publish".
+The article body overflowed its container horizontally; untouched articles were fine.
+
+**Cause.** Quill round-trips existing HTML through its clipboard module and returns every
+inter-word space as `&nbsp;`. Measured on one article before and after a single edit:
+
+```
+local  (never edited): 214 normal spaces,   0 &nbsp;
+prod   (after edit)  :   0 normal spaces, 194 &nbsp;
+```
+
+A non-breaking space is exactly that — the browser will not wrap there — so an entire
+paragraph becomes one unbreakable token that cannot be laid out.
+
+**Fix.** `normalizeEditorHtml()` converts `&nbsp;` and `U+00A0` back to ordinary spaces when
+building the save payload, in **both** `submit-content` and `submit-gallery` (same Quill
+instance, same exposure). Applied on save only — opening the editor does not rewrite
+stored content.
+
+**Two damaged articles repaired** (`abha-dhunganas-debut…` 194 → 0, `meet-and-greet-with-nayak…`
+253 → 0), verified wrapping on live (`overflowsHorizontally: false`).
+
+**Important distinction for anyone auditing this:** 47 of 131 published articles contain
+`&nbsp;` — but only the 2 edited ones were broken. The rest have a handful scattered among
+hundreds of normal spaces (original WordPress content) and wrap fine. The damage signature
+is **zero normal spaces**. Do not mass-rewrite the other 45; that is churn on live content
+with no benefit.
+
+---
+
+## T15 — ✅ RESOLVED 2026-10-03 · `PUT /articles` was broken in prod (jsonb vs varchar)
+
+Every article update failed with a 500 that surfaced as a 502 `Gateway Timeout`:
+
+```
+ERROR: column "gallery_images" is of type jsonb but expression is of type character varying
+```
+
+`articles.gallery_images` is `jsonb` mapped to a Java `String`. The entity carries
+`@Column(columnDefinition = "jsonb")`, but that **only influences DDL generation** — it does
+not change the JDBC binding, so the driver sent `varchar` and Postgres refused the implicit
+cast. Prod has Hibernate DDL and Flyway disabled, so nothing reconciled it at startup.
+
+**Fix:** `stringtype=unspecified` on the JDBC URL (`DatabaseConfig` for prod,
+`application.properties` for local) — the driver sends parameters as `unknown` and Postgres
+casts each at its target column.
+
+**Deliberately not** `@JdbcTypeCode(SqlTypes.JSON)` on the entity: with an already-JSON
+String field that risks Hibernate re-serializing the value as a JSON *string literal*,
+corrupting `gallery_images` — the exact column whose 105 references had just been restored.
+
+> Diagnostic note: the 502 body was `{"message":"Gateway Timeout"}`, which first read as
+> data loss. It was not — the write never committed. **Check the response body before
+> concluding anything from a 5xx**, and re-fetch to confirm actual state.
+
+---
+
+## T16 — ✅ RESOLVED 2026-10-03 · a partial PUT wiped optional article fields
+
+`applyRequest()` guarded `imageKey` / `featuredImage` / `galleryImages` against null but
+still set `excerpt`, `youtubeLink`, `embedCode`, `category` and all three `seo*` fields
+**unconditionally**. Any client omitting them wiped them.
+
+Found the hard way: my own verification `PUT` carrying only `title`/`slug`/`content`
+silently nulled `seoDescription` and `seoFocusKeyword` on a live published article. Restored
+from a pre-call snapshot.
+
+The Angular editor always sends the full field set, which is why this was never noticed —
+but it is the **same data-loss shape** the image-field guard was added to prevent, sitting
+on seven more columns. All optional fields now follow one rule: **null = preserve**. Only
+`title`/`slug`/`content` are unconditional, and those are `@NotBlank`.
 
 ---
 

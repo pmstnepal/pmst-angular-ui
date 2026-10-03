@@ -275,6 +275,43 @@ When implementing **new logic not in existing workflow**:
 - **`innerHTML` with migrated content is still XSS-adjacent** — `bypassSecurityTrustHtml` on
   WordPress-imported HTML disables Angular's sanitizer. Rewrite/validate such content through
   a dedicated service rather than trusting it wholesale.
+- **Admin-only write endpoints take a DTO, never the entity**, and must reject the caller
+  targeting themselves. `POST /users` bound a raw `User` and `save()` merges on a supplied
+  id, so any authenticated caller could overwrite the admin row — whose UUID is readable
+  from a public endpoint. Also refuse to remove or demote the **last remaining admin**;
+  there is no way back in through an admin-only UI.
+- **Deleting or disabling a user in the database is cosmetic on its own.** Cognito still
+  holds a valid identity, so a deactivated user authenticates fine and a hard-deleted one is
+  silently re-created by the sync path with the default role. Gate account status at login.
+
+### Partial updates must preserve, not blank
+
+An update handler that calls every setter unconditionally **deletes every field the client
+omitted**. This has now caused data loss twice in this project (`imageKey`, then six SEO and
+embed fields). The rule for any PUT/PATCH mapper:
+
+- `null` → **preserve** the existing value
+- empty string → explicit clear
+- only genuinely required fields (`@NotBlank`) may be set unconditionally
+
+A client that always sends the full object hides this bug completely — it surfaces the first
+time anything else calls the API.
+
+### Know your column types before mapping them
+
+`@Column(columnDefinition = "jsonb")` only influences DDL generation. It does **not** change
+the JDBC binding, so Hibernate still sends `varchar` and Postgres refuses the cast —
+breaking every write to that column. With Flyway and Hibernate DDL disabled in prod, nothing
+reconciles it at startup and it fails only in production. Use `stringtype=unspecified` on the
+JDBC URL for String-mapped `jsonb`; prefer it over `@JdbcTypeCode(SqlTypes.JSON)`, which can
+re-serialize already-JSON strings as JSON string literals and corrupt the column.
+
+### Rich-text editors rewrite what they touch
+
+Quill returns every inter-word space as `&nbsp;` when it round-trips existing HTML. A
+non-breaking space does not wrap, so a paragraph becomes one unbreakable token that overflows
+its container. **Normalize editor output on save** (`&nbsp;`/`U+00A0` → space) — on save
+only, so merely opening a document does not rewrite stored content.
 
 ---
 

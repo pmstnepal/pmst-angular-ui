@@ -4077,6 +4077,69 @@ Protected (writes, /auth/me, /users/**): COGNITO_USER_POOLS</div>
                 <a href="../src/doc/aws-setup-guide.md" class="text-indigo-600 hover:text-indigo-800 text-sm font-medium flex items-center gap-1"><i data-lucide="external-link" class="w-4 h-4"></i> aws-setup-guide.md</a>
             </div>
 
+            <!-- Session: October 3, 2026 -->
+            <div class="bg-white border border-gray-200 rounded-xl shadow-sm mb-6 overflow-hidden">
+                <div class="bg-gradient-to-r from-emerald-600 to-emerald-700 text-white px-6 py-4 flex items-center justify-between">
+                    <div>
+                        <h3 class="font-bold text-lg flex items-center gap-2"><i data-lucide="shield-check" class="w-5 h-5"></i> October 3, 2026 — Login Cutover, Role Authorization &amp; User Management</h3>
+                        <p class="text-emerald-100 text-sm mt-1">27 commits across 5 repos · production went from "nobody can log in" to a working authenticated CMS · v2.1.0</p>
+                    </div>
+                    <span class="bg-white/20 px-3 py-1 rounded-full text-xs font-semibold">8 resolved · 3 closed as wrong</span>
+                </div>
+                <div class="px-6 py-5 space-y-4 text-sm text-gray-700">
+
+                    <div class="bg-emerald-50 border-l-4 border-emerald-400 px-4 py-3 rounded">
+                        <p class="font-semibold text-emerald-900 mb-1">Headline: login works, and the site is now administrable.</p>
+                        <p class="text-emerald-800">Four stacked blockers were fixed in one Terraform change, an admin was created in Cognito by email match (preserving <code>role: admin</code> on the existing migrated row), and the admin/moderator/user authorization model is enforced end to end. User management now supports listing, role changes, deactivation and deletion.</p>
+                    </div>
+
+                    <div>
+                        <p class="font-semibold text-gray-800 mb-2">Implementation order — the dependencies were the hard part</p>
+                        <ol class="list-decimal list-inside space-y-1 ml-2">
+                            <li><strong>Security first.</strong> <code>POST /users</code> (raw-entity mass assignment) was removed and <strong>deployed before</strong> the gateway opened. Opening <code>/auth/register</code> first would have created an anonymous&rarr;admin escalation chain: register &rarr; read the admin UUID from a public endpoint &rarr; overwrite that row with <code>role:&nbsp;admin</code>.</li>
+                            <li><strong>Terraform auth fix</strong> — 16 add / 7 change / 1 destroy. The destroy was the API Gateway deployment being replaced to publish the new method set; REST API id and invoke URL unchanged.</li>
+                            <li><strong>V8 data fix in prod</strong> (<code>contributor</code> &rarr; <code>user</code>, 11 rows) via an ephemeral SSM host — Flyway is disabled in prod, so it could never have run automatically.</li>
+                            <li>Role authorization backend, then frontend.</li>
+                        </ol>
+                    </div>
+
+                    <div>
+                        <p class="font-semibold text-gray-800 mb-2">Three defects found <em>by verification</em>, not by report</p>
+                        <ul class="list-disc list-inside space-y-1 ml-2">
+                            <li><strong>T15</strong> — <code>PUT /articles</code> had never worked in prod. <code>gallery_images</code> is <code>jsonb</code> mapped to a Java String; <code>columnDefinition</code> only affects DDL generation, so the driver sent <code>varchar</code> and Postgres refused the cast. Fixed with <code>stringtype=unspecified</code> rather than a JPA annotation, which would have risked re-serializing the JSON and corrupting the column that had just been repaired.</li>
+                            <li><strong>T16</strong> — a partial <code>PUT</code> wiped <code>excerpt</code>, <code>youtubeLink</code>, <code>embedCode</code>, <code>category</code> and all three <code>seo*</code> fields. The null-preserve guard covered only the three image fields. Found when my own test PUT nulled two SEO fields on a live article; restored from a snapshot.</li>
+                            <li><strong>T14</strong> — Quill converts every space to <code>&amp;nbsp;</code> on save (214 spaces &rarr; 194 <code>&amp;nbsp;</code>, zero normal spaces), making each paragraph one unbreakable token that overflows its container. Two damaged articles repaired.</li>
+                        </ul>
+                    </div>
+
+                    <div class="bg-gray-50 border border-gray-200 px-4 py-3 rounded">
+                        <p class="font-semibold text-gray-800 mb-1">Three of the audit's own findings were wrong — all the same failure mode</p>
+                        <p class="text-gray-600 mb-2">Each came from probing an API without checking how the caller actually used it:</p>
+                        <ul class="list-disc list-inside space-y-1 text-gray-600">
+                            <li><strong>T7</strong> — "91% of articles lost." The API returns only <code>published</code> rows. The database holds <strong>1,446</strong> articles (1,311 draft + 131 published + 4 pending), exactly the documented source count. Nothing was ever lost.</li>
+                            <li><strong>T6</strong> — "Spotlight Nepal News is broken." <code>article.service.ts:50</code> normalizes the label; the API was probed with the raw string.</li>
+                            <li><strong>T8</strong> — "YouTube key is Terraform drift." It was declared all along; the wiring was merely uncommitted.</li>
+                        </ul>
+                    </div>
+
+                    <div>
+                        <p class="font-semibold text-gray-800 mb-2">Data &amp; infrastructure</p>
+                        <ul class="list-disc list-inside space-y-1 ml-2">
+                            <li><strong>T13</strong> — 105 gallery image references restored across 27 articles. The images were never lost (105/105 verified in S3); only the database column had been written empty.</li>
+                            <li><strong>New module</strong> <code>maintenance-host</code> — ephemeral, SSM-only EC2 for prod DB work. No public IP, no inbound rules, no SSH key, no Secrets Manager access. Off by default; created and destroyed twice today, teardown verified five ways each time.</li>
+                            <li><strong>Ruled out permanently:</strong> <code>db_publicly_accessible = true</code> cannot reach the DB — the subnets have no internet gateway. Recorded in <code>prod.tfvars</code> so it is not retried.</li>
+                        </ul>
+                    </div>
+
+                    <div class="bg-amber-50 border-l-4 border-amber-400 px-4 py-3 rounded">
+                        <p class="font-semibold text-amber-900 mb-1">Still open — and one is now urgent</p>
+                        <p class="text-amber-800"><strong>T9</strong>: SnapStart is configured but <strong>inert</strong> — API Gateway invokes the unqualified ARN, so <code>$LATEST</code> never receives a snapshot. Cold start is <strong>26.7 s</strong> against a <strong>29 s</strong> gateway timeout, and it has now interfered with four separate diagnoses. The fix is an alias plus a qualified ARN. Also open: T3 (in-body galleries, deferred), T5 (legal pages), T12 (admin dashboard shows fabricated numbers), G3 (bulk Cognito migration, blocked on SES).</p>
+                    </div>
+
+                    <p class="text-gray-500 text-xs pt-1">Full plan, implementation order and scope: <code>src/doc/pmst-deploy-progress.md</code> &rarr; <em>Session Record — 2026-10-03</em>. Versions bumped to <strong>2.1.0</strong> (frontend + api-service); ticketing left at 1.0.0 as it was untouched.</p>
+                </div>
+            </div>
+
             <!-- Session: September 8, 2026 -->
             <div class="bg-white border border-gray-200 rounded-xl shadow-sm mb-6 overflow-hidden">
                 <div class="bg-gradient-to-r from-red-600 to-red-700 text-white px-6 py-4 flex items-center justify-between">

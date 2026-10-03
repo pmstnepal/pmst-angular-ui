@@ -787,6 +787,52 @@ export class AuthInterceptor implements HttpInterceptor {
 }
 ```
 
+### Authorization model (implemented 2026-10-03)
+
+Three roles. `contributor` was a dead legacy value — never assignable, referenced only in one
+dead branch — and was converted to `user` in prod via `V8__convert_contributor_to_user_role.sql`.
+
+| Action | admin | moderator | user | anonymous |
+|---|---|---|---|---|
+| Create article | ✅ | ✅ | ✅ (own, forced `status=pending`) | ❌ |
+| Edit article content | ✅ any | ✅ any | ✅ own only | ❌ |
+| Delete article | ✅ | ✅ | ❌ | ❌ |
+| Change status (publish/hide) | ✅ | ✅ | ❌ | ❌ |
+| View draft/pending | all | all | own only | ❌ |
+| View published | ✅ | ✅ | ✅ | ✅ |
+| List all users | ✅ | ❌ | ❌ | ❌ |
+| Change another user's role | ✅ | ❌ | ❌ | ❌ |
+| Deactivate / delete a user | ✅ | ❌ | ❌ | ❌ |
+
+**Where it is enforced.** `ArticleController` splits the checks into `canEditContent`,
+`canChangeStatus` and `canDelete` rather than one `canModify`. `UserController` guards the
+admin endpoints via `JwtUserResolver`. `SecurityConfig` must keep the specific matcher
+**before** the general one — first match wins:
+
+```java
+.requestMatchers(HttpMethod.GET, "/articles/all", "/articles/my").authenticated()
+.requestMatchers(HttpMethod.GET, "/articles/**", "/galleries/**", "/youtube/**").permitAll()
+```
+
+**Status escalation is ignored, not rejected.** If a `user`-role owner PUTs a `status` they
+may not set, the existing status is preserved and the rest of the edit applies — a partial
+success rather than a failed request.
+
+**Account identity rules worth knowing before touching this code:**
+
+- `UserSyncService.syncFromCognito()` resolves by `cognito_id` **first**, then by email.
+  An email match with `cognito_id` already set to a *different* sub is refused rather than
+  attached — otherwise a new Cognito identity could inherit an existing row's privileges.
+- An email match with `cognito_id` **null** backfills and attaches. This is deliberate: it
+  is how a pre-seeded admin row claims its role on first login, and how the production admin
+  was bootstrapped.
+- Account `status` is gated at login. Without that, deleting or deactivating a user is
+  cosmetic — Cognito still authenticates them, and a deleted user is silently re-created
+  by the sync path with the default role.
+
+Admin UI: `/admin/users` (`user-management.component.ts`). Full rollout record:
+`src/doc/pmst-deploy-progress.md` → *Session Record — 2026-10-03*.
+
 ### Database Schema (PostgreSQL)
 
 **Users & Profiles:**
