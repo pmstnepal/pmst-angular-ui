@@ -41,7 +41,7 @@ import { AuthService, RegisterData } from '../../core/services/auth.service';
                   required
                   [(ngModel)]="data.firstName"
                   class="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                  placeholder="Ram"
+                  placeholder="John"
                 >
               </div>
               <div>
@@ -53,36 +53,16 @@ import { AuthService, RegisterData } from '../../core/services/auth.service';
                   required
                   [(ngModel)]="data.lastName"
                   class="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                  placeholder="Thapa"
+                  placeholder="Doe"
                 >
               </div>
             </div>
 
-            <div class="grid grid-cols-2 gap-4">
-              <div>
-                <label for="username" class="block text-sm font-medium text-gray-700">Username</label>
-                <input
-                  id="username"
-                  name="username"
-                  type="text"
-                  required
-                  [(ngModel)]="data.username"
-                  class="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                  placeholder="johndoe"
-                >
-              </div>
-              <div>
-                <label for="displayName" class="block text-sm font-medium text-gray-700">Display Name</label>
-                <input
-                  id="displayName"
-                  name="displayName"
-                  type="text"
-                  [(ngModel)]="data.displayName"
-                  class="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                  placeholder="John Doe"
-                >
-              </div>
-            </div>
+            <!-- Username and Display Name are no longer asked for: they are
+                 derived in onSubmit() from the email and the two names above.
+                 This also matches what the backend already does on its own --
+                 UserSyncService creates the local row with
+                 username = email.split("@")[0]. -->
 
             <div>
               <label for="email" class="block text-sm font-medium text-gray-700">Email address</label>
@@ -200,6 +180,27 @@ export class RegisterComponent {
   onSubmit(): void {
     this.loading.set(true);
     this.error.set(null);
+
+    // Username and Display Name are derived, not asked for.
+    //
+    // username: the local part of the email. This mirrors what the backend
+    // already does when it creates the local row
+    // (UserSyncService: username = email.split("@")[0]), so the value the UI
+    // sends and the value that ends up stored agree.
+    //
+    // displayName: "First Last".
+    //
+    // Sent as part of the payload rather than left blank because the backend
+    // passes username through to Cognito as preferred_username.
+    const email = (this.data.email || '').trim();
+    const first = (this.data.firstName || '').trim();
+    const last = (this.data.lastName || '').trim();
+
+    this.data.email = email;
+    this.data.firstName = first;
+    this.data.lastName = last;
+    this.data.username = email.split('@')[0];
+    this.data.displayName = [first, last].filter(Boolean).join(' ');
 
     // Sign-up no longer returns tokens — the account is UNCONFIRMED until the
     // emailed code is entered, so send the user to /verify rather than home.
