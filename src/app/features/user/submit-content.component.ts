@@ -6,6 +6,7 @@ import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
 import { QuillModule } from 'ngx-quill';
 import { ArticleService } from '../../core/services/article.service';
 import { AuthService } from '../../core/services/auth.service';
+import { ImageUrlMapperService } from '../../services/image-url-mapper.service';
 
 const CATEGORIES = [
   { label: 'Entertainment', value: 'entertainment' },
@@ -83,9 +84,9 @@ const CATEGORIES = [
                [class.hero-image-zone--filled]="!!featuredImagePreview()"
                (click)="featuredImgInput.click()">
             @if (featuredImagePreview()) {
-              <div class="pmst-featured-blur" [style.background-image]="'url(' + featuredImagePreview() + ')'"></div>
+              <div class="pmst-featured-blur" [style.background-image]="'url(' + previewSrc(featuredImagePreview(), 'card') + ')'"></div>
               <div class="pmst-featured-center">
-                <img [src]="featuredImagePreview()" alt="Featured image preview">
+                <img [src]="previewSrc(featuredImagePreview(), 'hero')" alt="Featured image preview">
               </div>
               <button type="button" class="hero-swap-btn" (click)="$event.stopPropagation(); featuredImgInput.click()">✏️ Swap</button>
               <button type="button" class="hero-clear-btn" (click)="$event.stopPropagation(); clearFeaturedImage()">✕</button>
@@ -228,7 +229,7 @@ const CATEGORIES = [
           @for (preview of galleryPreviews(); track $index) {
             <div class="gallery-thumb-item">
               @if (preview) {
-                <img [src]="preview" alt="Gallery {{ $index + 1 }}" class="gallery-thumb-img">
+                <img [src]="previewSrc(preview, 'card')" alt="Gallery {{ $index + 1 }}" class="gallery-thumb-img">
                 <button type="button" class="gallery-thumb-remove" (click)="removeGalleryImage($index)">✕</button>
               } @else if ($index < 6) {
                 <button type="button" class="gallery-thumb-add" (click)="triggerGalleryInput($index)">
@@ -393,6 +394,26 @@ export class SubmitContentComponent implements OnInit {
   private sanitizer = inject(DomSanitizer);
   private elRef = inject(ElementRef);
   private cdr = inject(ChangeDetectorRef);
+  private imageMapper = inject(ImageUrlMapperService);
+
+  /**
+   * Render-only URL for a preview slot. DO NOT use this when building the save
+   * payload: `featuredImagePreview()` and `galleryPreviews()` are persisted
+   * verbatim (see buildPayload), so mapping them would write a derived
+   * CloudFront tier URL (".../hero.webp") back as the canonical featuredImage
+   * and lose the original reference.
+   *
+   * Handles the three shapes a preview can hold:
+   *   - `data:` / `blob:`  — a just-picked local file; pass through untouched
+   *   - `media/YYYY/MM/x`  — an S3 key from a migrated row; without mapping the
+   *                          browser resolves it as a relative path and 404s
+   *   - legacy wp-content  — resolves to index.html since the DNS cutover
+   */
+  previewSrc(value: string | null | undefined, tier: 'thumb' | 'card' | 'hero' | 'master' = 'card'): string {
+    if (!value) return '';
+    if (value.startsWith('data:') || value.startsWith('blob:')) return value;
+    return this.imageMapper.mapUrl(value, undefined, tier);
+  }
 
   editId = signal<string | null>(null);
   isLoadingEdit = signal(false);

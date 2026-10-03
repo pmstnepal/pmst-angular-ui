@@ -5,6 +5,7 @@ import { RouterLink, Router, ActivatedRoute } from '@angular/router';
 import { QuillModule } from 'ngx-quill';
 import { GalleryService, CreateGalleryPayload } from '../../core/services/gallery.service';
 import { AuthService } from '../../core/services/auth.service';
+import { ImageUrlMapperService } from '../../services/image-url-mapper.service';
 
 interface GalleryImageUpload {
   id: string;
@@ -83,9 +84,9 @@ interface GalleryImageUpload {
                [class.hero-image-zone--filled]="!!featuredImagePreview()"
                (click)="featuredImgInput.click()">
             @if (featuredImagePreview()) {
-              <div class="pmst-featured-blur" [style.background-image]="'url(' + featuredImagePreview() + ')'"></div>
+              <div class="pmst-featured-blur" [style.background-image]="'url(' + previewSrc(featuredImagePreview(), 'card') + ')'"></div>
               <div class="pmst-featured-center">
-                <img [src]="featuredImagePreview()" alt="Featured image preview">
+                <img [src]="previewSrc(featuredImagePreview(), 'hero')" alt="Featured image preview">
               </div>
               <button type="button" class="hero-swap-btn" (click)="$event.stopPropagation(); featuredImgInput.click()">✏️ Swap</button>
               <button type="button" class="hero-clear-btn" (click)="$event.stopPropagation(); clearFeaturedImage()">✕</button>
@@ -193,7 +194,7 @@ interface GalleryImageUpload {
           <div class="gallery-images-grid">
             @for (image of galleryImages(); track image.id; let i = $index) {
               <div class="gallery-image-item">
-                <img [src]="image.preview" alt="Gallery image {{ i + 1 }}">
+                <img [src]="previewSrc(image.preview, 'card')" alt="Gallery image {{ i + 1 }}">
                 <button type="button" class="gallery-image-remove" (click)="removeGalleryImage(i)">✕</button>
                 <input 
                   type="text" 
@@ -347,6 +348,20 @@ export class SubmitGalleryComponent implements OnInit {
   private route = inject(ActivatedRoute);
   private authService = inject(AuthService);
   private cdr = inject(ChangeDetectorRef);
+  private imageMapper = inject(ImageUrlMapperService);
+
+  /**
+   * Render-only URL for a preview slot. DO NOT use when building the save
+   * payload — `featuredImagePreview()` is persisted verbatim, so mapping it
+   * would store a derived CloudFront tier URL as the canonical featuredImage.
+   * Passes `data:`/`blob:` through; maps `media/` keys and legacy wp-content
+   * URLs, neither of which resolve to an image on their own after the cutover.
+   */
+  previewSrc(value: string | null | undefined, tier: 'thumb' | 'card' | 'hero' | 'master' = 'card'): string {
+    if (!value) return '';
+    if (value.startsWith('data:') || value.startsWith('blob:')) return value;
+    return this.imageMapper.mapUrl(value, undefined, tier);
+  }
 
   editId = signal<string | null>(null);
   isLoadingEdit = signal(false);
