@@ -5,5 +5,6 @@ export const environment = {
   apiUrl: 'https://REPLACE_WITH_TEST_API.execute-api.us-east-1.amazonaws.com/test/api',
   ticketingUrl: 'https://REPLACE_WITH_TEST_TICKETING_API.execute-api.us-east-1.amazonaws.com',
   appName: 'PMST US-Nepal (test)',
-  cfDomain: 'https://REPLACE_WITH_TEST_CF.cloudfront.net'
+  cfDomain: 'https://REPLACE_WITH_TEST_CF.cloudfront.net',
+  adsenseClient: ''
 };

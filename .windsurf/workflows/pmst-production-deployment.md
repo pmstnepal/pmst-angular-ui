@@ -43,26 +43,35 @@ Deploy the full PMST stack (Angular frontend, `pmst-api-service`, and `pmst-tick
 | Infra CI/CD (GitHub OIDC, branch-driven) | Ready (`.github/workflows/deploy.yml`) |
 | API service CI/CD + `deploy/environments.yaml` | Ready |
 | Frontend CI/CD + `deploy/environments.yaml` | Ready |
-| **Ticketing CI/CD** | **MISSING** — no `.github/` in `pmst-ticketing-service` |
+| **Ticketing CI/CD** | ✅ Created in Phase 1 — `.github/workflows/deploy-ticketing-service.yml` + `deploy/environments.yaml` |
 | Migration scripts (content/users/follows/comments) | Ready (`pmst-migration/scripts/01..13`) |
 | Image processing → S3 | Ready (`scripts/14_process_and_upload_images.py`) |
 | Cognito user-link script | **Placeholder** (`scripts/11_link_user_profiles_to_cognito.py`) |
-| Hard-coded secrets in migration repo | **Risk** — `scripts/config.py` (DB host/pw), `pmst-deploy_accessKeys.csv` |
+| Hard-coded secrets in migration repo | ✅ `scripts/config.py` now reads from `.env`. ⚠️ The plaintext `pmst-deploy_accessKeys*.csv` files still sit in `src/doc/` (gitignored + untracked) — delete locally and rotate the keys. |
 
-## Gaps to Resolve (G1–G10)
+## Gaps to Resolve (G1–G15)
 
-| # | Gap | Fix |
-|---|---|---|
-| G1 | No API Gateway custom domain configured. | **Use API Gateway invoke URL** — no custom domain. |
-| G2 | API path/stage mismatch (frontend expects `/v1/api` and a separate `tickets.` host). | Update `environment.prod.ts` and `deploy/environments.yaml` to `/prod/api` and `/prod/tickets` on the single API Gateway. |
-| G3 | No bulk Cognito user-import script. | Phase 7: add `create_cognito_users.py` and implement `11_link_user_profiles_to_cognito.py`. |
-| G4 | `cfDomain` placeholder in `environment.prod.ts`. | Phase 4: set to prod CloudFront/domain before build. |
-| G5 | SES sandbox limits bulk email. | Phase 2b: request production access early (~24 h). |
-| G6 | Hard-coded secrets in `scripts/config.py`. | Phase 0: rotate/remove; read from `.env`. |
-| G7 | Image source assumed at `D:\pmstmigrate\src\assets\images`. | ✅ Confirmed 3,764 images. `SOURCE_IMAGES_DIR` env override added to scripts; default stays at the confirmed path. |
-| G8 | RDS is private in prod. | Phase 5: use SSM port-forward via a small bastion or temporary public toggle. |
-| G9 | WAF/Shield referenced in docs but not in Terraform. | Optional post-launch. |
-| G10 | `contributor` role mismatch with frontend `User.role` type. | Optional: align type + role checks later. |
+> Status reviewed **2026-10-03** (login cutover). G11–G14 were found on the **live** site
+> after cutover — full detail, root causes and file references live in
+> `src/doc/pmst-deploy-progress.md` → `Post-Launch Open Items (TODO)`.
+
+| # | Gap | Status | Fix |
+|---|---|---|---|
+| G1 | No API Gateway custom domain configured. | ✅ Resolved | **Use API Gateway invoke URL** — no custom domain. |
+| G2 | API path/stage mismatch (frontend expects `/v1/api` and a separate `tickets.` host). | ✅ Resolved | Updated `environment.prod.ts` + `deploy/environments.yaml` to `/prod/api` and `/prod/tickets`. |
+| G3 | No bulk Cognito user-import script. | ⏳ Open | Phase 7: add `create_cognito_users.py` and implement `11_link_user_profiles_to_cognito.py`. |
+| G4 | `cfDomain` placeholder in `environment.prod.ts`. | ✅ Resolved | Set to `https://d2f5kzshaq1nf6.cloudfront.net`. |
+| G5 | SES sandbox limits bulk email. | ⏳ Open | Phase 2b: request production access early (~24 h). Blocks password-reset mail — see G11. |
+| G6 | Hard-coded secrets in `scripts/config.py`. | ✅ Resolved | Reads from `.env`; raises if missing. |
+| G7 | Image source assumed at `D:\pmstmigrate\src\assets\images`. | ✅ Resolved | Confirmed 3,764 images; `SOURCE_IMAGES_DIR` env override added. |
+| G8 | RDS is private in prod. | ⏳ Open | **The `db_publicly_accessible` toggle does NOT work** — the DB subnets have no internet gateway, so the flag assigns a public IP that nothing can reach. Tried and reverted 2026-10-03. Use an SSM port-forward via a private-subnet instance (NAT exists). Blocks **T7** and **T13**. |
+| G9 | WAF/Shield referenced in docs but not in Terraform. | ⏳ Open | Optional post-launch. |
+| G10 | `contributor` role mismatch with frontend `User.role` type. | ⏳ Open | Optional: align type + role checks later. |
+| **G11** | **Login is impossible in prod.** `POST /api/auth/login` is rejected by the Cognito authorizer before Lambda; plus 3 more blockers behind it (auth-flow mismatch, unwired `COGNITO_CLIENT_ID`, no `cognito-idp:*` IAM). | ✅ **RESOLVED 2026-10-03** | Applied (16 add / 7 change / 1 destroy). Login verified end-to-end, `role: admin` preserved. See **T1**. |
+| **G12** | **Public Events API returns 401.** `/tickets/{proxy+}` has no public-GET method; the Angular page swallows the error and renders an empty state that looks static. | ✅ **RESOLVED 2026-10-03** | `GET /prod/tickets/events` returns 200. Empty until an event is PUBLISHED. See **T2**. |
+| **G13** | **Site assets never reach the build.** `.gitignore:64-65` excludes `src/assets/images/`, so CI's clean checkout has no logo; `deploy.yml` `--delete` also wipes manual S3 uploads. | ✅ **RESOLVED 2026-10-03** | Logo committed to the repo (`ee7ac51`); the ignore rule now excludes directory *contents* so the negation works. CI will build it. See **T4**. |
+| **G14** | **Article body images are stripped at render**, and the migration wrote body image URLs in a shape that 404s on CloudFront. | 🟡 Narrowed, deferred | Standalone galleries, featured images and the lightbox are fixed. Only in-body galleries remain. See **T3**. |
+| **G15** | **The live Cognito pool has ZERO users**, and every migrated user has `cognitoId: null`. Fixing G11 alone still leaves nobody able to log in. WordPress passwords cannot be imported. | 🟡 **Partially resolved** | One admin (`pmstnepal@gmail.com`) created and logging in. Every other migrated user still has no Cognito identity — bulk migration remains **G3**. See **T11**. |
 
 ## Phase 0 — Prerequisites & Cleanup (one-time)
 
@@ -142,6 +151,7 @@ Both services share **one** API Gateway (`/api` → api-service, `/tickets` → 
 1. Update `deploy/environments.yaml` in the API and ticketing repos with prod API/Cognito/media values.
 2. Update `pmstmigrate/src/environments/environment.prod.ts` + `deploy/environments.yaml` with prod `apiUrl` and `cfDomain`.
 3. Push `main` in `pmst-api-service`, `pmst-ticketing-service`, and `pmstmigrate`.
+   - **Frontend deploys via merge to `main`** (`.github/workflows/deploy.yml`). Do not deploy the frontend from a dev machine with a command-line build and sync. `src/assets/images/` is gitignored (~643 MB of WordPress images), and a command-line sync uploads it to `pmst-prod-frontend`, which holds ~46 files / 1.3 MB. Step order and the CloudFront lookup fix: `pmst-development-workflow.md` Part 11.
 4. Invoke each Lambda once so **Flyway** creates schemas (`pmstdb` app tables + `tk_` ticketing tables).
 
 ## Phase 5 — Data Migration (content + follows + comments)
@@ -226,7 +236,12 @@ Do not cut over DNS until:
 
 - [ ] `OPTIONS` preflight returns `200` with allow-listed `Access-Control-Allow-Origin` for both `/api` and `/tickets` paths.
 - [ ] Login and at least one authenticated write operation (e.g., comment, follow, article submission) succeed without CORS errors in the browser.
-- [ ] Home, `/spotlight`, `/news`, `/all-models`, article detail, gallery detail, and `/tickets` (events) load correctly from the CloudFront URL.
+- [ ] Home, `/spotlight`, `/showcase`, `/events`, article detail (`/news/:slug`), gallery detail (`/showcase/:id`) load correctly from the CloudFront URL.
+      **Corrected 2026-09-08:** this list previously named `/news`, `/all-models` and `/tickets`.
+      None of those routes exist in `src/app/app.routes.ts` — there is no `/news` list route
+      (only `/news/:slug`), no `/all-models` at all, and events live at `/events`. Because
+      `app.routes.ts` ends in a `**` → `''` wildcard, all three silently redirected to the
+      homepage, so this gate "passed" on three routes that were never checked.
 - [ ] YouTube playlists load on the home page and videos play without API errors.
 
 ## Phase 8 — DNS Cutover (Route 53 delegation)
@@ -248,10 +263,239 @@ Do not cut over DNS until:
 
 ## Phase 9 — Verify & Decommission
 
-1. Smoke test on `https://pmstusnepal.com`: home, `/spotlight`, `/news`, `/all-models`, article detail, gallery detail, `/tickets` (events), login, submit forms, comments, follow.
+1. Smoke test on `https://pmstusnepal.com` — **real routes only** (see `src/app/app.routes.ts`;
+   the `**` wildcard means a wrong path redirects to home and looks like a pass):
+   `/`, `/spotlight` (**both tabs** — Entertainment *and* Nepal News, see T6), `/showcase`,
+   `/showcase/:id`, `/news/:slug`, `/events`, `/events/:slug`, `/login`, `/register`,
+   `/dashboard`, `/submit/article`, `/submit/gallery`, `/admin`, plus comments and follow.
+   Verify the header logo actually renders (T4) and that article bodies show their inline
+   images (T3).
+   > As of 2026-09-08 this smoke test **fails** at `/login` (T1) and `/events` (T2).
 2. Watch CloudWatch logs (Lambda + API GW) and RDS metrics for 24–48 h.
 3. If public access was toggled for migration, set `db_publicly_accessible = false` and re-apply.
+   > **⚠️ UNVERIFIED as of 2026-09-08.** Data migration ran (content is live), so public access
+   > may have been toggled on and never reverted. Confirm before anything else:
+   > `aws rds describe-db-instances --db-instance-identifier pmst-prod-postgres --no-cli-pager --query 'DBInstances[0].PubliclyAccessible'`
+   > must return `false`.
 4. After ~1 week stable, decommission the Hostinger WordPress site (keep email + registrar).
+
+## Phase 10 — Login Cutover (T1 + T11) — ✅ COMPLETED 2026-10-03
+
+> **Executed 2026-10-03. Login works in production.** Apply was 16 added / 7 changed /
+> 1 destroyed, exactly as planned. Admin `pmstnepal@gmail.com` logs in and reaches `/admin`
+> with `role: "admin"` preserved on the existing migrated row.
+>
+> Kept as the reference procedure — re-run Steps 3-4 to add further admins.
+> **Two gotchas worth knowing before you repeat this:**
+> 1. **Propagation lag.** Right after the apply both endpoints still returned the gateway
+>    401 even though the method config and stage were already correct. It cleared in about
+>    a minute. Verify config, then retry — do not assume the apply failed.
+> 2. **Cold start.** The first call to each Lambda after a redeploy can 504 (26.7 s measured
+>    against a 29 s timeout). Retry before investigating.
+>
+> Full root causes: `src/doc/pmst-deploy-progress.md` → T1, T11.
+
+### Step 1 — Pre-flight
+
+```bash
+cd /d/pmstmigrateinfra
+git branch --show-current          # expect feature/infra-rds-update
+git status --porcelain             # expect clean
+```
+
+- [x] **T10 reviewed and fixed** (`pmst-api-service` `3308462`). It was a genuine
+      anonymous-to-admin escalation once `/auth/register` goes public — see Step 1b, which
+      **must run before Step 2**.
+- [ ] Confirm `db_publicly_accessible` is `false`:
+      `aws rds describe-db-instances --db-instance-identifier pmst-prod-postgres --no-cli-pager --query 'DBInstances[0].PubliclyAccessible'`
+- [ ] `youtube_api_key` is in `secrets.auto.tfvars` — already verified, apply will not wipe
+      `PMST_YT_API_KEY` (see T8, closed).
+
+### Step 1b — 🔴 Deploy the API service FIRST (ordering is not optional)
+
+`POST /users` let any authenticated caller overwrite an arbitrary user row — including
+`role="admin"` — because it bound the raw entity and `save()` merges on a supplied id.
+Fixed in `pmst-api-service` `3308462` (branch `fix/remove-unsafe-user-create`), but the fix
+only counts once the **running Lambda** carries it.
+
+Applying step 2 before this is deployed opens an anonymous-to-admin chain, because step 2
+makes `/auth/register` publicly reachable for the first time:
+
+1. `POST /api/auth/register` → anonymous JWT
+2. `GET /users/username/pmstnepal` → the admin row's UUID (public endpoint)
+3. `POST /api/users` with `{"id":"<admin-uuid>","role":"admin"}` → takeover
+
+```bash
+cd /d/pmst-services/pmst-api-service
+mvn package -DskipTests
+aws s3 cp target/*-lambda.jar \
+  s3://pmst-terraform-state/deployments/prod/pmst-api-service-latest.jar --no-cli-pager
+aws lambda update-function-code --function-name pmst-prod-pmst-api-service \
+  --s3-bucket pmst-terraform-state \
+  --s3-key deployments/prod/pmst-api-service-latest.jar --no-cli-pager
+aws lambda wait function-updated --function-name pmst-prod-pmst-api-service
+```
+
+- [ ] Confirm the endpoint is gone **before** step 2. While `/api/users` still sits behind
+      the Cognito authorizer you cannot test it anonymously; verify from the deployed
+      artifact instead — the CloudWatch startup log should no longer map `POST /users`.
+
+### Step 2 — Apply the Terraform
+
+```bash
+cd /d/pmstmigrateinfra
+terraform plan -var-file="deploy/prod.tfvars"
+terraform apply -var-file="deploy/prod.tfvars"
+```
+
+Expected plan: **16 to add, 7 to change, 1 to destroy.** The single destroy is
+`aws_api_gateway_deployment.main` being replaced through `create_before_destroy` to publish
+the new method set — the REST API id (`q9zxosk8f9`) and invoke URL are unchanged, and the
+Cognito client updates **in place** so client id `7vs3hhs2v743l34d1j8jhqbnqk` is preserved.
+**If you see the Cognito client being replaced, stop** — that would issue a new client id and
+break the frontend.
+
+### Step 3 — Create the admin user
+
+The pool has **zero** users. Create one whose email matches the existing admin row so
+`syncFromCognito` attaches to it and keeps `role: "admin"`.
+
+```bash
+aws cognito-idp admin-create-user \
+  --user-pool-id us-east-1_1dEqFgYNR \
+  --username pmstnepal@gmail.com \
+  --user-attributes Name=email,Value=pmstnepal@gmail.com \
+                    Name=email_verified,Value=true \
+                    Name=preferred_username,Value=pmstnepal \
+  --message-action SUPPRESS --no-cli-pager
+
+aws cognito-idp admin-set-user-password \
+  --user-pool-id us-east-1_1dEqFgYNR \
+  --username pmstnepal@gmail.com \
+  --password '<strong-password>' \
+  --permanent --no-cli-pager
+```
+
+- Password policy: min 8 chars with upper, lower, number, symbol.
+- `--message-action SUPPRESS` matters — SES is still sandboxed (G5), so skip the invite mail.
+- **Do not use `/auth/register` for this email.** It already has a DB row; `register()` calls
+  `createLocalUser()` which unconditionally inserts → duplicate row or constraint failure.
+
+### Step 4 — Verify, in order
+
+```bash
+# 4a — API first. Note the field is `email`, not `username`.
+curl --ssl-no-revoke -X POST \
+  https://q9zxosk8f9.execute-api.us-east-1.amazonaws.com/prod/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email":"pmstnepal@gmail.com","password":"<password>"}'
+```
+
+Expect JSON with `idToken` / `accessToken` and a user object showing **`"role":"admin"`**.
+
+| Symptom | Meaning |
+|---|---|
+| `{"message":"Unauthorized"}` | Gateway still rejecting — the stage did not redeploy. Check the deployment was replaced. |
+| `InvalidParameterException: Auth flow not enabled` | Step 2's Cognito change did not apply. |
+| `AccessDeniedException` | Lambda IAM missing `cognito-idp:*`. |
+| 500 referencing an empty client id | `COGNITO_CLIENT_ID` not injected — check the function's env. |
+
+- [ ] 4b — log in at `https://pmstusnepal.com/login`, confirm `/admin` loads.
+- [ ] 4c — `https://pmstusnepal.com/events` returns data (T2). Still empty until an event is
+      **PUBLISHED** via `/admin/events` — `listPublished()` returns only `PUBLISHED`.
+- [ ] 4d — confirm a 401 from a protected route now carries `Access-Control-Allow-Origin`
+      (the new gateway responses), so failures read as 401s and not CORS errors.
+
+### What Phase 10 does NOT fix
+
+- **Only one user can log in.** Bulk Cognito migration is still **G3**; every other migrated
+  user has `cognitoId: null` and no Cognito identity.
+- **Password reset does not exist** — `/auth/forgot-password` and `/auth/reset-password` are
+  permitted in `SecurityConfig` but unimplemented (404). Blocked on SES too (G5).
+- **WordPress passwords will never work** — phpass hashes cannot be imported into Cognito.
+
+---
+
+## Reusable: Production DB maintenance via SSM (no public exposure)
+
+> **Use this for ANY task needing direct prod database access** — data repairs, row-count
+> reconciliation, one-off queries. First used 2026-10-03 for the T13 gallery restore.
+>
+> **Do NOT try `db_publicly_accessible = true`.** It cannot work: the DB subnets
+> (`10.2.10.0/24`, `10.2.11.0/24`) have only a `local` route and no internet gateway, so AWS
+> assigns a public IP that nothing can reach. Tried and reverted 2026-10-03.
+
+The infrastructure is already written and **off by default** —
+`pmstmigrateinfra/modules/maintenance-host/`, gated by `enable_maintenance_host`.
+It creates a `t4g.nano` in a private subnet with **no public IP, no inbound security group
+rules, and no SSH key**. Access is outbound-only via SSM Session Manager. Its IAM role has
+`AmazonSSMManagedInstanceCore` and nothing else — deliberately **no** Secrets Manager access,
+so the host never holds credentials. The temporary RDS ingress rule lives in the same module
+and disappears with it.
+
+Prerequisite: `session-manager-plugin` installed locally (`session-manager-plugin --version`).
+
+### 1. Create
+```bash
+cd /d/pmstmigrateinfra
+terraform apply -var-file="deploy/prod.tfvars" -var="enable_maintenance_host=true"
+```
+Expect **6 to add, 0 to change, 0 to destroy**. Note `maintenance_host_id` in the outputs.
+
+### 2. Wait for SSM registration (~10-30 s)
+```bash
+aws ssm describe-instance-information --no-cli-pager \
+  --filters "Key=InstanceIds,Values=<instance-id>" \
+  --query 'InstanceInformationList[0].PingStatus'
+```
+Wait for `Online`. The instance can be `running` well before the agent registers.
+
+### 3. Open the tunnel (background it — it blocks)
+The exact command is printed as the `maintenance_port_forward_command` output:
+```bash
+aws ssm start-session --target <instance-id> \
+  --document-name AWS-StartPortForwardingSessionToRemoteHost \
+  --parameters '{"host":["pmst-prod-postgres.c2rwsbwwhr5u.us-east-1.rds.amazonaws.com"],"portNumber":["5432"],"localPortNumber":["5433"]}'
+```
+Wait for `Waiting for connections...`, then confirm `127.0.0.1:5433` is LISTENING.
+
+### 4. Connect and work
+Credentials come from Secrets Manager (the ARN is on the Lambda as `DB_SECRET_ARN`):
+```bash
+ARN=$(aws lambda get-function-configuration --function-name pmst-prod-pmst-api-service \
+      --no-cli-pager --query 'Environment.Variables.DB_SECRET_ARN' --output text)
+aws secretsmanager get-secret-value --secret-id "$ARN" --no-cli-pager --query SecretString --output text > dbsec.json
+```
+Then connect to **`127.0.0.1:5433`** with `sslmode=require` (psycopg2 is already available).
+**Delete `dbsec.json` when finished.**
+
+Schema notes learned the hard way:
+- `articles.gallery_images` is **`jsonb`**, not text. `LIKE` fails on it — cast with
+  `gallery_images::text LIKE '%media/%'`, and write with `%s::jsonb`.
+- Take a BEFORE count, do the work in a transaction, verify inside the transaction, then
+  commit.
+
+### 5. Destroy — do not skip
+```bash
+terraform apply -var-file="deploy/prod.tfvars"     # flag defaults back to false
+```
+Then verify all five:
+```bash
+aws ec2 describe-instances --filters "Name=instance-state-name,Values=running,pending,stopped" \
+  --query 'length(Reservations[].Instances[])' --no-cli-pager          # 0
+aws ec2 describe-security-groups --group-ids sg-0523a130bdaf1e4d7 \
+  --query 'length(SecurityGroups[0].IpPermissions[].IpRanges[])' --no-cli-pager   # 0
+aws rds describe-db-instances --db-instance-identifier pmst-prod-postgres \
+  --query 'DBInstances[0].PubliclyAccessible' --no-cli-pager            # false
+netstat -ano | grep ":5433"                                            # nothing
+rm -f dbsec.json
+```
+The local `aws ssm start-session` process survives the instance being destroyed — kill it
+explicitly or port 5433 stays bound to a dead tunnel.
+
+Cost: ~$0.004/hour. A full create → work → destroy cycle is a fraction of a cent.
+
+---
 
 ## What Setup Happens Where
 

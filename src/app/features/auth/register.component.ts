@@ -28,31 +28,41 @@ import { AuthService, RegisterData } from '../../core/services/auth.service';
           }
 
           <div class="space-y-4">
+            <!-- First/last name are REQUIRED attributes on the Cognito pool.
+                 Sign-up is rejected without them and the constraint cannot be
+                 relaxed without replacing the pool. -->
             <div class="grid grid-cols-2 gap-4">
               <div>
-                <label for="username" class="block text-sm font-medium text-gray-700">Username</label>
+                <label for="firstName" class="block text-sm font-medium text-gray-700">First Name</label>
                 <input
-                  id="username"
-                  name="username"
+                  id="firstName"
+                  name="firstName"
                   type="text"
                   required
-                  [(ngModel)]="data.username"
+                  [(ngModel)]="data.firstName"
                   class="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                  placeholder="johndoe"
+                  placeholder="John"
                 >
               </div>
               <div>
-                <label for="displayName" class="block text-sm font-medium text-gray-700">Display Name</label>
+                <label for="lastName" class="block text-sm font-medium text-gray-700">Last Name</label>
                 <input
-                  id="displayName"
-                  name="displayName"
+                  id="lastName"
+                  name="lastName"
                   type="text"
-                  [(ngModel)]="data.displayName"
+                  required
+                  [(ngModel)]="data.lastName"
                   class="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                  placeholder="John Doe"
+                  placeholder="Doe"
                 >
               </div>
             </div>
+
+            <!-- Username and Display Name are no longer asked for: they are
+                 derived in onSubmit() from the email and the two names above.
+                 This also matches what the backend already does on its own --
+                 UserSyncService creates the local row with
+                 username = email.split("@")[0]. -->
 
             <div>
               <label for="email" class="block text-sm font-medium text-gray-700">Email address</label>
@@ -78,7 +88,13 @@ import { AuthService, RegisterData } from '../../core/services/auth.service';
                 class="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                 placeholder="••••••••"
               >
-              <p class="mt-1 text-xs text-gray-500">Must be at least 8 characters with uppercase, lowercase, and number.</p>
+              <!-- Must match the Cognito pool policy exactly (min 8, upper,
+                   lower, number, symbol). The previous copy omitted the symbol
+                   requirement, so users were rejected by a rule the form never
+                   told them about. -->
+              <p class="mt-1 text-xs text-gray-500">
+                At least 8 characters, with an uppercase letter, a lowercase letter, a number and a symbol.
+              </p>
             </div>
 
             <div class="flex items-center">
@@ -154,6 +170,8 @@ export class RegisterComponent {
     email: '',
     password: '',
     username: '',
+    firstName: '',
+    lastName: '',
     displayName: ''
   };
 
@@ -169,13 +187,38 @@ export class RegisterComponent {
     this.loading.set(true);
     this.error.set(null);
 
+    // Username and Display Name are derived, not asked for.
+    //
+    // username: the local part of the email. This mirrors what the backend
+    // already does when it creates the local row
+    // (UserSyncService: username = email.split("@")[0]), so the value the UI
+    // sends and the value that ends up stored agree.
+    //
+    // displayName: "First Last".
+    //
+    // Sent as part of the payload rather than left blank because the backend
+    // passes username through to Cognito as preferred_username.
+    const email = (this.data.email || '').trim();
+    const first = (this.data.firstName || '').trim();
+    const last = (this.data.lastName || '').trim();
+
+    this.data.email = email;
+    this.data.firstName = first;
+    this.data.lastName = last;
+    this.data.username = email.split('@')[0];
+    this.data.displayName = [first, last].filter(Boolean).join(' ');
+
+    // Sign-up no longer returns tokens — the account is UNCONFIRMED until the
+    // emailed code is entered, so send the user to /verify rather than home.
     this.authService.register(this.data).subscribe({
       next: () => {
-        this.router.navigate(['/']);
+        this.router.navigate(['/verify'], { queryParams: { email: this.data.email } });
       },
       error: (err) => {
         this.loading.set(false);
-        this.error.set(err.message || 'Registration failed. Please try again.');
+        // Surface the backend's message (e.g. "already registered, use Forgot
+        // password") rather than the generic HttpErrorResponse.message.
+        this.error.set(err?.error?.message || 'Registration failed. Please try again.');
       }
     });
   }

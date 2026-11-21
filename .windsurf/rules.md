@@ -94,6 +94,8 @@ Create a new function/method ONLY when:
 - **Component size**: Max 300 lines, max 50 lines per method
 - **File naming**: `feature-type.descriptor.ts` (e.g., `showcase-detail.component.ts`)
 - **Class naming**: `PascalCase` + suffix (e.g., `ShowcaseDetailComponent`)
+- **Ads go through `<pmst-ad-slot slot="...">` only** (`shared/components/ad-slot/`). Never inject a `<script>` via `[innerHTML]` or `bypassSecurityTrustHtml` — it never executes (the old news-detail ad code silently showed nothing).
+- **Root static files** (e.g. `src/ads.txt`) must be listed in `angular.json` `assets`. Anything unlisted falls through the CloudFront 404→index.html fallback and returns HTML with a 200.
 
 ### Java Backend
 - **Package structure**: `com.pmst.api.{controller,service,repository,model,config}`
@@ -136,6 +138,7 @@ Create a new function/method ONLY when:
 | No loading indicators | User thinks app is broken | Add skeleton screens |
 | Synchronous file reads in constructor | Blocks entire app | Async loading with fallback |
 | API calls without timeout | Can hang indefinitely | Always set timeout + error handling |
+| **Error handler that blanks a list** — `error: () => this.items.set([])` | A failed fetch becomes indistinguishable from "no results". Infra faults then masquerade as content gaps. Cost us real time: a gateway 401 on `/tickets/events` rendered as "No events found" and was reported as a static-page bug. | Keep a separate `loadError` signal and render a distinct error state. An empty list must mean *the server said zero*. |
 
 ----
 
@@ -234,6 +237,10 @@ When implementing **new logic not in existing workflow**:
 4. CI runs deploy on `main` push
 5. Post-deploy smoke test on `/health` endpoint
 
+### Frontend Deploy
+- **Deploy order is fixed**: sync assets with no `--delete` → upload `*.html` no-cache → copy `ads.txt` and logo → CloudFront invalidate and wait → only then `sync --delete` (excluding html, ads.txt, logo). Deleting first can blank the site mid-deploy.
+- **Prod frontend deploys via merge to `main`.** Never run a command-line build-and-sync against prod from a dev machine: `src/assets/images/` is gitignored and would be uploaded.
+
 ### Terraform Specific
 - `terraform plan` output must be reviewed on PR
 - `terraform apply` only runs on `main` branch
@@ -259,6 +266,58 @@ When implementing **new logic not in existing workflow**:
 - **SQL injection prevention** — Use JPA/Hibernate parameter binding only
 - **XSS prevention** — Angular sanitizes by default; never use `innerHTML` with user content
 - **CORS** — Whitelist-specific origins only, never `*`
+- **Every public API Gateway path needs its own explicit method.** In REST API Gateway an
+  explicitly declared method beats `ANY`. A resource carrying only `ANY` +
+  `COGNITO_USER_POOLS` silently swallows *all* non-GET traffic — including the very
+  `POST /auth/login` that issues tokens, which makes login unachievable by construction.
+  When adding a public route, declare its method with `authorization = "NONE"` alongside the
+  `ANY` method, and add it to the deployment `triggers`/`depends_on` or the stage will not
+  redeploy. Spring Security stays the second layer — a public gateway method is not a public
+  endpoint.
+- **Always define `aws_api_gateway_gateway_response` for `DEFAULT_4XX` / `UNAUTHORIZED`**
+  with CORS headers. Without it an authorizer's 401 reaches the browser stripped of
+  `Access-Control-Allow-Origin` and is reported as a CORS error, sending you to debug the
+  wrong layer. Both of these cost a production outage — see T1/T2 in `pmst-deploy-progress.md`.
+- **`innerHTML` with migrated content is still XSS-adjacent** — `bypassSecurityTrustHtml` on
+  WordPress-imported HTML disables Angular's sanitizer. Rewrite/validate such content through
+  a dedicated service rather than trusting it wholesale.
+- **Admin-only write endpoints take a DTO, never the entity**, and must reject the caller
+  targeting themselves. `POST /users` bound a raw `User` and `save()` merges on a supplied
+  id, so any authenticated caller could overwrite the admin row — whose UUID is readable
+  from a public endpoint. Also refuse to remove or demote the **last remaining admin**;
+  there is no way back in through an admin-only UI.
+- **Deleting or disabling a user in the database is cosmetic on its own.** Cognito still
+  holds a valid identity, so a deactivated user authenticates fine and a hard-deleted one is
+  silently re-created by the sync path with the default role. Gate account status at login.
+
+### Partial updates must preserve, not blank
+
+An update handler that calls every setter unconditionally **deletes every field the client
+omitted**. This has now caused data loss twice in this project (`imageKey`, then six SEO and
+embed fields). The rule for any PUT/PATCH mapper:
+
+- `null` → **preserve** the existing value
+- empty string → explicit clear
+- only genuinely required fields (`@NotBlank`) may be set unconditionally
+
+A client that always sends the full object hides this bug completely — it surfaces the first
+time anything else calls the API.
+
+### Know your column types before mapping them
+
+`@Column(columnDefinition = "jsonb")` only influences DDL generation. It does **not** change
+the JDBC binding, so Hibernate still sends `varchar` and Postgres refuses the cast —
+breaking every write to that column. With Flyway and Hibernate DDL disabled in prod, nothing
+reconciles it at startup and it fails only in production. Use `stringtype=unspecified` on the
+JDBC URL for String-mapped `jsonb`; prefer it over `@JdbcTypeCode(SqlTypes.JSON)`, which can
+re-serialize already-JSON strings as JSON string literals and corrupt the column.
+
+### Rich-text editors rewrite what they touch
+
+Quill returns every inter-word space as `&nbsp;` when it round-trips existing HTML. A
+non-breaking space does not wrap, so a paragraph becomes one unbreakable token that overflows
+its container. **Normalize editor output on save** (`&nbsp;`/`U+00A0` → space) — on save
+only, so merely opening a document does not rewrite stored content.
 
 ---
 

@@ -30,6 +30,21 @@ export const routes: Routes = [
     canActivate: [redirectIfAuthenticated]
   },
   {
+    // Sign-up confirmation. Reached from /register and from /login when the
+    // backend reports USER_NOT_CONFIRMED. No guard: the user is by definition
+    // not authenticated yet.
+    path: 'verify',
+    loadComponent: () => import('./features/auth/verify-email.component').then(m => m.VerifyEmailComponent)
+  },
+  {
+    path: 'forgot-password',
+    loadComponent: () => import('./features/auth/forgot-password.component').then(m => m.ForgotPasswordComponent)
+  },
+  {
+    path: 'reset-password',
+    loadComponent: () => import('./features/auth/reset-password.component').then(m => m.ResetPasswordComponent)
+  },
+  {
     path: 'profile/:username',
     loadComponent: () => import('./features/user/profile.component').then(m => m.ProfileComponent)
   },
@@ -64,6 +79,12 @@ export const routes: Routes = [
     canActivate: [adminGuard]
   },
   {
+    // User role management — admin-only (PATCH /users/{id}/role is admin-only server-side too).
+    path: 'admin/users',
+    loadComponent: () => import('./features/admin/user-management.component').then(m => m.UserManagementComponent),
+    canActivate: [adminGuard]
+  },
+  {
     // Event management — admin + moderator (creators). Publish/approve gated in-component.
     path: 'admin/events',
     loadComponent: () => import('./features/admin/event-management.component').then(m => m.EventManagementComponent),
@@ -89,6 +110,14 @@ export const routes: Routes = [
     loadComponent: () => import('./features/events/events-list.component').then(m => m.EventsListComponent),
     pathMatch: 'full',
     canActivate: [eventsEnabledGuard]
+  },
+  {
+    path: 'privacy',
+    loadComponent: () => import('./features/legal/privacy.component').then(m => m.PrivacyComponent)
+  },
+  {
+    path: 'terms',
+    loadComponent: () => import('./features/legal/terms.component').then(m => m.TermsComponent)
   },
   {
     path: '**',

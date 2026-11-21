@@ -6,6 +6,7 @@ import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
 import { QuillModule } from 'ngx-quill';
 import { ArticleService } from '../../core/services/article.service';
 import { AuthService } from '../../core/services/auth.service';
+import { ImageUrlMapperService } from '../../services/image-url-mapper.service';
 
 const CATEGORIES = [
   { label: 'Entertainment', value: 'entertainment' },
@@ -52,9 +53,9 @@ const CATEGORIES = [
                 <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                 <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
               </svg>
-              {{ isAdmin() ? 'Publishing...' : 'Submitting...' }}
+              {{ isModerator() ? 'Publishing...' : 'Submitting...' }}
             } @else {
-              {{ isAdmin() ? 'Publish' : 'Submit for Review' }}
+              {{ isModerator() ? 'Publish' : 'Submit for Review' }}
             }
           </button>
         </div>
@@ -79,13 +80,13 @@ const CATEGORIES = [
         <div class="hero-left">
           <div class="hero-panel-label">Featured Image <span class="required-star">*</span></div>
           <div class="hero-image-zone"
-               [class.hero-image-zone--error]="submitAttempted() && !featuredImagePreview()"
-               [class.hero-image-zone--filled]="!!featuredImagePreview()"
+               [class.hero-image-zone--error]="submitAttempted() && !featuredImagePreview() && !featuredExistingKey()"
+               [class.hero-image-zone--filled]="!!featuredImagePreview() || !!featuredExistingKey()"
                (click)="featuredImgInput.click()">
-            @if (featuredImagePreview()) {
-              <div class="pmst-featured-blur" [style.background-image]="'url(' + featuredImagePreview() + ')'"></div>
+            @if (featuredImagePreview() || featuredExistingKey()) {
+              <div class="pmst-featured-blur" [style.background-image]="'url(' + previewSrc(featuredImagePreview(), 'card', featuredExistingKey()) + ')'"></div>
               <div class="pmst-featured-center">
-                <img [src]="featuredImagePreview()" alt="Featured image preview">
+                <img [src]="previewSrc(featuredImagePreview(), 'hero', featuredExistingKey())" alt="Featured image preview">
               </div>
               <button type="button" class="hero-swap-btn" (click)="$event.stopPropagation(); featuredImgInput.click()">✏️ Swap</button>
               <button type="button" class="hero-clear-btn" (click)="$event.stopPropagation(); clearFeaturedImage()">✕</button>
@@ -98,7 +99,7 @@ const CATEGORIES = [
                 <p class="upload-prompt-sub">JPG, PNG, WebP — max 5 MB</p>
               </div>
             }
-            @if (submitAttempted() && !featuredImagePreview()) {
+            @if (submitAttempted() && !featuredImagePreview() && !featuredExistingKey()) {
               <div class="hero-error-badge">⚠ Required</div>
             }
           </div>
@@ -228,7 +229,7 @@ const CATEGORIES = [
           @for (preview of galleryPreviews(); track $index) {
             <div class="gallery-thumb-item">
               @if (preview) {
-                <img [src]="preview" alt="Gallery {{ $index + 1 }}" class="gallery-thumb-img">
+                <img [src]="previewSrc(preview, 'card')" alt="Gallery {{ $index + 1 }}" class="gallery-thumb-img">
                 <button type="button" class="gallery-thumb-remove" (click)="removeGalleryImage($index)">✕</button>
               } @else if ($index < 6) {
                 <button type="button" class="gallery-thumb-add" (click)="triggerGalleryInput($index)">
@@ -393,11 +394,39 @@ export class SubmitContentComponent implements OnInit {
   private sanitizer = inject(DomSanitizer);
   private elRef = inject(ElementRef);
   private cdr = inject(ChangeDetectorRef);
+  private imageMapper = inject(ImageUrlMapperService);
+
+  /**
+   * Render-only URL for a preview slot. DO NOT use this when building the save
+   * payload: `featuredImagePreview()` and `galleryPreviews()` are persisted
+   * verbatim (see buildPayload), so mapping them would write a derived
+   * CloudFront tier URL (".../hero.webp") back as the canonical featuredImage
+   * and lose the original reference.
+   *
+   * Handles the three shapes a preview can hold:
+   *   - `data:` / `blob:`  — a just-picked local file; pass through untouched
+   *   - `media/YYYY/MM/x`  — an S3 key from a migrated row; without mapping the
+   *                          browser resolves it as a relative path and 404s
+   *   - legacy wp-content  — resolves to index.html since the DNS cutover
+   *
+   * `imageKey` is the migrated row's stored key (see `featuredExistingKey`
+   * below); a just-picked data:/blob: file still wins over it.
+   */
+  previewSrc(
+    value: string | null | undefined,
+    tier: 'thumb' | 'card' | 'hero' | 'master' = 'card',
+    imageKey?: string | null
+  ): string {
+    if (!value && !imageKey) return '';
+    if (value && (value.startsWith('data:') || value.startsWith('blob:'))) return value;
+    return this.imageMapper.mapUrl(value, imageKey || undefined, tier);
+  }
 
   editId = signal<string | null>(null);
   isLoadingEdit = signal(false);
 
   readonly isAdmin = computed(() => this.authService.isAdmin());
+  readonly isModerator = computed(() => this.authService.isModerator());
   readonly categories = CATEGORIES;
   readonly today = new Date();
 
@@ -414,6 +443,16 @@ export class SubmitContentComponent implements OnInit {
 
   featuredImagePreview = signal<string>('');
   featuredImageFile: File | null = null;
+
+  /**
+   * imageKey of the already-stored featured image, for DISPLAY ONLY.
+   * Migrated articles can carry featuredImage = null with the real reference
+   * in imageKey (see dashboard.component.ts ContentItem.imageKey), so without
+   * this the hero renders empty on an existing article. Held separately
+   * because buildPayload persists featuredImagePreview verbatim — folding the
+   * key into that signal would rewrite stored data on every save.
+   */
+  featuredExistingKey = signal<string>('');
 
   galleryFiles: (File | null)[] = [null];
   galleryPreviews = signal<string[]>(['']);
@@ -462,6 +501,10 @@ export class SubmitContentComponent implements OnInit {
           this.formData.seoFocusKeyword = article.seoFocusKeyword || '';
           this.formData.seoDescription = article.seoDescription || '';
           if (article.featuredImage) this.featuredImagePreview.set(article.featuredImage);
+          // Migrated articles often have featuredImage = null and carry the real
+          // reference in imageKey. Kept in a separate signal so the save payload
+          // (which persists featuredImagePreview verbatim) is not altered.
+          this.featuredExistingKey.set(article.imageKey || '');
           const imgs = article.galleryImages;
           if (imgs) {
             const arr: string[] = Array.isArray(imgs) ? imgs as string[] : JSON.parse(imgs as string);
@@ -527,6 +570,8 @@ export class SubmitContentComponent implements OnInit {
   clearFeaturedImage(): void {
     this.featuredImageFile = null;
     this.featuredImagePreview.set('');
+    // Also drop the stored key, or ✕ leaves the existing image on screen.
+    this.featuredExistingKey.set('');
   }
 
   onGalleryImageChange(event: Event, index: number): void {
@@ -566,6 +611,24 @@ export class SubmitContentComponent implements OnInit {
     return !content || content === '<p><br></p>' || content.trim() === '';
   }
 
+  /**
+   * Replace non-breaking spaces with ordinary ones before saving.
+   *
+   * Quill round-trips existing HTML through its clipboard module and returns
+   * every inter-word space as `&nbsp;`. A migrated article came back with 194
+   * `&nbsp;` and zero normal spaces, which makes each paragraph a single
+   * unbreakable token — the browser cannot wrap it, so the article body
+   * overflows its container horizontally. That is the "layout breaks after I
+   * edit and publish" symptom; untouched articles render fine.
+   *
+   * Applied on save only. Reading is left alone so existing content is not
+   * rewritten just by opening the editor.
+   */
+  private normalizeEditorHtml(html: string): string {
+    if (!html) return html;
+    return html.replace(/&nbsp;/g, ' ').replace(/ /g, ' ');
+  }
+
   private toSlug(str: string): string {
     return str.toLowerCase().replace(/\s+/g, '-').replace(/[^\w-]+/g, '');
   }
@@ -580,7 +643,7 @@ export class SubmitContentComponent implements OnInit {
       title: this.formData.title,
       slug: this.generatedSlug() || this.toSlug(this.formData.title),
       excerpt: this.formData.excerpt,
-      content: this.isContentEmpty(this.formData.content) ? '' : this.formData.content,
+      content: this.isContentEmpty(this.formData.content) ? '' : this.normalizeEditorHtml(this.formData.content),
       category: this.formData.category,
       youtubeLink: this.formData.youtubeLink || undefined,
       embedCode: this.formData.embedCode || undefined,
@@ -596,7 +659,10 @@ export class SubmitContentComponent implements OnInit {
 
   onSubmit(): void {
     this.submitAttempted.set(true);
-    if (!this.featuredImagePreview()) {
+    // An existing article already has a featured image (referenced by imageKey
+    // rather than featuredImage), so requiring a *new* upload would block
+    // editing any migrated article.
+    if (!this.featuredImagePreview() && !this.featuredExistingKey()) {
       this.errorMessage.set('Featured image is required.');
       return;
     }
@@ -606,7 +672,7 @@ export class SubmitContentComponent implements OnInit {
     }
     this.errorMessage.set('');
     this.isSubmitting.set(true);
-    const submitStatus = this.authService.isAdmin() ? 'published' : 'pending';
+    const submitStatus = this.authService.isModerator() ? 'published' : 'pending';
     const id = this.editId();
     const call$ = id
       ? this.articleService.updateArticle(id, this.buildPayload(submitStatus))
@@ -617,7 +683,7 @@ export class SubmitContentComponent implements OnInit {
         this.successMessage.set(
           id
             ? 'Article updated successfully!'
-            : (this.authService.isAdmin()
+            : (this.authService.isModerator()
               ? 'Article published successfully!'
               : 'Article submitted for review! You will be notified once it is approved.')
         );

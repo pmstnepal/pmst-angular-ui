@@ -62,7 +62,21 @@ src/doc/terraformlogs.md
 src/doc/terrafrom output
 
 # Image assets - managed separately (S3 or manual copy)
-src/assets/images/
+#
+# NOTE: this must exclude the directory *contents* (`/*`), not the directory
+# itself. Git never descends into an excluded directory, so a `!` negation
+# below a plain `src/assets/images/` rule can never take effect.
+src/assets/images/*
+
+# ...except the brand logo, which the app references at build time.
+# CI does a clean checkout, so anything ignored here is simply absent when
+# `ng build` runs -- and `deploy.yml` syncs with `--delete`, so a manually
+# uploaded logo is removed again on the very next deploy. The logo must be
+# in the repo for the header to render in production. ~50 KB; the other
+# ~3,700 images stay ignored.
+!src/assets/images/logo/
+src/assets/images/logo/*
+!src/assets/images/logo/*.png
 
 .nx/cache
 .nx/workspace-data

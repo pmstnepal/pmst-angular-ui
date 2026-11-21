@@ -39,6 +39,7 @@ jobs:
           echo "apiUrl=$(yq -r ".$ENV.apiUrl" deploy/environments.yaml)" >> "$GITHUB_OUTPUT"
           echo "ticketingUrl=$(yq -r ".$ENV.ticketingUrl" deploy/environments.yaml)" >> "$GITHUB_OUTPUT"
           echo "cfDomain=$(yq -r ".$ENV.cfDomain" deploy/environments.yaml)" >> "$GITHUB_OUTPUT"
+          echo "adsenseClient=$(yq -r ".$ENV.adsenseClient // \"\"" deploy/environments.yaml)" >> "$GITHUB_OUTPUT"
           echo "region=$(yq -r ".$ENV.region" deploy/environments.yaml)" >> "$GITHUB_OUTPUT"
 
       - name: Generate Angular environment file (single source = deploy/environments.yaml)
@@ -49,7 +50,8 @@ jobs:
             apiUrl: '${{ steps.cfg.outputs.apiUrl }}',
             ticketingUrl: '${{ steps.cfg.outputs.ticketingUrl }}',
             appName: 'PMST US-Nepal',
-            cfDomain: '${{ steps.cfg.outputs.cfDomain }}'
+            cfDomain: '${{ steps.cfg.outputs.cfDomain }}',
+            adsenseClient: '${{ steps.cfg.outputs.adsenseClient }}'
           };
           EOF
           echo "Generated ${{ steps.cfg.outputs.envFile }}:"; cat "${{ steps.cfg.outputs.envFile }}"
@@ -77,24 +79,42 @@ jobs:
       - name: Deploy to S3
         run: |
           BUCKET="${{ steps.cfg.outputs.bucket }}"
+          # No --delete here: the live index.html still references the previous
+          # build's chunks until the new one is uploaded and CloudFront is
+          # invalidated. Stale files are removed in the final cleanup step.
           aws s3 sync dist/pmst-angular-ui/browser/ "s3://$BUCKET/" \
-            --delete \
             --cache-control "public, max-age=31536000, immutable" \
-            --exclude "*.html"
+            --exclude "*.html" \
+            --exclude "ads.txt" \
+            --exclude "assets/images/logo/*"
           aws s3 sync dist/pmst-angular-ui/browser/ "s3://$BUCKET/" \
             --cache-control "no-cache, no-store, must-revalidate" \
             --exclude "*" \
             --include "*.html"
+          aws s3 cp dist/pmst-angular-ui/browser/ads.txt "s3://$BUCKET/ads.txt" --cache-control "public, max-age=3600" --content-type "text/plain"
+          aws s3 cp dist/pmst-angular-ui/browser/assets/images/logo/ "s3://$BUCKET/assets/images/logo/" --recursive --cache-control "public, max-age=86400" --content-type "image/png"
 
       - name: Resolve CloudFront distribution & invalidate
         run: |
           BUCKET="${{ steps.cfg.outputs.bucket }}"
+          # Match any origin, not just the first: prod's first origin is the media bucket.
           DIST_ID=$(aws cloudfront list-distributions \
-            --query "DistributionList.Items[?contains(Origins.Items[0].DomainName, '$BUCKET')].Id | [0]" \
+            --query "DistributionList.Items[?Origins.Items[?contains(DomainName, '$BUCKET')]].Id | [0]" \
             --output text)
           if [ "$DIST_ID" = "None" ] || [ -z "$DIST_ID" ]; then
             echo "No CloudFront distribution found for origin $BUCKET — skipping invalidation."
           else
             echo "Invalidating CloudFront $DIST_ID"
-            aws cloudfront create-invalidation --distribution-id "$DIST_ID" --paths "/*"
+            INV_ID=$(aws cloudfront create-invalidation --distribution-id "$DIST_ID" --paths "/*" \
+              --query "Invalidation.Id" --output text)
+            aws cloudfront wait invalidation-completed --distribution-id "$DIST_ID" --id "$INV_ID"
           fi
+
+      - name: Remove files from previous builds
+        run: |
+          BUCKET="${{ steps.cfg.outputs.bucket }}"
+          aws s3 sync dist/pmst-angular-ui/browser/ "s3://$BUCKET/" \
+            --delete \
+            --exclude "*.html" \
+            --exclude "ads.txt" \
+            --exclude "assets/images/logo/*"

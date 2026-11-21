@@ -50,6 +50,7 @@ Complete development guide for migrating from WordPress to AWS serverless archit
 
 | Area | Where to check / update |
 |------|--------------------------|
+| **🔴 Live production status + open defect queue (T1–T10)** — **read this first on any deploy, infra, or bug task** | [`src/doc/pmst-deploy-progress.md`](file:///D:/pmstmigrate/src/doc/pmst-deploy-progress.md) |
 | **Events & ticketing** (roadmap, status, Phase 2+ features, reservation/ticket flows) | [`D:/pmst-services/pmst-ticketing-service/doc/eventplan.md`](file:///D:/pmst-services/pmst-ticketing-service/doc/eventplan.md) |
 | **Visual combined dashboard** (components, timeline, dependencies, repo status) | [`src/doc/pmst-master-plan.html`](file:///D:/pmstmigrate/src/doc/pmst-master-plan.html) |
 | **General migration workflow, repos, CI/CD, standards** | this file (`pmst-development-workflow.md`) |
@@ -272,6 +273,13 @@ User → Cognito Hosted UI / Amplify → Cognito User Pool → JWT Tokens
 3. Angular stores token, sends in `Authorization: Bearer <token>` header
 4. API Gateway's native `COGNITO_USER_POOLS` authorizer validates the JWT signature against the Cognito user pool
 5. Lambda receives `cognito:username`, `cognito:groups` in context
+
+**CORS Preflight (OPTIONS) at API Gateway:**
+- API Gateway resources `/api/{proxy+}` and `/tickets/{proxy+}` have explicit `OPTIONS` methods with `authorization = NONE` and `MOCK` integrations.
+- The `OPTIONS` preflight never reaches Lambda; API Gateway responds directly with the required CORS headers.
+- Allowed origins are restricted to `https://pmstusnepal.com` and `https://www.pmstusnepal.com` (any other origin falls back to the apex domain).
+- Allowed methods: `GET,POST,PUT,PATCH,DELETE,OPTIONS`; allowed headers: `Content-Type,Authorization,Idempotency-Key`; `Access-Control-Allow-Credentials: true`.
+- Real `GET`/`POST`/etc. requests remain protected by the Cognito authorizer and Spring Security.
 
 **User Migration Strategy:**
 - **Decided:** Password reset approach for all migrated users
@@ -505,6 +513,7 @@ frontend/src/app/
 | N/A | SubmitGalleryComponent | ✅ Created |
 | N/A | AdminDashboardComponent | ✅ Created |
 | N/A | SpotlightComponent | ✅ Created |
+| N/A | AdSlotComponent (`pmst-ad-slot`) | 🟡 Built — pending deploy (2026-11-21, uncommitted) |
 
 ### Dashboard Features (DashboardComponent — May 2026)
 
@@ -528,6 +537,17 @@ frontend/src/app/
 - `V5__add_gallery_seo_fields_and_indexes.sql` — adds same fields + indexes to galleries
 - `ArticleResponse` and `GalleryResponse` DTOs updated to include SEO fields
 - `ArticleDetail` Angular model updated with `seoFocusKeyword`, `seoDescription`
+
+---
+
+### Ads — AdSense via `<pmst-ad-slot>` (pending deploy, 2026-11-21)
+
+- **Component**: `src/app/shared/components/ad-slot/ad-slot.component.ts`, standalone, selector `pmst-ad-slot`. Usage: `<pmst-ad-slot slot="6811674647" />`.
+- **Rendering**: emits `<ins class="adsbygoogle">` and calls `adsbygoogle.push({})` (via `window.adsbygoogle`) in `ngAfterViewInit`. It renders **nothing** when `environment.adsenseClient` is empty, so localhost and TEST show no ads.
+- **Placement**: news-detail uses two slots (top and bottom of the article). The old `[innerHTML]` script approach was removed because Angular never executes injected `<script>` tags.
+- **Loader**: `adsbygoogle.js?client=ca-pub-8768534328781288` lives in `src/index.html` `<head>`. Use the AdSense HTML snippet, not AMP (this is an SPA).
+- **Config**: `adsenseClient` key in `src/environments/environment*.ts` and `deploy/environments.yaml` (prod = `ca-pub-8768534328781288`, test = empty). The deploy workflow's env-file generator emits it, and the CI build fails without it.
+- **Verification status**: local clean-checkout build and `aws s3 sync --dryrun` only. No GitHub run and no live ad render have been confirmed.
 
 ---
 
@@ -660,6 +680,32 @@ API Gateway
 
 ### Authentication Flow
 
+> ### 🔴 This flow does NOT work in production as of 2026-09-08
+>
+> Login is impossible for every user. The design below is sound; the **deployment wiring** is
+> not. Four independent blockers sit in series — fixing any one alone leaves login broken:
+>
+> 1. **API Gateway rejects the login call before Lambda.** `/api/{proxy+}` declares only
+>    `GET`/`NONE` and `OPTIONS`/`NONE` explicitly; everything else falls to `ANY` +
+>    `COGNITO_USER_POOLS`. So `POST /api/auth/login` demands the very token it exists to
+>    issue. Verified: returns `401 {"message":"Unauthorized"}`.
+> 2. **No `gateway_response` resources**, so that 401 has no CORS headers and the browser
+>    reports a CORS failure — pointing debugging at the wrong layer entirely.
+> 3. **Auth-flow mismatch.** `AuthService.java:52` uses `ADMIN_USER_PASSWORD_AUTH`;
+>    `modules/cognito/main.tf:94-98` never granted `ALLOW_ADMIN_USER_PASSWORD_AUTH`.
+> 4. **`COGNITO_CLIENT_ID` is never injected** into the Lambda env, so the client id is `""`;
+>    and the Lambda role has **no `cognito-idp:*` permissions** at all.
+>
+> **Lesson worth keeping:** a correct architecture diagram and a correct `SecurityConfig`
+> proved nothing here — nothing had exercised an unauthenticated POST against the deployed
+> stack. Any auth change must be smoke-tested against the real gateway, not just locally,
+> where the embedded Tomcat has no authorizer in front of it.
+>
+> Full detail and fix ordering: **T1** in `src/doc/pmst-deploy-progress.md`.
+> Note also that password reset (`/auth/forgot-password`, `/auth/reset-password`) is
+> permitted in Spring but **not implemented** — migrated WordPress users were expected to
+> sign in via reset, so this blocks the user-migration story too.
+
 **1. Cognito User Pool Configuration:**
 ```yaml
 UserPool:
@@ -752,6 +798,52 @@ export class AuthInterceptor implements HttpInterceptor {
   }
 }
 ```
+
+### Authorization model (implemented 2026-10-03)
+
+Three roles. `contributor` was a dead legacy value — never assignable, referenced only in one
+dead branch — and was converted to `user` in prod via `V8__convert_contributor_to_user_role.sql`.
+
+| Action | admin | moderator | user | anonymous |
+|---|---|---|---|---|
+| Create article | ✅ | ✅ | ✅ (own, forced `status=pending`) | ❌ |
+| Edit article content | ✅ any | ✅ any | ✅ own only | ❌ |
+| Delete article | ✅ | ✅ | ❌ | ❌ |
+| Change status (publish/hide) | ✅ | ✅ | ❌ | ❌ |
+| View draft/pending | all | all | own only | ❌ |
+| View published | ✅ | ✅ | ✅ | ✅ |
+| List all users | ✅ | ❌ | ❌ | ❌ |
+| Change another user's role | ✅ | ❌ | ❌ | ❌ |
+| Deactivate / delete a user | ✅ | ❌ | ❌ | ❌ |
+
+**Where it is enforced.** `ArticleController` splits the checks into `canEditContent`,
+`canChangeStatus` and `canDelete` rather than one `canModify`. `UserController` guards the
+admin endpoints via `JwtUserResolver`. `SecurityConfig` must keep the specific matcher
+**before** the general one — first match wins:
+
+```java
+.requestMatchers(HttpMethod.GET, "/articles/all", "/articles/my").authenticated()
+.requestMatchers(HttpMethod.GET, "/articles/**", "/galleries/**", "/youtube/**").permitAll()
+```
+
+**Status escalation is ignored, not rejected.** If a `user`-role owner PUTs a `status` they
+may not set, the existing status is preserved and the rest of the edit applies — a partial
+success rather than a failed request.
+
+**Account identity rules worth knowing before touching this code:**
+
+- `UserSyncService.syncFromCognito()` resolves by `cognito_id` **first**, then by email.
+  An email match with `cognito_id` already set to a *different* sub is refused rather than
+  attached — otherwise a new Cognito identity could inherit an existing row's privileges.
+- An email match with `cognito_id` **null** backfills and attaches. This is deliberate: it
+  is how a pre-seeded admin row claims its role on first login, and how the production admin
+  was bootstrapped.
+- Account `status` is gated at login. Without that, deleting or deactivating a user is
+  cosmetic — Cognito still authenticates them, and a deleted user is silently re-created
+  by the sync path with the default role.
+
+Admin UI: `/admin/users` (`user-management.component.ts`). Full rollout record:
+`src/doc/pmst-deploy-progress.md` → *Session Record — 2026-10-03*.
 
 ### Database Schema (PostgreSQL)
 
@@ -1161,7 +1253,7 @@ resource "aws_lambda_function" "api" {
 
 | Secret | Pattern | Local | Prod (planned) |
 |--------|---------|-------|----------------|
-| `PMST_YT_API_KEY` | YouTube Data API v3 | `application-local.properties` | SSM `/pmst/prod/youtube-api-key` |
+| `PMST_YT_API_KEY` | YouTube Data API v3 | `application-local.properties` | Lambda env var `PMST_YT_API_KEY` via `TF_VAR_youtube_api_key` (sourced from `application-local.properties`) |
 | `MEDIA_BUCKET` | S3 image upload bucket | `application-local.properties` → `local-dev-stub` | Lambda env var → `pmst-prod-media` |
 | Cognito Client Secret | Auth | TBD | SSM `/pmst/prod/cognito-client-secret` |
 | RDS Password | DB | docker-compose env | SSM `/pmst/prod/rds-password` |
@@ -1231,7 +1323,7 @@ on:
 | Repo | Workflow file | Trigger | Action |
 |------|--------------|---------|--------|
 | pmst-terraform-infra | `deploy-prod-on-push.yml` | Push to `main` | `terraform apply` (prod) |
-| pmst-angular-ui | `deploy-angular.yml` | Push to `main` | S3 sync + CF invalidation |
+| pmst-angular-ui | `deploy.yml` | Push to `test` / `main` | S3 sync + CF invalidation |
 | pmst-api-service | `deploy-api-service.yml` | Push to `main` | JAR → S3 → Lambda update |
 | pmst-image-processor | `deploy-image-processor.yml` | Push to `main` | Docker → ECR → Lambda update |
 
@@ -2129,7 +2221,7 @@ All GitHub Actions authenticate to AWS via **OIDC** — no `AWS_ACCESS_KEY_ID` /
 | Repo | Workflow File | Trigger | Action |
 |------|--------------|---------|--------|
 | pmst-terraform-infra | `.github/workflows/terraform-apply.yml` | Push to `main` | `terraform apply` |
-| pmst-angular-ui | `.github/workflows/deploy-angular.yml` | Push to `main` | S3 sync + CF invalidation |
+| pmst-angular-ui | `.github/workflows/deploy.yml` (name: Deploy Frontend) | Push to `test` / `main` | S3 sync + CF invalidation |
 | pmst-api-service | `.github/workflows/deploy-api-service.yml` | Push to `main` | JAR → S3 → Lambda update |
 | pmst-image-processor | `.github/workflows/deploy-image-processor.yml` | Push to `main` | Docker → ECR → Lambda update |
 
@@ -2166,6 +2258,21 @@ For detailed root-cause analysis of past pipeline failures and their fixes, see 
 | `ReferenceError: window is not defined` during prerender | Browser API used without `isPlatformBrowser` guard | `aws-setup-guide.md` Fix 1 |
 | `exceeded maximum budget` on component style | `anyComponentStyle` error limit too tight | `aws-setup-guide.md` Fix 2 |
 | API 403 `Missing Authentication Token` | `apiUrl` missing `/api` path segment | `aws-setup-guide.md` Fix 3 |
+| Frontend CloudFront invalidation skipped with no error; prod serves stale files | Lookup read `Origins.Items[0]`, but prod distribution `ECN0HO6STY22O` first origin is `pmst-prod-media`, so the lookup returned `None` | Match any origin: `Items[?Origins.Items[?contains(DomainName, '$BUCKET')]]` in `deploy.yml` (uncommitted, pending deploy 2026-11-21) |
+| Site blank during a frontend deploy | First sync used `--delete`, removing old JS chunks before the new `index.html` was uploaded | Staged order below; `--delete` only in the final step (uncommitted, pending deploy 2026-11-21) |
+
+### Frontend Deploy Order (pending deploy, 2026-11-21)
+
+`deploy.yml` steps, in order. Each step has a reason, so do not reorder:
+
+1. **Sync assets, no `--delete`**, `max-age=31536000, immutable`, excluding `*.html`, `ads.txt`, and `assets/images/logo/*`.
+2. **Upload `*.html`** with `no-cache, no-store, must-revalidate`.
+3. **Copy `ads.txt`** with `max-age=3600`, `text/plain`. Required because root files outside `angular.json` assets fall through to index.html.
+4. **Copy the logo** with `max-age=86400` (no longer immutable, so a logo change propagates).
+5. **Invalidate `/*`** and `aws cloudfront wait invalidation-completed`.
+6. **Remove files from previous builds**: `sync --delete`, excluding html, `ads.txt`, and the logo. Runs last, after the new index.html is live.
+
+Status: uncommitted on `docs/post-launch-audit` (pmstmigrate). Validated only by a clean-checkout local build and `aws s3 sync --dryrun` against `pmst-prod-frontend`. No GitHub run of this version has been verified.
 
 ---
 

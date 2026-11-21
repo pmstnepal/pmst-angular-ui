@@ -16,8 +16,8 @@ describe('ImageUrlMapperService', () => {
   });
 
   it('should return fallback image for null/undefined', () => {
-    expect(service.mapUrl(null)).toBe('/assets/images/placeholder.jpg');
-    expect(service.mapUrl(undefined)).toBe('/assets/images/placeholder.jpg');
+    expect(service.mapUrl(null)).toBe('/assets/placeholder.svg');
+    expect(service.mapUrl(undefined)).toBe('/assets/placeholder.svg');
   });
 
   it('should map ultimatemember URLs', () => {

@@ -1652,6 +1652,12 @@ mvn test</code></pre>
                             In Progress
                         </h3>
                         <div class="space-y-2" id="inProgressColumn">
+                            <div class="kanban-card bg-white p-3 rounded-lg shadow" data-component="ad-slot" data-status="in-progress">
+                                <div class="font-medium text-sm">AdSlotComponent (<code>pmst-ad-slot</code>)</div>
+                                <div class="text-xs text-gray-500">shared/components/ad-slot/</div>
+                                <div class="mt-1 flex gap-1 flex-wrap"><span class="text-xs bg-yellow-100 text-yellow-700 px-1.5 rounded">AdSense</span><span class="text-xs bg-yellow-100 text-yellow-700 px-1.5 rounded">pending deploy</span></div>
+                                <div class="mt-1 text-xs text-yellow-700">🟡 Built, uncommitted. Renders nothing when <code>adsenseClient</code> is empty (localhost/TEST). Top and bottom slots on news-detail. <code>ads.txt</code> + privacy "Advertising" section included. Not verified live.</div>
+                            </div>
                         </div>
                     </div>
 
@@ -3270,9 +3276,42 @@ Protected (writes, /auth/me, /users/**): COGNITO_USER_POOLS</div>
                     </thead>
                     <tbody class="divide-y divide-gray-100">
                         <tr><td class="px-4 py-2 text-gray-500">5</td><td class="px-4 py-2"><code>environment.prod.ts</code> includes <code>ticketingUrl</code></td><td class="px-4 py-2"><span class="bg-green-100 text-green-700 px-2 py-0.5 rounded text-xs font-medium">Done</span></td></tr>
-                        <tr><td class="px-4 py-2 text-gray-500">6</td><td class="px-4 py-2">No CI/CD pipeline for <code>pmst-api-service</code> Lambda</td><td class="px-4 py-2"><span class="bg-amber-100 text-amber-700 px-2 py-0.5 rounded text-xs font-medium">Pending</span></td></tr>
-                        <tr><td class="px-4 py-2 text-gray-500">7</td><td class="px-4 py-2"><code>user_profiles</code> schema drift — new columns not in <code>init.sql</code></td><td class="px-4 py-2"><span class="bg-amber-100 text-amber-700 px-2 py-0.5 rounded text-xs font-medium">Pending</span></td></tr>
-                        <tr><td class="px-4 py-2 text-gray-500">8</td><td class="px-4 py-2"><code>init.sql</code> never runs on prod RDS — no DB migration mechanism</td><td class="px-4 py-2"><span class="bg-amber-100 text-amber-700 px-2 py-0.5 rounded text-xs font-medium">Pending</span></td></tr>
+                        <tr><td class="px-4 py-2 text-gray-500">6</td><td class="px-4 py-2">No CI/CD pipeline for <code>pmst-api-service</code> Lambda</td><td class="px-4 py-2"><span class="bg-green-100 text-green-700 px-2 py-0.5 rounded text-xs font-medium">Resolved</span> <span class="text-xs text-gray-500">— <code>.github/workflows/deploy-api-service.yml</code> exists (verified 2026-09-08)</span></td></tr>
+                        <tr><td class="px-4 py-2 text-gray-500">7</td><td class="px-4 py-2"><code>user_profiles</code> schema drift — new columns not in <code>init.sql</code></td><td class="px-4 py-2"><span class="bg-green-100 text-green-700 px-2 py-0.5 rounded text-xs font-medium">Resolved</span> <span class="text-xs text-gray-500">— superseded by Flyway <code>V1</code>–<code>V7</code></span></td></tr>
+                        <tr><td class="px-4 py-2 text-gray-500">8</td><td class="px-4 py-2"><code>init.sql</code> never runs on prod RDS — no DB migration mechanism</td><td class="px-4 py-2"><span class="bg-green-100 text-green-700 px-2 py-0.5 rounded text-xs font-medium">Resolved</span> <span class="text-xs text-gray-500">— Flyway runs on Lambda start; <code>V1__init</code> → <code>V7__create_site_settings</code> applied in prod</span></td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <h3 class="text-lg font-semibold text-gray-700 mt-8 mb-2">🔴 Live Production Defects (audit 2026-09-08)</h3>
+            <p class="text-sm text-gray-600 mb-4">
+                Found by probing the running site after cutover. Full root causes, file references and fix
+                ordering live in <code>src/doc/pmst-deploy-progress.md</code> → <em>Post-Launch Open Items (TODO)</em>.
+                The two P0 items share one root cause and one file — ship them together.
+            </p>
+            <div class="overflow-x-auto">
+                <table class="min-w-full text-sm border border-gray-200 rounded-lg">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-4 py-2 text-left text-gray-600 font-semibold">ID</th>
+                            <th class="px-4 py-2 text-left text-gray-600 font-semibold">Defect</th>
+                            <th class="px-4 py-2 text-left text-gray-600 font-semibold">Root cause</th>
+                            <th class="px-4 py-2 text-left text-gray-600 font-semibold">Severity</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-100">
+                        <tr><td class="px-4 py-2 font-mono text-gray-500">T1</td><td class="px-4 py-2"><strong>Login impossible for every user</strong></td><td class="px-4 py-2">API GW <code>ANY</code>+Cognito swallows <code>POST /auth/login</code>; plus auth-flow mismatch, unwired <code>COGNITO_CLIENT_ID</code>, missing <code>cognito-idp:*</code> IAM. All four must ship together.</td><td class="px-4 py-2"><span class="bg-green-100 text-green-700 px-2 py-0.5 rounded text-xs font-medium">Resolved 2026-10-03</span></td></tr>
+                        <tr><td class="px-4 py-2 font-mono text-gray-500">T11</td><td class="px-4 py-2"><strong>Live Cognito pool was EMPTY — zero users</strong></td><td class="px-4 py-2">Admin <code>pmstnepal@gmail.com</code> created 2026-10-03 and logging in with <code>role: admin</code> preserved. Every <em>other</em> migrated user still has no Cognito identity — bulk migration remains G3.</td><td class="px-4 py-2"><span class="bg-amber-100 text-amber-700 px-2 py-0.5 rounded text-xs font-medium">Partially resolved</span></td></tr>
+                        <tr><td class="px-4 py-2 font-mono text-gray-500">T2</td><td class="px-4 py-2"><strong>Public Events API returns 401</strong> — page looks static</td><td class="px-4 py-2"><code>/tickets/{proxy+}</code> has no public-GET method; the Angular error handler blanks the list, so the 401 renders as "No events found".</td><td class="px-4 py-2"><span class="bg-green-100 text-green-700 px-2 py-0.5 rounded text-xs font-medium">Resolved 2026-10-03</span></td></tr>
+                        <tr><td class="px-4 py-2 font-mono text-gray-500">T3</td><td class="px-4 py-2">Article <em>body</em> galleries not rendering</td><td class="px-4 py-2"><code>news-detail.component.ts:578</code> regex-strips every <code>&lt;img&gt;</code>; migrated body URLs also 404 on CloudFront. Standalone galleries, featured images and lightbox now work.</td><td class="px-4 py-2"><span class="bg-amber-100 text-amber-700 px-2 py-0.5 rounded text-xs font-medium">Narrowed · deferred</span></td></tr>
+                        <tr><td class="px-4 py-2 font-mono text-gray-500">T4</td><td class="px-4 py-2">Site logo missing in production</td><td class="px-4 py-2">Logo committed to the repo so CI builds it; the ignore rule now excludes directory <em>contents</em> so the negation actually fires. Renders on live.</td><td class="px-4 py-2"><span class="bg-green-100 text-green-700 px-2 py-0.5 rounded text-xs font-medium">Resolved 2026-10-03</span></td></tr>
+                        <tr><td class="px-4 py-2 font-mono text-gray-500">T12</td><td class="px-4 py-2">Admin dashboard shows <strong>fabricated</strong> data</td><td class="px-4 py-2"><code>admin-dashboard.component.ts:194,202-204</code> is hardcoded: "Total Users 1234" (really ~18), "Published 45" (really 131), and submissions by John Doe / Jane Smith / Mike Johnson. It is the first screen an admin sees.</td><td class="px-4 py-2"><span class="bg-amber-100 text-amber-700 px-2 py-0.5 rounded text-xs font-medium">P1</span></td></tr>
+                        <tr><td class="px-4 py-2 font-mono text-gray-500">T5</td><td class="px-4 py-2">Dead footer links: <code>/contact</code>, <code>/privacy</code>, <code>/terms</code></td><td class="px-4 py-2">Routes absent; <code>**</code> wildcard silently redirects to home. Register form links unreadable legal docs.</td><td class="px-4 py-2"><span class="bg-gray-100 text-gray-700 px-2 py-0.5 rounded text-xs font-medium">P2</span></td></tr>
+                        <tr><td class="px-4 py-2 font-mono text-gray-500">T6</td><td class="px-4 py-2">Spotlight "Nepal News" tab empty</td><td class="px-4 py-2">Component sends <code>'nepal news'</code>; data uses <code>nepal-news</code>. <em>Needs live click-through confirmation.</em></td><td class="px-4 py-2"><span class="bg-amber-100 text-amber-700 px-2 py-0.5 rounded text-xs font-medium">P1</span></td></tr>
+                        <tr><td class="px-4 py-2 font-mono text-gray-500">T7</td><td class="px-4 py-2">Content shortfall: 131 live vs ~1,446 documented</td><td class="px-4 py-2">Galleries reconcile 13/13; articles do not. Needs a DB row count — prod RDS is private.</td><td class="px-4 py-2"><span class="bg-amber-100 text-amber-700 px-2 py-0.5 rounded text-xs font-medium">P1</span></td></tr>
+                        <tr><td class="px-4 py-2 font-mono text-gray-500">T8</td><td class="px-4 py-2"><s>YouTube API key is Terraform drift</s> — <strong>finding was wrong</strong></td><td class="px-4 py-2"><code>youtube_api_key</code> <em>is</em> declared in <code>secrets.auto.tfvars</code> and plumbed through to <code>PMST_YT_API_KEY</code>. Apply will not wipe it. It merely looked like drift because the wiring was uncommitted.</td><td class="px-4 py-2"><span class="bg-green-100 text-green-700 px-2 py-0.5 rounded text-xs font-medium">Closed</span></td></tr>
+                        <tr><td class="px-4 py-2 font-mono text-gray-500">T9</td><td class="px-4 py-2">Cold start 26.7 s vs a 29 s gateway timeout</td><td class="px-4 py-2">Measured 2026-10-03 after redeploy: <strong>26.7 s</strong> cold, ~0.19 s warm. Only ~2 s of headroom before a hard 504; any jar growth tips it over.</td><td class="px-4 py-2"><span class="bg-red-100 text-red-700 px-2 py-0.5 rounded text-xs font-medium">P1 — raised</span></td></tr>
+                        <tr><td class="px-4 py-2 font-mono text-gray-500">T10</td><td class="px-4 py-2">Mass-assignment hazard on <code>POST /users</code></td><td class="px-4 py-2">Endpoint removed and <strong>deployed before</strong> the gateway opened, so the escalation window never existed. It was an anonymous→admin chain once <code>/auth/register</code> went public.</td><td class="px-4 py-2"><span class="bg-green-100 text-green-700 px-2 py-0.5 rounded text-xs font-medium">Resolved 2026-10-03</span></td></tr>
                     </tbody>
                 </table>
             </div>
@@ -4007,6 +4046,18 @@ Protected (writes, /auth/me, /users/**): COGNITO_USER_POOLS</div>
                 </div>
             </div>
 
+            <!-- Frontend deploy fixes — pending deploy (2026-11-21) -->
+            <div class="bg-yellow-50 border border-yellow-200 rounded-xl p-5 mb-6">
+                <h3 class="font-bold text-yellow-800 mb-2 flex items-center gap-2"><i data-lucide="clock" class="w-5 h-5"></i> Frontend Deploy Fixes — 🟡 Pending Deploy</h3>
+                <p class="text-xs text-gray-600 mb-3">Uncommitted on <code>docs/post-launch-audit</code> (pmstmigrate). Not deployed. Prod still serves the 2026-11-19 command-line build from <code>d7fe069</code>.</p>
+                <ul class="text-xs text-gray-700 space-y-1 mb-3">
+                    <li><b>Bug fixed:</b> CloudFront lookup read <code>Origins.Items[0]</code>, which is <code>pmst-prod-media</code> on <code>ECN0HO6STY22O</code>. The lookup returned None and invalidation was silently skipped. Now matches any origin.</li>
+                    <li><b>Bug fixed:</b> first sync used <code>--delete</code> and could blank the site mid-deploy. Now: sync (no delete) → html no-cache → ads.txt → logo → invalidate and wait → <code>sync --delete</code> last.</li>
+                    <li><b>Also in this change:</b> <code>adsenseClient</code> emitted into the env file (CI build fails without it); <code>ads.txt</code> in <code>angular.json</code> assets.</li>
+                </ul>
+                <p class="text-xs text-yellow-800"><b>Not verified:</b> whether this GitHub workflow has ever run successfully (gh CLI not authenticated). Validation so far: clean-checkout local build plus <code>aws s3 sync --dryrun</code> against <code>pmst-prod-frontend</code>.</p>
+            </div>
+
             <!-- Pipeline pass history -->
             <div class="bg-emerald-50 border border-emerald-200 rounded-xl p-5 mb-6">
                 <h3 class="font-bold text-emerald-800 mb-3 flex items-center gap-2"><i data-lucide="check-circle" class="w-5 h-5"></i> Pipeline Pass History</h3>
@@ -4042,6 +4093,121 @@ Protected (writes, /auth/me, /users/**): COGNITO_USER_POOLS</div>
                     <p class="text-gray-500 text-sm mt-1">Chronological record of development sessions — fixes applied, decisions made, and environments verified.</p>
                 </div>
                 <a href="../src/doc/aws-setup-guide.md" class="text-indigo-600 hover:text-indigo-800 text-sm font-medium flex items-center gap-1"><i data-lucide="external-link" class="w-4 h-4"></i> aws-setup-guide.md</a>
+            </div>
+
+            <!-- Session: October 3, 2026 -->
+            <div class="bg-white border border-gray-200 rounded-xl shadow-sm mb-6 overflow-hidden">
+                <div class="bg-gradient-to-r from-emerald-600 to-emerald-700 text-white px-6 py-4 flex items-center justify-between">
+                    <div>
+                        <h3 class="font-bold text-lg flex items-center gap-2"><i data-lucide="shield-check" class="w-5 h-5"></i> October 3, 2026 — Login Cutover, Role Authorization &amp; User Management</h3>
+                        <p class="text-emerald-100 text-sm mt-1">27 commits across 5 repos · production went from "nobody can log in" to a working authenticated CMS · v2.1.0</p>
+                    </div>
+                    <span class="bg-white/20 px-3 py-1 rounded-full text-xs font-semibold">8 resolved · 3 closed as wrong</span>
+                </div>
+                <div class="px-6 py-5 space-y-4 text-sm text-gray-700">
+
+                    <div class="bg-emerald-50 border-l-4 border-emerald-400 px-4 py-3 rounded">
+                        <p class="font-semibold text-emerald-900 mb-1">Headline: login works, and the site is now administrable.</p>
+                        <p class="text-emerald-800">Four stacked blockers were fixed in one Terraform change, an admin was created in Cognito by email match (preserving <code>role: admin</code> on the existing migrated row), and the admin/moderator/user authorization model is enforced end to end. User management now supports listing, role changes, deactivation and deletion.</p>
+                    </div>
+
+                    <div>
+                        <p class="font-semibold text-gray-800 mb-2">Implementation order — the dependencies were the hard part</p>
+                        <ol class="list-decimal list-inside space-y-1 ml-2">
+                            <li><strong>Security first.</strong> <code>POST /users</code> (raw-entity mass assignment) was removed and <strong>deployed before</strong> the gateway opened. Opening <code>/auth/register</code> first would have created an anonymous&rarr;admin escalation chain: register &rarr; read the admin UUID from a public endpoint &rarr; overwrite that row with <code>role:&nbsp;admin</code>.</li>
+                            <li><strong>Terraform auth fix</strong> — 16 add / 7 change / 1 destroy. The destroy was the API Gateway deployment being replaced to publish the new method set; REST API id and invoke URL unchanged.</li>
+                            <li><strong>V8 data fix in prod</strong> (<code>contributor</code> &rarr; <code>user</code>, 11 rows) via an ephemeral SSM host — Flyway is disabled in prod, so it could never have run automatically.</li>
+                            <li>Role authorization backend, then frontend.</li>
+                        </ol>
+                    </div>
+
+                    <div>
+                        <p class="font-semibold text-gray-800 mb-2">Three defects found <em>by verification</em>, not by report</p>
+                        <ul class="list-disc list-inside space-y-1 ml-2">
+                            <li><strong>T15</strong> — <code>PUT /articles</code> had never worked in prod. <code>gallery_images</code> is <code>jsonb</code> mapped to a Java String; <code>columnDefinition</code> only affects DDL generation, so the driver sent <code>varchar</code> and Postgres refused the cast. Fixed with <code>stringtype=unspecified</code> rather than a JPA annotation, which would have risked re-serializing the JSON and corrupting the column that had just been repaired.</li>
+                            <li><strong>T16</strong> — a partial <code>PUT</code> wiped <code>excerpt</code>, <code>youtubeLink</code>, <code>embedCode</code>, <code>category</code> and all three <code>seo*</code> fields. The null-preserve guard covered only the three image fields. Found when my own test PUT nulled two SEO fields on a live article; restored from a snapshot.</li>
+                            <li><strong>T14</strong> — Quill converts every space to <code>&amp;nbsp;</code> on save (214 spaces &rarr; 194 <code>&amp;nbsp;</code>, zero normal spaces), making each paragraph one unbreakable token that overflows its container. Two damaged articles repaired.</li>
+                        </ul>
+                    </div>
+
+                    <div class="bg-gray-50 border border-gray-200 px-4 py-3 rounded">
+                        <p class="font-semibold text-gray-800 mb-1">Three of the audit's own findings were wrong — all the same failure mode</p>
+                        <p class="text-gray-600 mb-2">Each came from probing an API without checking how the caller actually used it:</p>
+                        <ul class="list-disc list-inside space-y-1 text-gray-600">
+                            <li><strong>T7</strong> — "91% of articles lost." The API returns only <code>published</code> rows. The database holds <strong>1,446</strong> articles (1,311 draft + 131 published + 4 pending), exactly the documented source count. Nothing was ever lost.</li>
+                            <li><strong>T6</strong> — "Spotlight Nepal News is broken." <code>article.service.ts:50</code> normalizes the label; the API was probed with the raw string.</li>
+                            <li><strong>T8</strong> — "YouTube key is Terraform drift." It was declared all along; the wiring was merely uncommitted.</li>
+                        </ul>
+                    </div>
+
+                    <div>
+                        <p class="font-semibold text-gray-800 mb-2">Data &amp; infrastructure</p>
+                        <ul class="list-disc list-inside space-y-1 ml-2">
+                            <li><strong>T13</strong> — 105 gallery image references restored across 27 articles. The images were never lost (105/105 verified in S3); only the database column had been written empty.</li>
+                            <li><strong>New module</strong> <code>maintenance-host</code> — ephemeral, SSM-only EC2 for prod DB work. No public IP, no inbound rules, no SSH key, no Secrets Manager access. Off by default; created and destroyed twice today, teardown verified five ways each time.</li>
+                            <li><strong>Ruled out permanently:</strong> <code>db_publicly_accessible = true</code> cannot reach the DB — the subnets have no internet gateway. Recorded in <code>prod.tfvars</code> so it is not retried.</li>
+                        </ul>
+                    </div>
+
+                    <div class="bg-amber-50 border-l-4 border-amber-400 px-4 py-3 rounded">
+                        <p class="font-semibold text-amber-900 mb-1">Still open — and one is now urgent</p>
+                        <p class="text-amber-800"><strong>T9</strong>: SnapStart is configured but <strong>inert</strong> — API Gateway invokes the unqualified ARN, so <code>$LATEST</code> never receives a snapshot. Cold start is <strong>26.7 s</strong> against a <strong>29 s</strong> gateway timeout, and it has now interfered with four separate diagnoses. The fix is an alias plus a qualified ARN. Also open: T3 (in-body galleries, deferred), T5 (legal pages), T12 (admin dashboard shows fabricated numbers), G3 (bulk Cognito migration, blocked on SES).</p>
+                    </div>
+
+                    <p class="text-gray-500 text-xs pt-1">Full plan, implementation order and scope: <code>src/doc/pmst-deploy-progress.md</code> &rarr; <em>Session Record — 2026-10-03</em>. Versions bumped to <strong>2.1.0</strong> (frontend + api-service); ticketing left at 1.0.0 as it was untouched.</p>
+                </div>
+            </div>
+
+            <!-- Session: September 8, 2026 -->
+            <div class="bg-white border border-gray-200 rounded-xl shadow-sm mb-6 overflow-hidden">
+                <div class="bg-gradient-to-r from-red-600 to-red-700 text-white px-6 py-4 flex items-center justify-between">
+                    <div>
+                        <h3 class="font-bold text-lg flex items-center gap-2"><i data-lucide="search-check" class="w-5 h-5"></i> September 8, 2026 — Post-Launch Audit</h3>
+                        <p class="text-red-100 text-sm mt-1">Live site vs. documented plan · 2 P0 production faults found · docs re-synced to reality</p>
+                    </div>
+                    <span class="bg-white/20 px-3 py-1 rounded-full text-xs font-semibold">Docs only — no fixes shipped</span>
+                </div>
+                <div class="px-6 py-5 space-y-4 text-sm text-gray-700">
+                    <div class="bg-amber-50 border-l-4 border-amber-400 px-4 py-3 rounded">
+                        <p class="font-semibold text-amber-900 mb-1">Headline: the status docs were wrong about the most basic fact.</p>
+                        <p class="text-amber-800">Every document still described the site as pre-cutover (<em>"still live on Hostinger — NOT cut over yet"</em>, <em>"paused before Phase 4"</em>). In reality apex and <code>www</code> have been serving the Angular app from CloudFront since ~2026-08-17. Phases 4, 8 and 9 had all run without being recorded.</p>
+                    </div>
+
+                    <div>
+                        <p class="font-semibold text-gray-800 mb-2">Two P0 faults, one shared root cause</p>
+                        <p class="mb-2">Both trace to a single API Gateway pattern: a resource carrying only an <code>ANY</code> method with <code>COGNITO_USER_POOLS</code>. In REST API Gateway an explicit method beats <code>ANY</code>, and only <code>GET</code>/<code>OPTIONS</code> were declared explicitly — so every POST fell through to the authorizer.</p>
+                        <ul class="list-disc list-inside space-y-1 ml-2">
+                            <li><strong>T1 — nobody can log in.</strong> <code>POST /api/auth/login</code> requires the very Cognito token it exists to issue. Three further blockers sit behind it: the <code>ADMIN_USER_PASSWORD_AUTH</code> flow was never enabled on the app client, <code>COGNITO_CLIENT_ID</code> is never injected into the Lambda (so the client id is <code>""</code>), and the Lambda role has no <code>cognito-idp:*</code> permissions at all.</li>
+                            <li><strong>T2 — the public Events API returns 401.</strong> Reported as "the ticketing page is static". It is not static: the page is fully wired to the API, but the error handler blanks the list, so a gateway 401 renders as "No events found".</li>
+                        </ul>
+                    </div>
+
+                    <div class="bg-gray-50 border border-gray-200 px-4 py-3 rounded">
+                        <p class="font-semibold text-gray-800 mb-1">Why this went unnoticed</p>
+                        <ul class="list-disc list-inside space-y-1 text-gray-600">
+                            <li>No <code>gateway_response</code> resources exist, so the authorizer's 401 reaches the browser without CORS headers and is reported as a <em>CORS error</em> — sending debugging to the wrong layer.</li>
+                            <li>The Pre-Prod Gate smoke list named three routes that do not exist (<code>/news</code>, <code>/all-models</code>, <code>/tickets</code>). The <code>**</code> wildcard redirects unknown paths to the homepage, so those checks "passed" without testing anything.</li>
+                            <li>Local dev runs embedded Tomcat with no authorizer in front of it, so auth worked locally and only ever failed in prod.</li>
+                        </ul>
+                    </div>
+
+                    <div>
+                        <p class="font-semibold text-gray-800 mb-2">Also found</p>
+                        <ul class="list-disc list-inside space-y-1 ml-2">
+                            <li><strong>T3</strong> — article body images are deleted by a leftover local-dev regex (<code>news-detail.component.ts:578</code>); underneath, migrated body URLs point at a CloudFront path shape that was never uploaded, so they 404 regardless.</li>
+                            <li><strong>T4</strong> — the logo 404s because <code>.gitignore</code> excludes <code>src/assets/images/</code>, so CI's clean checkout never has it to build.</li>
+                            <li><strong>T7</strong> — 131 published articles live against ~1,446 documented source rows. Galleries reconcile exactly (13/13); articles do not.</li>
+                            <li><strong>T10</strong> — <code>POST /users</code> saves a raw entity from the request body, shielded only by the gateway rule that fixing T1 removes. Must be reviewed in the same change.</li>
+                        </ul>
+                    </div>
+
+                    <div class="bg-green-50 border-l-4 border-green-400 px-4 py-3 rounded">
+                        <p class="font-semibold text-green-900 mb-1">Corrected during the audit</p>
+                        <p class="text-green-800">An initial pass reported the YouTube integration as broken. That was a bad probe — <code>/youtube/playlists</code> returns 400 when called without its required <code>ids</code>/<code>titles</code> params. With real params it returns 3 playlists and 22 videos. YouTube works; its only issue is that the API key was set via CLI and now drifts from Terraform (T8).</p>
+                    </div>
+
+                    <p class="text-gray-500 text-xs pt-1">Full queue with file references and fix ordering: <code>src/doc/pmst-deploy-progress.md</code> → <em>Post-Launch Open Items (TODO)</em>. Two durable rules were added to <code>rules.md</code> from this session: public API Gateway paths need explicit method declarations, and error handlers must never blank a list silently.</p>
+                </div>
             </div>
 
             <!-- Session: May 31, 2026 -->
@@ -4324,7 +4490,7 @@ Protected (writes, /auth/me, /users/**): COGNITO_USER_POOLS</div>
         document.addEventListener('DOMContentLoaded', function() {
             lucide.createIcons();
             mermaid.initialize({ startOnLoad: false });
-            document.getElementById('lastUpdated').textContent = new Date('2026-07-13').toLocaleDateString('en-US', { 
+            document.getElementById('lastUpdated').textContent = new Date('2026-11-21').toLocaleDateString('en-US', { 
                 year: 'numeric', month: 'short', day: 'numeric' 
             });
             loadProgress();

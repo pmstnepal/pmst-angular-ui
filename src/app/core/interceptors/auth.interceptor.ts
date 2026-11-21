@@ -5,7 +5,9 @@ import { catchError, switchMap, throwError } from 'rxjs';
 import { AuthService } from '../services/auth.service';
 
 /**
- * Adds Authorization: Bearer {accessToken} to every outgoing HTTP request.
+ * Adds Authorization: Bearer {idToken} to every outgoing HTTP request.
+ * The ID token (not the access token) is sent because API Gateway's
+ * COGNITO_USER_POOLS authorizer validates against the ID token.
  * On 401, attempts to refresh the token once, retries the request.
  * If refresh fails, logs out and redirects to /login.
  */
@@ -20,7 +22,7 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
     return next(req);
   }
 
-  const token = authService.getAccessToken();
+  const token = authService.getIdToken();
   const authReq = token
     ? req.clone({ setHeaders: { Authorization: `Bearer ${token}` } })
     : req;
