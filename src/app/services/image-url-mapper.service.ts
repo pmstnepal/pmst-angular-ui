@@ -32,7 +32,7 @@ export class ImageUrlMapperService {
     }
   ];
 
-  private fallbackImage = '/assets/images/placeholder.jpg';
+  private fallbackImage = '/assets/placeholder.svg';
   private imageManifest: Map<string, string> = new Map();
   private manifestLoaded = false;
   private manifestLoading = false;

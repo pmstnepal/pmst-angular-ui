@@ -35,6 +35,8 @@
             "inlineStyleLanguage": "scss",
             "assets": [
               "src/favicon.ico",
+              "src/favicon.svg",
+              "src/ads.txt",
               "src/assets"
             ],
             "styles": [
@@ -131,6 +133,8 @@
             "inlineStyleLanguage": "scss",
             "assets": [
               "src/favicon.ico",
+              "src/favicon.svg",
+              "src/ads.txt",
               "src/assets"
             ],
             "styles": [

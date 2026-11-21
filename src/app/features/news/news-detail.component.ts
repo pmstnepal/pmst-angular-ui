@@ -3,6 +3,7 @@ import { isPlatformBrowser, DatePipe } from '@angular/common';
 import { RouterLink, ActivatedRoute } from '@angular/router';
 import { DomSanitizer, SafeHtml, SafeResourceUrl } from '@angular/platform-browser';
 import { CommentSectionComponent } from '../../shared/components/comments/comment-section.component';
+import { AdSlotComponent } from '../../shared/components/ad-slot/ad-slot.component';
 import { ArticleDetail, RelatedArticle } from '../../core/models';
 import { ArticleService } from '../../core/services/article.service';
 import { ImageUrlMapperService } from '../../services/image-url-mapper.service';
@@ -12,7 +13,7 @@ import { UserInterestService } from '../../services/user-interest.service';
   selector: 'pmst-news-detail',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterLink, DatePipe, CommentSectionComponent],
+  imports: [RouterLink, DatePipe, CommentSectionComponent, AdSlotComponent],
   template: `
     @if (loading()) {
       <div class="pmst-post-container">
@@ -32,7 +33,7 @@ import { UserInterestService } from '../../services/user-interest.service';
       <div class="pmst-post-container">
 
         <!-- Google Ad Top -->
-        <div [innerHTML]="googleAd"></div>
+        <pmst-ad-slot slot="6811674647" />
 
         <!-- Featured Hero: YouTube OR Blurred Image -->
         <div class="pmst-featured-wrapper">
@@ -131,7 +132,7 @@ import { UserInterestService } from '../../services/user-interest.service';
         }
 
         <!-- Google Ad Bottom -->
-        <div [innerHTML]="googleAd"></div>
+        <pmst-ad-slot slot="6811674647" />
 
         <!-- Related Posts -->
         @if (relatedArticles().length > 0) {
@@ -200,9 +201,6 @@ import { UserInterestService } from '../../services/user-interest.service';
       color: #fe5252;
       font-size: 20px;
       margin-bottom: 15px;
-    }
-    .pmst-ad {
-      display: block;
     }
     .pmst-skeleton-75 {
       width: 75%;
@@ -508,17 +506,6 @@ export class NewsDetailComponent implements OnInit {
   // Lightbox state (same as model gallery)
   activeImageIndex = signal<number>(0);
   lightboxOpen = signal(false);
-
-  readonly googleAd: SafeHtml;
-
-  constructor() {
-    this.googleAd = this.sanitizer.bypassSecurityTrustHtml(`
-      <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-8768534328781288" crossorigin="anonymous"></script>
-      <ins class="adsbygoogle pmst-ad" data-ad-client="ca-pub-8768534328781288"
-           data-ad-slot="6811674647" data-ad-format="auto" data-full-width-responsive="true"></ins>
-      <script>(adsbygoogle = window.adsbygoogle || []).push({});</script>
-    `);
-  }
 
   ngOnInit(): void {
     this.route.paramMap.subscribe(params => {
