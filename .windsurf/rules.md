@@ -94,6 +94,8 @@ Create a new function/method ONLY when:
 - **Component size**: Max 300 lines, max 50 lines per method
 - **File naming**: `feature-type.descriptor.ts` (e.g., `showcase-detail.component.ts`)
 - **Class naming**: `PascalCase` + suffix (e.g., `ShowcaseDetailComponent`)
+- **Ads go through `<pmst-ad-slot slot="...">` only** (`shared/components/ad-slot/`). Never inject a `<script>` via `[innerHTML]` or `bypassSecurityTrustHtml` — it never executes (the old news-detail ad code silently showed nothing).
+- **Root static files** (e.g. `src/ads.txt`) must be listed in `angular.json` `assets`. Anything unlisted falls through the CloudFront 404→index.html fallback and returns HTML with a 200.
 
 ### Java Backend
 - **Package structure**: `com.pmst.api.{controller,service,repository,model,config}`
@@ -234,6 +236,10 @@ When implementing **new logic not in existing workflow**:
 3. Merge PR (solo developer merges own PRs)
 4. CI runs deploy on `main` push
 5. Post-deploy smoke test on `/health` endpoint
+
+### Frontend Deploy
+- **Deploy order is fixed**: sync assets with no `--delete` → upload `*.html` no-cache → copy `ads.txt` and logo → CloudFront invalidate and wait → only then `sync --delete` (excluding html, ads.txt, logo). Deleting first can blank the site mid-deploy.
+- **Prod frontend deploys via merge to `main`.** Never run a command-line build-and-sync against prod from a dev machine: `src/assets/images/` is gitignored and would be uploaded.
 
 ### Terraform Specific
 - `terraform plan` output must be reviewed on PR

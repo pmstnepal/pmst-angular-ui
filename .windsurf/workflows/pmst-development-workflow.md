@@ -513,6 +513,7 @@ frontend/src/app/
 | N/A | SubmitGalleryComponent | ✅ Created |
 | N/A | AdminDashboardComponent | ✅ Created |
 | N/A | SpotlightComponent | ✅ Created |
+| N/A | AdSlotComponent (`pmst-ad-slot`) | 🟡 Built — pending deploy (2026-11-21, uncommitted) |
 
 ### Dashboard Features (DashboardComponent — May 2026)
 
@@ -536,6 +537,17 @@ frontend/src/app/
 - `V5__add_gallery_seo_fields_and_indexes.sql` — adds same fields + indexes to galleries
 - `ArticleResponse` and `GalleryResponse` DTOs updated to include SEO fields
 - `ArticleDetail` Angular model updated with `seoFocusKeyword`, `seoDescription`
+
+---
+
+### Ads — AdSense via `<pmst-ad-slot>` (pending deploy, 2026-11-21)
+
+- **Component**: `src/app/shared/components/ad-slot/ad-slot.component.ts`, standalone, selector `pmst-ad-slot`. Usage: `<pmst-ad-slot slot="6811674647" />`.
+- **Rendering**: emits `<ins class="adsbygoogle">` and calls `adsbygoogle.push({})` (via `window.adsbygoogle`) in `ngAfterViewInit`. It renders **nothing** when `environment.adsenseClient` is empty, so localhost and TEST show no ads.
+- **Placement**: news-detail uses two slots (top and bottom of the article). The old `[innerHTML]` script approach was removed because Angular never executes injected `<script>` tags.
+- **Loader**: `adsbygoogle.js?client=ca-pub-8768534328781288` lives in `src/index.html` `<head>`. Use the AdSense HTML snippet, not AMP (this is an SPA).
+- **Config**: `adsenseClient` key in `src/environments/environment*.ts` and `deploy/environments.yaml` (prod = `ca-pub-8768534328781288`, test = empty). The deploy workflow's env-file generator emits it, and the CI build fails without it.
+- **Verification status**: local clean-checkout build and `aws s3 sync --dryrun` only. No GitHub run and no live ad render have been confirmed.
 
 ---
 
@@ -1311,7 +1323,7 @@ on:
 | Repo | Workflow file | Trigger | Action |
 |------|--------------|---------|--------|
 | pmst-terraform-infra | `deploy-prod-on-push.yml` | Push to `main` | `terraform apply` (prod) |
-| pmst-angular-ui | `deploy-angular.yml` | Push to `main` | S3 sync + CF invalidation |
+| pmst-angular-ui | `deploy.yml` | Push to `test` / `main` | S3 sync + CF invalidation |
 | pmst-api-service | `deploy-api-service.yml` | Push to `main` | JAR → S3 → Lambda update |
 | pmst-image-processor | `deploy-image-processor.yml` | Push to `main` | Docker → ECR → Lambda update |
 
@@ -2209,7 +2221,7 @@ All GitHub Actions authenticate to AWS via **OIDC** — no `AWS_ACCESS_KEY_ID` /
 | Repo | Workflow File | Trigger | Action |
 |------|--------------|---------|--------|
 | pmst-terraform-infra | `.github/workflows/terraform-apply.yml` | Push to `main` | `terraform apply` |
-| pmst-angular-ui | `.github/workflows/deploy-angular.yml` | Push to `main` | S3 sync + CF invalidation |
+| pmst-angular-ui | `.github/workflows/deploy.yml` (name: Deploy Frontend) | Push to `test` / `main` | S3 sync + CF invalidation |
 | pmst-api-service | `.github/workflows/deploy-api-service.yml` | Push to `main` | JAR → S3 → Lambda update |
 | pmst-image-processor | `.github/workflows/deploy-image-processor.yml` | Push to `main` | Docker → ECR → Lambda update |
 
@@ -2246,6 +2258,21 @@ For detailed root-cause analysis of past pipeline failures and their fixes, see 
 | `ReferenceError: window is not defined` during prerender | Browser API used without `isPlatformBrowser` guard | `aws-setup-guide.md` Fix 1 |
 | `exceeded maximum budget` on component style | `anyComponentStyle` error limit too tight | `aws-setup-guide.md` Fix 2 |
 | API 403 `Missing Authentication Token` | `apiUrl` missing `/api` path segment | `aws-setup-guide.md` Fix 3 |
+| Frontend CloudFront invalidation skipped with no error; prod serves stale files | Lookup read `Origins.Items[0]`, but prod distribution `ECN0HO6STY22O` first origin is `pmst-prod-media`, so the lookup returned `None` | Match any origin: `Items[?Origins.Items[?contains(DomainName, '$BUCKET')]]` in `deploy.yml` (uncommitted, pending deploy 2026-11-21) |
+| Site blank during a frontend deploy | First sync used `--delete`, removing old JS chunks before the new `index.html` was uploaded | Staged order below; `--delete` only in the final step (uncommitted, pending deploy 2026-11-21) |
+
+### Frontend Deploy Order (pending deploy, 2026-11-21)
+
+`deploy.yml` steps, in order. Each step has a reason, so do not reorder:
+
+1. **Sync assets, no `--delete`**, `max-age=31536000, immutable`, excluding `*.html`, `ads.txt`, and `assets/images/logo/*`.
+2. **Upload `*.html`** with `no-cache, no-store, must-revalidate`.
+3. **Copy `ads.txt`** with `max-age=3600`, `text/plain`. Required because root files outside `angular.json` assets fall through to index.html.
+4. **Copy the logo** with `max-age=86400` (no longer immutable, so a logo change propagates).
+5. **Invalidate `/*`** and `aws cloudfront wait invalidation-completed`.
+6. **Remove files from previous builds**: `sync --delete`, excluding html, `ads.txt`, and the logo. Runs last, after the new index.html is live.
+
+Status: uncommitted on `docs/post-launch-audit` (pmstmigrate). Validated only by a clean-checkout local build and `aws s3 sync --dryrun` against `pmst-prod-frontend`. No GitHub run of this version has been verified.
 
 ---
 

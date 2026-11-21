@@ -151,6 +151,7 @@ Both services share **one** API Gateway (`/api` → api-service, `/tickets` → 
 1. Update `deploy/environments.yaml` in the API and ticketing repos with prod API/Cognito/media values.
 2. Update `pmstmigrate/src/environments/environment.prod.ts` + `deploy/environments.yaml` with prod `apiUrl` and `cfDomain`.
 3. Push `main` in `pmst-api-service`, `pmst-ticketing-service`, and `pmstmigrate`.
+   - **Frontend deploys via merge to `main`** (`.github/workflows/deploy.yml`). Do not deploy the frontend from a dev machine with a command-line build and sync. `src/assets/images/` is gitignored (~643 MB of WordPress images), and a command-line sync uploads it to `pmst-prod-frontend`, which holds ~46 files / 1.3 MB. Step order and the CloudFront lookup fix: `pmst-development-workflow.md` Part 11.
 4. Invoke each Lambda once so **Flyway** creates schemas (`pmstdb` app tables + `tk_` ticketing tables).
 
 ## Phase 5 — Data Migration (content + follows + comments)

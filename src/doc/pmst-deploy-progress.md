@@ -3,7 +3,7 @@
 > Resume file for the straight-to-prod AWS migration. Companion to
 > `.windsurf/workflows/pmst-production-deployment.md` (runbook) and
 > `.windsurf/workflows/pmst-development-workflow.md`.
-> Last updated: **2026-10-03 — login cutover + role authorization + user management.**
+> Last updated: **2026-11-21 — AdSense ad slot, ads.txt, privacy advertising section, and frontend deploy-order fixes. ALL UNCOMMITTED, NOT DEPLOYED.** (Prior: 2026-10-03 — login cutover + role authorization + user management.)
 > The site is LIVE on AWS and is now a working authenticated CMS.
 >
 > Current state (end of 2026-10-03): **production is a working authenticated CMS at v2.1.0.**
@@ -160,6 +160,52 @@ migration window. Unverified as of this audit.
 - Built prod bundle, synced `dist/pmst-angular-ui/browser` to `s3://pmst-prod-frontend`, and invalidated CloudFront `ECN0HO6STY22O`.
 - Added `youtube_api_key` to `secrets.auto.tfvars` and ran `terraform apply -target="module.lambda"` to inject `PMST_YT_API_KEY` into `pmst-prod-pmst-api-service` and `pmst-prod-ticketing-service`.
 - Smoke tests: CloudFront `card.webp`/`hero.webp` 200 image/webp; API `/articles` returns `imageKey`; API `/youtube/playlists` returns 3 videos.
+
+---
+
+# Session Record — 2026-11-21
+
+**Uncommitted and NOT deployed.** Nothing in this section is live in prod. Work is on
+`docs/post-launch-audit` in `pmstmigrate`, not pushed. Prod still serves the command-line
+build from 2026-11-19 06:44, built from `d7fe069`.
+
+## Scope
+
+Google AdSense ad slot, `ads.txt` (was returning index.html), a privacy-policy
+"Advertising" section, favicon and placeholder image fixes, and the frontend deploy
+pipeline (`.github/workflows/deploy.yml`). The T-item queue is **unchanged** in this record.
+
+## What changed (uncommitted)
+
+| Area | Change |
+|---|---|
+| **AdSense** | New `shared/components/ad-slot/` (`pmst-ad-slot`). Renders `<ins class="adsbygoogle">` and calls `adsbygoogle.push({})` in `ngAfterViewInit`. Renders nothing when `adsenseClient` is empty. news-detail uses two slots (top and bottom). The old `[innerHTML]` script never executed, so it never showed an ad. Loader script in `src/index.html` `<head>`. HTML snippet, not AMP. |
+| **Config** | `adsenseClient` added to `environment*.ts` and `deploy/environments.yaml` (prod `ca-pub-8768534328781288`, test empty). |
+| **ads.txt** | `src/ads.txt` (`google.com, pub-8768534328781288, DIRECT, f08c47fec0942fa0`), added to `angular.json` assets. Before this, `/ads.txt` returned index.html via the CloudFront 404→index.html fallback. |
+| **Privacy** | New "Advertising" section (AdSense cookies; opt-out at adssettings.google.com and aboutads.info). |
+| **Images** | image-url-mapper fallback changed from `/assets/images/placeholder.jpg` (never existed; returned HTML live) to `/assets/placeholder.svg`, committed outside the gitignored `src/assets/images/`. `src/favicon.svg` added (brand red `#fe5252`, white "P"), linked first in index.html with `favicon.ico` as alternate. `favicon.ico` is 0 bytes, so prod had no tab icon. |
+| **Pipeline** | `deploy.yml`: env-file generator emits `adsenseClient`. CloudFront lookup fixed: it read `Origins.Items[0]` (prod first origin is `pmst-prod-media`), so the lookup returned None and invalidation was **silently skipped**. Now matches any origin. Sync `--delete` removed from the first sync, which could blank the site mid-deploy. New order is in the workflow doc, Part 11. |
+
+## Validation evidence
+
+- Clean-checkout local build of the frontend.
+- `aws s3 sync --dryrun` against `pmst-prod-frontend` (dry run only, nothing uploaded).
+- Checked against the workflow text: step order, `ads.txt` and logo cp flags, and the CloudFront query.
+
+## Not verified
+
+- **Whether the GitHub workflow `deploy.yml` has ever run successfully.** The gh CLI is not authenticated, so no run history was checked.
+- **Real ad rendering in prod.** AdSense approval and `ads.txt` crawl status are not confirmed.
+- **Live `/ads.txt` response** after deploy. Not checked.
+- **Favicon and placeholder** on the live site. Not checked.
+- **Privacy page copy** against the real AdSense cookie list. Not reviewed by anyone.
+
+## Deploy decision
+
+Deploy via **merge to `main`** (the pipeline), not the command line. A command-line build
+from a dev machine copies the ~643 MB gitignored `src/assets/images` into `dist` and
+uploads it to the frontend bucket. The prod bucket holds about 46 files, 1.3 MB. Recorded
+in `.windsurf/rules.md` §6 and `pmst-production-deployment.md` Phase 4.
 
 ---
 

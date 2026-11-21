@@ -1652,6 +1652,12 @@ mvn test</code></pre>
                             In Progress
                         </h3>
                         <div class="space-y-2" id="inProgressColumn">
+                            <div class="kanban-card bg-white p-3 rounded-lg shadow" data-component="ad-slot" data-status="in-progress">
+                                <div class="font-medium text-sm">AdSlotComponent (<code>pmst-ad-slot</code>)</div>
+                                <div class="text-xs text-gray-500">shared/components/ad-slot/</div>
+                                <div class="mt-1 flex gap-1 flex-wrap"><span class="text-xs bg-yellow-100 text-yellow-700 px-1.5 rounded">AdSense</span><span class="text-xs bg-yellow-100 text-yellow-700 px-1.5 rounded">pending deploy</span></div>
+                                <div class="mt-1 text-xs text-yellow-700">🟡 Built, uncommitted. Renders nothing when <code>adsenseClient</code> is empty (localhost/TEST). Top and bottom slots on news-detail. <code>ads.txt</code> + privacy "Advertising" section included. Not verified live.</div>
+                            </div>
                         </div>
                     </div>
 
@@ -4040,6 +4046,18 @@ Protected (writes, /auth/me, /users/**): COGNITO_USER_POOLS</div>
                 </div>
             </div>
 
+            <!-- Frontend deploy fixes — pending deploy (2026-11-21) -->
+            <div class="bg-yellow-50 border border-yellow-200 rounded-xl p-5 mb-6">
+                <h3 class="font-bold text-yellow-800 mb-2 flex items-center gap-2"><i data-lucide="clock" class="w-5 h-5"></i> Frontend Deploy Fixes — 🟡 Pending Deploy</h3>
+                <p class="text-xs text-gray-600 mb-3">Uncommitted on <code>docs/post-launch-audit</code> (pmstmigrate). Not deployed. Prod still serves the 2026-11-19 command-line build from <code>d7fe069</code>.</p>
+                <ul class="text-xs text-gray-700 space-y-1 mb-3">
+                    <li><b>Bug fixed:</b> CloudFront lookup read <code>Origins.Items[0]</code>, which is <code>pmst-prod-media</code> on <code>ECN0HO6STY22O</code>. The lookup returned None and invalidation was silently skipped. Now matches any origin.</li>
+                    <li><b>Bug fixed:</b> first sync used <code>--delete</code> and could blank the site mid-deploy. Now: sync (no delete) → html no-cache → ads.txt → logo → invalidate and wait → <code>sync --delete</code> last.</li>
+                    <li><b>Also in this change:</b> <code>adsenseClient</code> emitted into the env file (CI build fails without it); <code>ads.txt</code> in <code>angular.json</code> assets.</li>
+                </ul>
+                <p class="text-xs text-yellow-800"><b>Not verified:</b> whether this GitHub workflow has ever run successfully (gh CLI not authenticated). Validation so far: clean-checkout local build plus <code>aws s3 sync --dryrun</code> against <code>pmst-prod-frontend</code>.</p>
+            </div>
+
             <!-- Pipeline pass history -->
             <div class="bg-emerald-50 border border-emerald-200 rounded-xl p-5 mb-6">
                 <h3 class="font-bold text-emerald-800 mb-3 flex items-center gap-2"><i data-lucide="check-circle" class="w-5 h-5"></i> Pipeline Pass History</h3>
@@ -4472,7 +4490,7 @@ Protected (writes, /auth/me, /users/**): COGNITO_USER_POOLS</div>
         document.addEventListener('DOMContentLoaded', function() {
             lucide.createIcons();
             mermaid.initialize({ startOnLoad: false });
-            document.getElementById('lastUpdated').textContent = new Date('2026-07-13').toLocaleDateString('en-US', { 
+            document.getElementById('lastUpdated').textContent = new Date('2026-11-21').toLocaleDateString('en-US', { 
                 year: 'numeric', month: 'short', day: 'numeric' 
             });
             loadProgress();
